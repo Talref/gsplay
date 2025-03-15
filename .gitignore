@@ -1,2 +1,7 @@
-.env
+# Backend
 node_modules/
+.env
+
+# Frontend
+gsplay-frontend/node_modules/
+gsplay-frontend/dist/
