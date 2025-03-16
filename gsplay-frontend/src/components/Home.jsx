@@ -1,10 +1,12 @@
 // src/components/Home.jsx
 import React, { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { Button, Box, Typography, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import Login from './Login'; // Import the Login component
 import Signup from './Signup'; // Import the Signup component
 
 const Home = () => {
+  const { user, logout } = useAuth();
   const [isLoginOpen, setIsLoginOpen] = useState(false); // State for Login dialog
   const [isSignupOpen, setIsSignupOpen] = useState(false); // State for Signup dialog
 
@@ -41,28 +43,46 @@ const Home = () => {
       }}
     >
       <Typography variant="h4" gutterBottom>
-        Welcome to GSplay
+        Welcome to GSplay, {user?.name || 'Guest'}!
       </Typography>
 
       {/* Login Button */}
-      <Button
-        variant="contained"
-        color="primary"
-        onClick={handleOpenLogin}
-        sx={{ mb: 2, borderRadius: '10px' }} // Smaller radius
-      >
-        Login
-      </Button>
+      {!user && (
+        <Box sx={{ mb: 4 }}>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleOpenLogin}
+            sx={{ mb: 2, borderRadius: '10px' }} // Smaller radius
+          >
+            Login
+          </Button>
+        </Box>
+      )}
 
       {/* Signup Button */}
-      <Button
-        variant="contained"
-        color="secondary"
-        onClick={handleOpenSignup}
-        sx={{ borderRadius: '10px' }} // Smaller radius
-      >
-        Signup
-      </Button>
+      {!user && (
+        <Button
+          variant="contained"
+          color="secondary"
+          onClick={handleOpenSignup}
+          sx={{ borderRadius: '10px' }} // Smaller radius
+        >
+          Signup
+        </Button>
+      )}
+
+      {/* Logout Button */}
+      {user && (
+        <Button
+          variant="contained"
+          color="error"
+          onClick={logout}
+          sx={{ mt: 2, borderRadius: '10px' }} // Smaller radius
+        >
+          Logout
+        </Button>
+      )}
 
       {/* Login Dialog */}
       <Dialog open={isLoginOpen} onClose={handleCloseLogin}>

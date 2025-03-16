@@ -43,6 +43,20 @@ router.post('/logout', authMiddleware, (req, res) => {
   res.send({ message: 'Logged out successfully' });
 });
 
+// Fetch current user data
+router.get('/me', authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password'); // Exclude password
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' }); // Send JSON
+    }
+    console.log('User data sent to frontend:', user); // Log the user data
+    res.json(user); // Send user data as JSON
+  } catch (error) {
+    res.status(400).json({ error: error.message }); // Send JSON
+  }
+});
+
 // Delete account
 router.delete('/delete', authMiddleware, async (req, res) => {
   try {

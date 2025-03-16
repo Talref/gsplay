@@ -1,7 +1,7 @@
 // src/components/Login.jsx
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Button, TextField, Box } from '@mui/material';
+import { Button, TextField, Box, Typography } from '@mui/material';
 
 const Login = ({ onSuccess }) => {
   const [credentials, setCredentials] = useState({ name: '', password: '' });
@@ -19,6 +19,7 @@ const Login = ({ onSuccess }) => {
 
   return (
     <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
+      <Typography variant="h4">Login</Typography>
       <TextField
         label="Username"
         value={credentials.name}
@@ -34,7 +35,7 @@ const Login = ({ onSuccess }) => {
         fullWidth
         margin="normal"
       />
-      <Button type="submit" variant="contained" color="primary" sx={{ mt: 2, borderRadius: '10px' }}>
+      <Button type="submit" variant="contained" color="primary" sx={{ mt: 2 }}>
         Login
       </Button>
     </Box>
