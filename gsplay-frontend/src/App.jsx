@@ -1,35 +1,60 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+// src/App.jsx
+import React from 'react';
+import { AppBar, Toolbar, Typography, Button, Container, Box, Link } from '@mui/material';
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100vh', // Full viewport height
+        backgroundColor: 'background.default', // Dark background
+        color: 'text.primary', // White text
+      }}
+    >
+      {/* Navbar */}
+      <AppBar position="static" sx={{ backgroundColor: 'primary.main' }}>
+        <Toolbar>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            GSplay
+          </Typography>
+          <Link href="#" color="inherit" sx={{ mx: 2 }}>Home</Link>
+          <Link href="#" color="inherit" sx={{ mx: 2 }}>About</Link>
+          <Link href="#" color="inherit" sx={{ mx: 2 }}>Contact</Link>
+        </Toolbar>
+      </AppBar>
+
+      {/* Body */}
+      <Container maxWidth="md" sx={{ py: 4, flex: 1 }}>
+        <Typography variant="h2" gutterBottom sx={{ color: 'secondary.main' }}>
+          Welcome to GSplay
+        </Typography>
+        <Typography variant="body1" paragraph>
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+        </Typography>
+        <Button variant="contained" color="secondary">
+          Example Button
+        </Button>
+      </Container>
+
+      {/* Footer */}
+      <Box
+        component="footer"
+        sx={{
+          py: 3,
+          px: 2,
+          backgroundColor: 'primary.main',
+          color: 'text.primary',
+          textAlign: 'center',
+        }}
+      >
+        <Typography variant="body1">
+          Made with <span role="img" aria-label="heart">❤️</span> and AI
+        </Typography>
+      </Box>
+    </Box>
+  );
 }
 
-export default App
+export default App;
