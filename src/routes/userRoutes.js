@@ -110,4 +110,17 @@ router.post('/refresh-games', authMiddleware, async (req, res) => {
   }
 });
 
+// Fetch user's game list
+router.get('/games', authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('games'); // Fetch only the games field
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json({ games: user.games }); // Return the games array
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
 module.exports = router;

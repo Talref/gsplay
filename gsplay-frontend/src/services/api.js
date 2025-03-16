@@ -60,6 +60,15 @@ export const refreshGames = async () => {
   }
 };
 
+export const fetchGames = async () => {
+  try {
+    const response = await api.get('/games');
+    return response.data.games; // Return the games array
+  } catch (error) {
+    throw error.response.data;
+  }
+};
+
 export const deleteAccount = async () => {
   try {
     const response = await api.delete('/delete');
