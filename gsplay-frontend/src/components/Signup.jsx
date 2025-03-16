@@ -1,9 +1,9 @@
-// src/components/Signup.jsx
 import React, { useState } from 'react';
 import { signup } from '../services/api';
-import { Button, TextField, Box } from '@mui/material';
+import { Button, TextField, Box, useTheme } from '@mui/material';
 
 const Signup = ({ onSuccess }) => {
+  const theme = useTheme();
   const [userData, setUserData] = useState({ name: '', password: '', isAdmin: false });
 
   const handleSubmit = async (e) => {
@@ -11,7 +11,7 @@ const Signup = ({ onSuccess }) => {
     try {
       await signup(userData);
       alert('Signup successful! Please login.');
-      onSuccess(); // Close the dialog after successful signup
+      onSuccess();
     } catch (error) {
       alert(error.error || 'Signup failed');
     }
@@ -34,7 +34,16 @@ const Signup = ({ onSuccess }) => {
         fullWidth
         margin="normal"
       />
-      <Button type="submit" variant="contained" color="primary" sx={{ mt: 2, borderRadius: '10px' }}>
+      <Button
+        type="submit"
+        variant="contained"
+        sx={{
+          mt: 2,
+          borderRadius: '10px',
+          backgroundColor: theme.palette.primary.main, 
+          color: theme.palette.secondary.main, 
+        }}
+      >
         Signup
       </Button>
     </Box>

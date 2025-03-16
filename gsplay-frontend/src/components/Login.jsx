@@ -1,9 +1,9 @@
-// src/components/Login.jsx
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Button, TextField, Box, Typography } from '@mui/material';
+import { Button, TextField, Box, Typography, useTheme } from '@mui/material'; // Add useTheme
 
 const Login = ({ onSuccess }) => {
+  const theme = useTheme(); // Access the theme
   const [credentials, setCredentials] = useState({ name: '', password: '' });
   const { login } = useAuth();
 
@@ -11,7 +11,7 @@ const Login = ({ onSuccess }) => {
     e.preventDefault();
     try {
       await login(credentials);
-      onSuccess(); // Close the dialog after successful login
+      onSuccess();
     } catch (error) {
       alert(error.error || 'Login failed');
     }
@@ -35,7 +35,15 @@ const Login = ({ onSuccess }) => {
         fullWidth
         margin="normal"
       />
-      <Button type="submit" variant="contained" color="primary" sx={{ mt: 2 }}>
+      <Button
+        type="submit"
+        variant="contained"
+        sx={{
+          mt: 2,
+          backgroundColor: theme.palette.primary.main,
+          color: theme.palette.secondary.main,
+        }}
+      >
         Login
       </Button>
     </Box>

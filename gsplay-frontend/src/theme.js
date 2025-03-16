@@ -3,27 +3,27 @@ import { createTheme } from '@mui/material/styles';
 
 const theme = createTheme({
   palette: {
-    mode: 'dark', // Enable dark mode
+    mode: 'dark',
     primary: {
-      main: '#001f3f', // Navy blue
+      main: '#001f3f', 
     },
     secondary: {
-      main: '#7fffd4', // Aquamarine
+      main: '#7fffd4', 
     },
     background: {
-      default: '#001a4d', // Dark background
-      paper: '#002b80', // Slightly lighter for cards/containers
+      default: '#001a4d', 
+      paper: '#002b80', 
     },
     text: {
-      primary: '#b3ffe6', // Lighter text
-      secondary: '#7fffd4', // Aquamarine text
+      primary: '#b3ffe6', 
+      secondary: '#7fffd4', 
     },
   },
   components: {
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: '5px', // Smaller radius for buttons
+          borderRadius: '5px', 
         },
       },
     },
