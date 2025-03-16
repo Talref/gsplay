@@ -37,9 +37,9 @@ const Home = () => {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        minHeight: '100vh', // Full viewport height
-        backgroundColor: 'background.default', // Dark background
-        color: 'text.primary', // White text
+        minHeight: '100vh', 
+        backgroundColor: 'background.default', 
+        color: 'text.primary',
       }}
     >
       <Typography variant="h4" gutterBottom>
