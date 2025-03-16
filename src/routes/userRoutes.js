@@ -1,5 +1,6 @@
 // src/routes/userRoutes.js
 const express = require('express');
+const jwt = require('jsonwebtoken'); // Ensure this is correctly imported
 const User = require('../models/User');
 const router = express.Router();
 const axios = require('axios');
@@ -32,6 +33,7 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
     res.send({ message: 'Logged in successfully', token });
   } catch (error) {
+    console.error('Login error:', error); // Log the error for debugging
     res.status(400).send({ error: error.message });
   }
 });

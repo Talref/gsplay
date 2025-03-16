@@ -34,7 +34,7 @@ const Signup = ({ onSuccess }) => {
         fullWidth
         margin="normal"
       />
-      <Button type="submit" variant="contained" color="primary" sx={{ mt: 2 }}>
+      <Button type="submit" variant="contained" color="primary" sx={{ mt: 2, borderRadius: '10px' }}>
         Signup
       </Button>
     </Box>

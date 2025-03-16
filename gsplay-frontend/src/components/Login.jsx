@@ -1,16 +1,17 @@
 // src/components/Login.jsx
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Button, TextField, Box, Typography } from '@mui/material';
+import { Button, TextField, Box } from '@mui/material';
 
-const Login = () => {
+const Login = ({ onSuccess }) => {
   const [credentials, setCredentials] = useState({ name: '', password: '' });
-  const { login } = useAuth(); // Use the renamed login function
+  const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await login(credentials); // Call the login function from AuthContext
+      await login(credentials);
+      onSuccess(); // Close the dialog after successful login
     } catch (error) {
       alert(error.error || 'Login failed');
     }
@@ -18,7 +19,6 @@ const Login = () => {
 
   return (
     <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
-      <Typography variant="h4">Login</Typography>
       <TextField
         label="Username"
         value={credentials.name}
@@ -34,7 +34,7 @@ const Login = () => {
         fullWidth
         margin="normal"
       />
-      <Button type="submit" variant="contained" color="primary" sx={{ mt: 2 }}>
+      <Button type="submit" variant="contained" color="primary" sx={{ mt: 2, borderRadius: '10px' }}>
         Login
       </Button>
     </Box>
