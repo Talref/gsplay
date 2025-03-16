@@ -78,3 +78,12 @@ export const deleteAccount = async () => {
     throw error.response.data;
   }
 };
+
+export const fetchAllGames = async () => {
+  try {
+    const response = await api.get('/games/all');
+    return response.data; // Return the aggregated games list
+  } catch (error) {
+    throw error.response.data;
+  }
+};

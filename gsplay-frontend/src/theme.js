@@ -85,6 +85,7 @@ const theme = createTheme({
     MuiBox: {
       styleOverrides: {
         root: {
+
           display: 'flex',
           flexDirection: 'column',
           minHeight: '100vh',

@@ -123,4 +123,34 @@ router.get('/games', authMiddleware, async (req, res) => {
   }
 });
 
+// Fetch all games owned by users, aggregated and sorted by ownership count
+router.get('/games/all', async (req, res) => {
+  try {
+    // Aggregate games and their owners
+    const games = await User.aggregate([
+      { $unwind: '$games' }, // Flatten the games array
+      {
+        $group: {
+          _id: '$games.steamId', // Group by Steam ID
+          name: { $first: '$games.name' }, // Get the game name
+          users: { $addToSet: '$name' }, // Collect unique user names
+        },
+      },
+      {
+        $project: {
+          _id: 0, // Exclude the default _id field
+          name: 1, // Include the game name
+          steamId: '$_id', // Rename _id to steamId
+          users: 1, // Include the users array
+        },
+      },
+      { $sort: { users: -1 } }, // Sort by number of users (descending)
+    ]);
+
+    res.json(games); // Send the aggregated and sorted list
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
