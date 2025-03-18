@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, useTheme, List, ListItem, ListItemText } from '@mui/material';
+import { Box, Typography, useTheme, List, ListItem, ListItemText, Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import { fetchAllGames } from '../services/api'; // Import the fetchAllGames function
@@ -7,6 +7,8 @@ import { fetchAllGames } from '../services/api'; // Import the fetchAllGames fun
 const Home = () => {
   const theme = useTheme();
   const [games, setGames] = useState([]); // State to store the aggregated games list
+  const [selectedGame, setSelectedGame] = useState(null); // State to store the selected game for the popup
+  const [isPopupOpen, setIsPopupOpen] = useState(false); // State to control the popup visibility
 
   // Fetch the aggregated games list on component mount
   useEffect(() => {
@@ -34,6 +36,18 @@ const Home = () => {
       return a.name.localeCompare(b.name);
     });
 
+  // Handle clicking on a game
+  const handleGameClick = (game) => {
+    setSelectedGame(game); // Set the selected game
+    setIsPopupOpen(true); // Open the popup
+  };
+
+  // Handle closing the popup
+  const handleClosePopup = () => {
+    setIsPopupOpen(false);
+    setSelectedGame(null); // Clear the selected game
+  };
+
   return (
     <Box sx={theme.components.MuiBox.styleOverrides.root}>
       {/* Navbar at the top */}
@@ -57,6 +71,7 @@ const Home = () => {
                     backgroundColor: theme.palette.primary.light, // Highlight on hover
                   },
                 }}
+                onClick={() => handleGameClick(game)} // Handle clicking on the game
               >
                 {/* Game name */}
                 <ListItemText
@@ -87,6 +102,45 @@ const Home = () => {
 
       {/* Footer */}
       <Footer />
+
+      {/* Popup for game details */}
+        <Dialog
+          open={isPopupOpen}
+          onClose={handleClosePopup}
+          PaperProps={{
+            sx: { minWidth: '40%' }, // Set minWidth for the dialog content
+          }}
+        >
+        <DialogTitle>{selectedGame?.name}</DialogTitle>
+        <DialogContent>
+          {/* Steam Link */}
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            <a
+              href={`https://store.steampowered.com/app/${selectedGame?.steamId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: theme.palette.secondary.main }}
+            >
+              View on Steam
+            </a>
+          </Typography>
+
+          {/* List of Owners */}
+          <Typography variant="h6" sx={{ mb: 1 }}>
+            Owners:
+          </Typography>
+          <List>
+            {selectedGame?.users.map((user, index) => (
+              <ListItem key={index}>
+                <ListItemText primary={user} />
+              </ListItem>
+            ))}
+          </List>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClosePopup}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
