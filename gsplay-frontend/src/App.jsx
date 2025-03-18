@@ -6,6 +6,8 @@ import Login from './components/Login';
 import Signup from './components/Signup';
 import ListByUsers from './components/ListByUsers';
 import YourLibrary from './components/YourLibrary';
+import AdminPage from './components/AdminPage';
+import Unauthorized from './components/Unauthorized';
 
 function App() {
   return (
@@ -16,6 +18,8 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/list-by-users" element={<ListByUsers />} />
         <Route path="/library" element={<YourLibrary />} />
+        <Route path="/admin" element={<AdminPage />} />
+        <Route path="/unauthorized" element={<Unauthorized />} />
       </Routes>
     </Router>
   );

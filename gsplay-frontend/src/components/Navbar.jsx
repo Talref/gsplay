@@ -51,6 +51,12 @@ const Navbar = () => {
           </Button>
 
           <Box sx={{ flexGrow: 1 }} />
+          
+          {user?.isAdmin && (
+            <Button component={Link} to="/admin" variant="default" sx={{ ml: 2 }}>
+              Admin
+            </Button>
+          )}
 
           {user ? (
             <Button variant="warning" onClick={logout}>
