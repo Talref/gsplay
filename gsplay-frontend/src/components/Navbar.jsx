@@ -41,6 +41,10 @@ const Navbar = () => {
               GSplay
             </Typography>
           </IconButton>
+          
+          <Button component={Link} to="/list-by-users" variant="default" sx={{ ml: 2 }}>
+            List By Users
+          </Button>
 
           <Button component={Link} to="/library" variant="default" sx={{ ml: 2 }}>
             Your Library

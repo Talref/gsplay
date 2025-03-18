@@ -1,4 +1,3 @@
-// src/context/AuthContext.js
 import React, { createContext, useState, useEffect } from 'react';
 import { login as apiLogin } from '../services/api';
 
@@ -11,49 +10,46 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      fetchUserData(token); // Fetch user data if token exists
+      fetchUserData(token);
     }
   }, []);
 
+  // Fetch user data from the server
   const fetchUserData = async (token) => {
     try {
-      const response = await fetch('/api/users/me', { // Use relative path
+      const response = await fetch('/api/users/me', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-      const rawResponse = await response.text(); // Log the raw response
-      console.log('Raw response:', rawResponse);
       if (response.ok) {
-        const userData = JSON.parse(rawResponse); // Parse the response as JSON
-        console.log('User data:', userData); // Log the user data
-        setUser(userData); // Update user state
+        const userData = await response.json();
+        setUser(userData);
       } else {
-        localStorage.removeItem('token'); // Remove invalid token
+        localStorage.removeItem('token');
       }
     } catch (error) {
       console.error('Failed to fetch user data:', error);
-      localStorage.removeItem('token'); // Remove invalid token
+      localStorage.removeItem('token');
     }
   };
 
   // Login function
   const loginUser = async (credentials) => {
     try {
-      const data = await apiLogin(credentials); // Call the API login function
-      localStorage.setItem('token', data.token); // Save the token to localStorage
-      console.log('Token saved to localStorage:', data.token); // Log the token
-      await fetchUserData(data.token); // Fetch user data
+      const data = await apiLogin(credentials);
+      localStorage.setItem('token', data.token);
+      await fetchUserData(data.token);
     } catch (error) {
       console.error('Login failed:', error);
-      throw error; // Propagate the error to the caller
+      throw error;
     }
   };
 
   // Logout function
   const logoutUser = () => {
-    localStorage.removeItem('token'); // Remove the token
-    setUser(null); // Clear the user state
+    localStorage.removeItem('token');
+    setUser(null);
   };
 
   return (
