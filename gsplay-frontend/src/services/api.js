@@ -51,6 +51,36 @@ export const setSteamId = async (steamId) => {
   }
 };
 
+// Fetch all users (admin only)
+export const fetchAllUsers = async () => {
+  try {
+    const response = await api.get('/users');
+    return response.data;
+  } catch (error) {
+    throw error.response.data;
+  }
+};
+
+// Delete a user (admin only)
+export const deleteUser = async (userId) => {
+  try {
+    const response = await api.delete(`/users/${userId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response.data;
+  }
+};
+
+export const deleteAccount = async () => {
+  try {
+    const response = await api.delete('/delete');
+    localStorage.removeItem('token'); // Remove token after account deletion
+    return response.data;
+  } catch (error) {
+    throw error.response.data;
+  }
+};
+
 export const refreshGames = async () => {
   try {
     const response = await api.post('/refresh-games');
@@ -64,16 +94,6 @@ export const fetchGames = async () => {
   try {
     const response = await api.get('/games');
     return response.data.games; // Return the games array
-  } catch (error) {
-    throw error.response.data;
-  }
-};
-
-export const deleteAccount = async () => {
-  try {
-    const response = await api.delete('/delete');
-    localStorage.removeItem('token'); // Remove token after account deletion
-    return response.data;
   } catch (error) {
     throw error.response.data;
   }

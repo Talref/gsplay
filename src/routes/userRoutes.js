@@ -18,7 +18,7 @@ router.post('/signup', async (req, res) => {
   }
 });
 
-// Login
+// login
 router.post('/login', async (req, res) => {
   try {
     const { name, password } = req.body;
@@ -30,10 +30,17 @@ router.post('/login', async (req, res) => {
     if (!isMatch) {
       return res.status(400).send({ error: 'Invalid credentials' });
     }
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+    // Include isAdmin in the token payload
+    const token = jwt.sign(
+      { id: user._id, isAdmin: user.isAdmin }, // Include isAdmin
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
     res.send({ message: 'Logged in successfully', token });
   } catch (error) {
-    console.error('Login error:', error); // Log the error for debugging
+    console.error('Login error:', error);
     res.status(400).send({ error: error.message });
   }
 });
@@ -57,6 +64,20 @@ router.get('/me', authMiddleware, async (req, res) => {
   }
 });
 
+// Fetch all users (admin only)
+router.get('/users', authMiddleware, async (req, res) => {
+  if (!req.user.isAdmin) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const users = await User.find({}).select('-password'); // Exclude passwords
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Delete account
 router.delete('/delete', authMiddleware, async (req, res) => {
   try {
@@ -68,6 +89,28 @@ router.delete('/delete', authMiddleware, async (req, res) => {
     res.send({ message: 'Account deleted successfully' });
   } catch (error) {
     res.status(400).send({ error: error.message });
+  }
+});
+
+// Delete a user (admin only)
+router.delete('/users/:id', authMiddleware, async (req, res) => {
+  if (!req.user.isAdmin) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    // Prevent admin from deleting themselves
+    if (req.user.id === req.params.id) {
+      return res.status(403).json({ error: 'You cannot delete your own account.' });
+    }
+
+    const user = await User.findByIdAndDelete(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 

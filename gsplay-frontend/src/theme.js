@@ -80,12 +80,14 @@ const theme = createTheme({
         h6: {
           color: '#7fffd4',
         },
+        body1: {
+          color: '#7fffd4', // Use secondary text color for body1
+        },
       },
     },
     MuiBox: {
       styleOverrides: {
         root: {
-
           display: 'flex',
           flexDirection: 'column',
           minHeight: '100vh',
@@ -93,17 +95,16 @@ const theme = createTheme({
         },
       },
     },
-    // Add styling for the games list
     MuiListItem: {
       styleOverrides: {
         root: {
-          backgroundColor: '#00284d', // Match the default button color
-          borderRadius: '5px', // Rounded corners
-          marginBottom: '8px', // Space between items
-          transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out', // Smooth hover animation
+          backgroundColor: '#00284d',
+          borderRadius: '5px',
+          marginBottom: '8px',
+          transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
           '&:hover': {
-            transform: 'translateY(-2px)', // Slight lift on hover
-            boxShadow: '0 4px 8px rgba(127, 255, 212, 0.2)', // Glow effect with secondary color
+            transform: 'translateY(-2px)',
+            boxShadow: '0 4px 8px rgba(127, 255, 212, 0.2)',
           },
         },
       },
@@ -111,8 +112,8 @@ const theme = createTheme({
     MuiListItemText: {
       styleOverrides: {
         primary: {
-          color: '#7fffd4', // Secondary color for game names
-          fontWeight: '500', // Slightly bold
+          color: '#7fffd4',
+          fontWeight: '500',
         },
       },
     },

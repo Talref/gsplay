@@ -53,7 +53,7 @@ const Navbar = () => {
           <Box sx={{ flexGrow: 1 }} />
           
           {user?.isAdmin && (
-            <Button component={Link} to="/admin" variant="default" sx={{ ml: 2 }}>
+            <Button component={Link} to="/admin" variant="default" sx={{ mr: 2 }}>
               Admin
             </Button>
           )}
