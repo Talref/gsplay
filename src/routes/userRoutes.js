@@ -1,13 +1,14 @@
 // src/routes/userRoutes.js
 const express = require('express');
-const jwt = require('jsonwebtoken'); // Ensure this is correctly imported
+const jwt = require('jsonwebtoken'); 
 const User = require('../models/User');
 const router = express.Router();
 const axios = require('axios');
 const authMiddleware = require('../middleware/auth'); // For protecting routes
+const authLimiter = require('../middleware/rateLimiter'); // For rate limiting
 
 // Signup
-router.post('/signup', async (req, res) => {
+router.post('/signup', authLimiter, async (req, res) => {
   try {
     const { name, password, isAdmin } = req.body;
 
@@ -26,40 +27,61 @@ router.post('/signup', async (req, res) => {
   }
 });
 
-// login
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   try {
     const { name, password } = req.body;
     const user = await User.findOne({ name });
-    if (!user) {
-      return res.status(400).send({ error: 'Invalid credentials' });
-    }
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(400).send({ error: 'Invalid credentials' });
+    
+    if (!user || !(await user.comparePassword(password))) {
+      return res.status(400).json({ error: 'Invalid credentials' }); // Consistent JSON response
     }
 
-    // Include isAdmin in the token payload
-    const token = jwt.sign(
-      { id: user._id, isAdmin: user.isAdmin }, // Include isAdmin
+    // Access Token (15min expiry)
+    const accessToken = jwt.sign(
+      { id: user._id, isAdmin: user.isAdmin },
       process.env.JWT_SECRET,
-      { expiresIn: '1h' }
+      { expiresIn: '15m' }
     );
 
-    res.send({ message: 'Logged in successfully', token });
+    // Refresh Token (7d expiry)
+    const refreshToken = jwt.sign(
+      { id: user._id },
+      process.env.JWT_REFRESH_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    // Set httpOnly cookies
+    res.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      maxAge: 15 * 60 * 1000 // 15 minutes
+    });
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    res.json({ message: 'Logged in successfully' }); // No token in response body
+
   } catch (error) {
     console.error('Login error:', error);
-    res.status(400).send({ error: error.message });
+    res.status(400).json({ error: error.message }); // Consistent JSON error
   }
 });
 
 // Logout (client-side: delete the token)
-router.post('/logout', authMiddleware, (req, res) => {
+router.post('/logout', (req, res) => {
+  res.clearCookie('accessToken');
+  res.clearCookie('refreshToken');
   res.send({ message: 'Logged out successfully' });
 });
 
 // Fetch current user data
-router.get('/me', authMiddleware, async (req, res) => {
+router.get('/users/me', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password'); // Exclude password
     if (!user) {
@@ -162,7 +184,7 @@ router.post('/refresh-games', authMiddleware, async (req, res) => {
 });
 
 // Fetch user's game list
-router.get('/games', authMiddleware, async (req, res) => {
+router.get('/user/games', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('games'); // Fetch only the games field
     if (!user) {
@@ -175,7 +197,7 @@ router.get('/games', authMiddleware, async (req, res) => {
 });
 
 // Fetch all games owned by users, aggregated and sorted by ownership count
-router.get('/games/all', async (req, res) => {
+router.get('/users/games/all', async (req, res) => {
   try {
     // Aggregate games and their owners
     const games = await User.aggregate([

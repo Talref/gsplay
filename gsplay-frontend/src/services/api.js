@@ -1,22 +1,11 @@
 // src/services/api.js
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:3000/api/users';
+const API_BASE_URL = '/api';
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Add a request interceptor to include the token in headers
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
+  baseURL: '/api', 
+  withCredentials: true, 
 });
 
 export const signup = async (userData) => {
@@ -30,16 +19,15 @@ export const signup = async (userData) => {
 
 export const login = async (credentials) => {
   try {
-    const response = await api.post('/login', credentials);
-    localStorage.setItem('token', response.data.token); // Save token to localStorage
-    return response.data;
+    const response = await api.post('/login', credentials); 
+    return response.data; 
   } catch (error) {
     throw error.response.data;
   }
 };
 
-export const logout = () => {
-  localStorage.removeItem('token'); // Remove token from localStorage
+export const logout = async () => {
+  await api.post('/logout'); 
 };
 
 export const setSteamId = async (steamId) => {
@@ -92,8 +80,8 @@ export const refreshGames = async () => {
 
 export const fetchGames = async () => {
   try {
-    const response = await api.get('/games');
-    return response.data.games; // Return the games array
+    const response = await api.get('/users/games');
+    return response.data.games;
   } catch (error) {
     throw error.response.data;
   }
@@ -101,8 +89,8 @@ export const fetchGames = async () => {
 
 export const fetchAllGames = async () => {
   try {
-    const response = await api.get('/games/all');
-    return response.data; // Return the aggregated games list
+    const response = await api.get('/users/games/all');
+    return response.data;
   } catch (error) {
     throw error.response.data;
   }
