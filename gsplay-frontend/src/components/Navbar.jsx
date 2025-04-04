@@ -46,9 +46,11 @@ const Navbar = () => {
             List By Users
           </Button>
 
-          <Button component={Link} to="/library" variant="default" sx={{ ml: 2 }}>
-            Your Library
-          </Button>
+          {user && (
+            <Button component={Link} to="/library" variant="default" sx={{ ml: 2 }}>
+              Your Library
+            </Button>
+          )}
 
           <Box sx={{ flexGrow: 1 }} />
           
