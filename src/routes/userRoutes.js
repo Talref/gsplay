@@ -10,6 +10,14 @@ const authMiddleware = require('../middleware/auth'); // For protecting routes
 router.post('/signup', async (req, res) => {
   try {
     const { name, password, isAdmin } = req.body;
+
+    // Check if the username already exists
+    const existingUser = await User.findOne({ name });
+    if (existingUser) {
+      return res.status(400).send({ error: 'Username already exists.' });
+    }
+
+    // Create a new user
     const user = new User({ name, password, isAdmin });
     await user.save();
     res.status(201).send({ message: 'User created successfully', user });
