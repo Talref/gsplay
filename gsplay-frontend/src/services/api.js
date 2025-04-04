@@ -80,7 +80,7 @@ export const refreshGames = async () => {
 
 export const fetchGames = async () => {
   try {
-    const response = await api.get('/users/games');
+    const response = await api.get('/user/games');
     return response.data.games;
   } catch (error) {
     throw error.response.data;
