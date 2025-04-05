@@ -6,34 +6,32 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true); // Add loading state
 
-  // Check for user on initial load
+  const fetchUserData = async () => {
+    setLoading(true); // Start loading
+    try {
+      const response = await fetch('/api/users/me', {
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+      } else {
+        setUser(null);
+      }
+    } catch (error) {
+      console.error('User fetch error:', error);
+      setUser(null);
+    } finally {
+      setLoading(false); // End loading
+    }
+  };
+
   useEffect(() => {
     fetchUserData();
   }, []);
-
-// Modify fetchUserData to handle public pages gracefully
-const fetchUserData = async () => {
-  try {
-    const response = await fetch('/api/users/me', {
-      credentials: 'include',
-    });
-    
-    if (response.status === 401) {
-      // Expected for public pages - user isn't logged in
-      setUser(null);
-      return;
-    }
-    
-    if (!response.ok) throw new Error('Failed to fetch user');
-    
-    const userData = await response.json();
-    setUser(userData);
-  } catch (error) {
-    console.error('User fetch error:', error);
-    setUser(null);
-  }
-};
 
   // Login function
   const loginUser = async (credentials) => {
@@ -58,7 +56,7 @@ const fetchUserData = async () => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login: loginUser, logout: logoutUser }}>
+    <AuthContext.Provider value={{ user, loading, login: loginUser, logout: logoutUser }}>
       {children}
     </AuthContext.Provider>
   );
