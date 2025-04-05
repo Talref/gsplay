@@ -1,1 +1,1 @@
-GS discord server Steam Helpee
+GS discord server Steam Helper
