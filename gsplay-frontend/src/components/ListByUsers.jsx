@@ -20,7 +20,9 @@ const ListByUsers = () => {
         setGames(gamesData);
 
         // Extract and sort all unique users
-        const allUsers = [...new Set(gamesData.flatMap((game) => game.users))].sort();
+        const allUsers = [...new Set(gamesData.flatMap((game) => game.users))].sort((a, b) =>
+          a.toLowerCase().localeCompare(b.toLowerCase())
+        );
         setUsers(allUsers);
       } catch (error) {
         console.error('Error fetching games:', error);
