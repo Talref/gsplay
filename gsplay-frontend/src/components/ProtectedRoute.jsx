@@ -1,22 +1,24 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import CircularProgress from '@mui/material/CircularProgress';
 
 const ProtectedRoute = ({ children, adminOnly = false }) => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) return <CircularProgress />;
 
   if (!user) {
-    // If the user is not logged in, redirect to the login page
-    return <Navigate to="/login" />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   if (adminOnly && !user.isAdmin) {
-    // If the route is admin-only and the user is not an admin, redirect to the unauthorized page
-    return <Navigate to="/unauthorized" />;
+    return <Navigate to="/unauthorized" replace />;
   }
 
-  // If the user is authorized, render the children
   return children;
 };
 
-export default ProtectedRoute;
+
+export default ProtectedRoute; 

@@ -12,24 +12,28 @@ export const AuthProvider = ({ children }) => {
     fetchUserData();
   }, []);
 
-  // Fetch user data (no token needed - cookies are automatic)
-  const fetchUserData = async () => {
-    try {
-      const response = await fetch('/api/users/me', {
-        credentials: 'include', // Required for cookies
-      });
-      
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
-      } else {
-        setUser(null); // Clear user if request fails
-      }
-    } catch (error) {
-      console.error('Failed to fetch user data:', error);
+// Modify fetchUserData to handle public pages gracefully
+const fetchUserData = async () => {
+  try {
+    const response = await fetch('/api/users/me', {
+      credentials: 'include',
+    });
+    
+    if (response.status === 401) {
+      // Expected for public pages - user isn't logged in
       setUser(null);
+      return;
     }
-  };
+    
+    if (!response.ok) throw new Error('Failed to fetch user');
+    
+    const userData = await response.json();
+    setUser(userData);
+  } catch (error) {
+    console.error('User fetch error:', error);
+    setUser(null);
+  }
+};
 
   // Login function
   const loginUser = async (credentials) => {
@@ -45,7 +49,7 @@ export const AuthProvider = ({ children }) => {
   // Logout function
   const logoutUser = async () => {
     try {
-      await apiLogout(); // Clears cookies via backend
+      await apiLogout();
       setUser(null);
     } catch (error) {
       console.error('Logout failed:', error);
