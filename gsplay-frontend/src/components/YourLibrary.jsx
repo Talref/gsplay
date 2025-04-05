@@ -18,7 +18,10 @@ const YourLibrary = () => {
     const loadGames = async () => {
       try {
         const gamesData = await fetchGames();
-        setGames(gamesData);
+        const sortedGames = [...gamesData].sort((a, b) => 
+          a.name.localeCompare(b.name)
+        );
+        setGames(sortedGames);
       } catch (error) {
         setSnackbarMessage('Error fetching game list.');
         setSnackbarSeverity('error');
