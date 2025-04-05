@@ -1,97 +1,53 @@
-// src/services/api.js
 import axios from 'axios';
 
-const API_BASE_URL = '/api';
-
 const api = axios.create({
-  baseURL: '/api', 
-  withCredentials: true, 
+  baseURL: '/api',
+  withCredentials: true,
 });
 
-export const signup = async (userData) => {
+// Auto-refresh logic
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      try {
+        await axios.post('/api/refresh-token', {}, { withCredentials: true });
+        return api(originalRequest);
+      } catch (refreshError) {
+        console.error('Session expired. Redirecting to login.');
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Single request helper (keeps route-specific errors)
+const request = async (method, url, data = null) => {
   try {
-    const response = await api.post('/signup', userData);
+    const response = await api({ method, url, data });
     return response.data;
   } catch (error) {
-    throw error.response.data;
+    // Enhance error with route info (e.g., "POST /login failed: Invalid credentials")
+    const enhancedError = {
+      ...error.response?.data,
+      message: `${method} ${url} failed: ${error.response?.data?.error || 'Unknown error'}`,
+    };
+    throw enhancedError;
   }
 };
 
-export const login = async (credentials) => {
-  try {
-    const response = await api.post('/login', credentials); 
-    return response.data; 
-  } catch (error) {
-    throw error.response.data;
-  }
-};
-
-export const logout = async () => {
-  await api.post('/logout'); 
-};
-
-export const setSteamId = async (steamId) => {
-  try {
-    const response = await api.post('/set-steam-id', { steamId });
-    return response.data;
-  } catch (error) {
-    throw error.response.data;
-  }
-};
-
-// Fetch all users (admin only)
-export const fetchAllUsers = async () => {
-  try {
-    const response = await api.get('/users');
-    return response.data;
-  } catch (error) {
-    throw error.response.data;
-  }
-};
-
-// Delete a user (admin only)
-export const deleteUser = async (userId) => {
-  try {
-    const response = await api.delete(`/users/${userId}`);
-    return response.data;
-  } catch (error) {
-    throw error.response.data;
-  }
-};
-
-export const deleteAccount = async () => {
-  try {
-    const response = await api.delete('/delete');
-    localStorage.removeItem('token'); // Remove token after account deletion
-    return response.data;
-  } catch (error) {
-    throw error.response.data;
-  }
-};
-
-export const refreshGames = async () => {
-  try {
-    const response = await api.post('/refresh-games');
-    return response.data;
-  } catch (error) {
-    throw error.response.data;
-  }
-};
-
-export const fetchGames = async () => {
-  try {
-    const response = await api.get('/user/games');
-    return response.data.games;
-  } catch (error) {
-    throw error.response.data;
-  }
-};
-
-export const fetchAllGames = async () => {
-  try {
-    const response = await api.get('/users/games/all');
-    return response.data;
-  } catch (error) {
-    throw error.response.data;
-  }
-};
+// Keep all original exports (unchanged signatures!)
+export const login = (credentials) => request('POST', '/login', credentials);
+export const signup = (userData) => request('POST', '/signup', userData);
+export const logout = () => request('POST', '/logout');
+export const setSteamId = (steamId) => request('POST', '/set-steam-id', { steamId });
+export const fetchAllUsers = () => request('GET', '/users');
+export const deleteUser = (userId) => request('DELETE', `/users/${userId}`);
+export const deleteAccount = () => request('DELETE', '/delete');
+export const refreshGames = () => request('POST', '/refresh-games');
+export const fetchGames = () => request('GET', '/user/games').then(res => res.games);
+export const fetchAllGames = () => request('GET', '/users/games/all');

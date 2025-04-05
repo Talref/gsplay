@@ -45,7 +45,7 @@ router.post('/login', authLimiter, async (req, res) => {
 
     // Refresh Token (7d expiry)
     const refreshToken = jwt.sign(
-      { id: user._id },
+      { id: user._id, isAdmin: user.isAdmin },
       process.env.JWT_REFRESH_SECRET,
       { expiresIn: '7d' }
     );
@@ -53,16 +53,16 @@ router.post('/login', authLimiter, async (req, res) => {
     // Set httpOnly cookies
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 15 * 60 * 1000 // 15 minutes
     });
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
     });
 
     res.json({ message: 'Logged in successfully' }); // No token in response body
@@ -70,6 +70,38 @@ router.post('/login', authLimiter, async (req, res) => {
   } catch (error) {
     console.error('Login error:', error);
     res.status(400).json({ error: error.message }); // Consistent JSON error
+  }
+});
+
+// Refresh the login token
+router.post('/refresh-token', async (req, res) => {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+    if (!refreshToken) throw new Error("No refresh token");
+
+    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    const user = await User.findById(decoded.id);
+    if (!user) throw new Error("User not found");
+
+    // Issue a new accessToken (same as login)
+    const newAccessToken = jwt.sign(
+      { id: user._id, isAdmin: user.isAdmin },
+      process.env.JWT_SECRET,
+      { expiresIn: '15m' }
+    );
+
+    res.cookie('accessToken', newAccessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 15 * 60 * 1000 // 15 minutes
+    });
+
+    res.status(204).end(); 
+  } catch (error) {
+    res.clearCookie('accessToken');
+    res.clearCookie('refreshToken');
+    res.status(401).json({ error: 'Session expired. Please log in again.' });
   }
 });
 
