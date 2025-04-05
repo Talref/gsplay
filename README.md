@@ -1,1 +1,1 @@
-- User can delete their account not implemented
+GS discord server Steam Helpee
