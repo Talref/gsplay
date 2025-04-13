@@ -183,7 +183,7 @@ const YourLibrary = () => {
         {/* Display the game list */}
         <Box sx={{ mt: 4 }}>
           <Typography variant="h6" sx={{ mb: 2 }}>
-            Your Games
+            I Tuoi Giochi
           </Typography>
           {games.length > 0 ? (
             <List>
