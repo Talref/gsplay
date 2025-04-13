@@ -28,7 +28,43 @@ const theme = createTheme({
           color: '#7fffd4',
           transition: 'none !important',
         },
+        // Global link styles
+        a: {
+          color: '#7fffd4', // Use your secondary color
+          textDecoration: 'underline',
+          transition: 'color 0.2s ease',
+          '&:hover': {
+            color: '#a9ffe2', // Brighter version for hover
+            textDecoration: 'underline',
+          },
+        },
       },
+    },
+    MuiLink: {
+      styleOverrides: {
+        root: {
+          color: '#7fffd4', // Same as global links
+          textDecoration: 'underline',
+          fontWeight: 500,
+          transition: 'color 0.2s ease',
+          '&:hover': {
+            color: '#a9ffe2', // Brighter hover
+            textDecoration: 'underline',
+            cursor: 'pointer',
+          },
+        },
+      },
+      variants: [
+        {
+          props: { variant: 'button' },
+          style: {
+            textDecoration: 'none', // Links styled as buttons shouldn't be underlined
+            '&:hover': {
+              textDecoration: 'none',
+            },
+          },
+        },
+      ],
     },
     MuiButton: {
       styleOverrides: {

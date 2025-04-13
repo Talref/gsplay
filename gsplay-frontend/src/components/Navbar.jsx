@@ -43,12 +43,12 @@ const Navbar = () => {
           </IconButton>
           
           <Button component={Link} to="/list-by-users" variant="default" sx={{ ml: 2 }}>
-            List By Users
+            Filtra Per Utenti
           </Button>
 
           {user && (
             <Button component={Link} to="/library" variant="default" sx={{ ml: 2 }}>
-              Your Library
+              La Tua Libreria
             </Button>
           )}
 

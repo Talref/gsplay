@@ -69,14 +69,14 @@ const ListByUsers = () => {
       {/* Main content */}
       <Box component="main" sx={{ flexGrow: 1, padding: 4 }}>
         <Typography variant="h4" sx={{ mb: 2 }}>
-          List By Users
+          Filtra Per Utenti
         </Typography>
 
         <Grid container spacing={10}>
           {/* Left Column: User List */}
           <Grid item xs={2}>
             <Button variant="accent" onClick={handleFilterClick} sx={{ mt: 2 }}>
-              List By Selected Users
+              Lista per Utenti Selezionati
             </Button>
             <List>
               {users.map((user, index) => (
@@ -95,7 +95,7 @@ const ListByUsers = () => {
           {/* Right Column: Common Games List */}
           <Grid item xs={8}>
             <Typography variant="h6" sx={{ mb: 2 }}>
-              Common Games
+              Giochi Comuni
             </Typography>
             {commonGames.length > 0 ? (
               <List>
@@ -121,7 +121,7 @@ const ListByUsers = () => {
                 ))}
               </List>
             ) : (
-              <Typography variant="body1">No common games found.</Typography>
+              <Typography variant="body1">Nessun gioco in comune trovato.</Typography>
             )}
           </Grid>
         </Grid>

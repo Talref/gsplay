@@ -56,7 +56,7 @@ const Home = () => {
       {/* Main content */}
       <Box component="main" sx={{ flexGrow: 1, padding: 4 }}>
         <Typography variant="h4" sx={{ mb: 2 }}>
-          Most Popular Games
+          Giochi piu' popolari
         </Typography>
 
         {/* Display the sorted games list */}
@@ -90,13 +90,13 @@ const Home = () => {
                     marginLeft: 'auto', // Push to the right
                   }}
                 >
-                  Owned by: {game.users.length}
+                  Posseduto da: {game.users.length}
                 </Typography>
               </ListItem>
             ))}
           </List>
         ) : (
-          <Typography variant="body1">No games found.</Typography>
+          <Typography variant="body1">Nessun gioco trovato.</Typography>
         )}
       </Box>
 
@@ -121,13 +121,13 @@ const Home = () => {
               rel="noopener noreferrer"
               style={{ color: theme.palette.secondary.main }}
             >
-              View on Steam
+              Pagina Steam
             </a>
           </Typography>
 
           {/* List of Owners */}
           <Typography variant="h6" sx={{ mb: 1 }}>
-            Owners:
+            Proprietari:
           </Typography>
           <List>
             {selectedGame?.users.map((user, index) => (
