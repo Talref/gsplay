@@ -69,31 +69,31 @@ const YourLibrary = () => {
   const handleRefreshGames = async () => {
     try {
       const response = await refreshGames();
-      setSnackbarMessage(response.message || 'Games refreshed successfully!');
+      setSnackbarMessage("UEEEEEE, GRANDE QUANTI CAZZO DE GIOCHI DA CHILO AOOOOO!!!!")
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
 
       // Use the game list from the refresh response, no second API call needed
       setGames(response.games);
     } catch (error) {
-      setSnackbarMessage('Error fetching games. Did you link your SteamID?');
+      setSnackbarMessage('Errore nel recuperare i giochi. Hai inserito il tuo SteamID?');
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
-      console.error('Error refreshing games:', error);
+      console.error('Errore nel recuperare i giochi. Acciderboli!', error);
     }
   };
 
   // Set Steam ID
   const handleSetSteamId = async () => {
-    const steamId = prompt('Please enter your SteamID:');
+    const steamId = prompt('Inserisci il tuo SteamID:');
     if (steamId) {
       try {
         await setSteamId(steamId);
-        setSnackbarMessage('SteamID set successfully!');
+        setSnackbarMessage('SteamID inserito correttamente!');
         setSnackbarSeverity('success');
         setSnackbarOpen(true);
       } catch (error) {
-        setSnackbarMessage('Error setting SteamID. Please try again.');
+        setSnackbarMessage('Errore nel configurare il tuo steamID.');
         setSnackbarSeverity('error');
         setSnackbarOpen(true);
         console.error('Error setting SteamID:', error);
@@ -113,11 +113,11 @@ const YourLibrary = () => {
     try {
       const response = await importLibrary(file);
       setGames(response.games); // update local state with imported games
-      setSnackbarMessage('Library imported successfully!');
+      setSnackbarMessage("ANVEDI QUANTI GIOCHI SEI UN VERO GAMER!!!!1!!!");
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
     } catch (error) {
-      setSnackbarMessage(error.message || 'Error importing library');
+      setSnackbarMessage(error.message || 'Errore di importazione. Riprova.');
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
       console.error('Import error:', error);

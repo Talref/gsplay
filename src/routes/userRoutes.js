@@ -197,7 +197,7 @@ router.post('/set-steam-id', authMiddleware, async (req, res) => {
     const user = await User.findById(req.user.id);
     user.steamId = steamId;
     await user.save();
-    res.send({ message: 'Steam ID updated successfully', user });
+    res.send({ message: 'Steam ID aggiornato con successo!', user });
   } catch (error) {
     res.status(400).send({ error: error.message });
   }
@@ -231,7 +231,7 @@ router.post('/refresh-games', authMiddleware, async (req, res) => {
     await user.save();
 
     res.send({ 
-      message: 'Lista di giochi aggiornata con successo. Ricorda di ricaricare i file JSON per GOG, Epic e Amazon se vuoi modificarli', 
+      message: 'Successo!', 
       games: user.games 
     });
   } catch (error) {
@@ -271,7 +271,7 @@ router.post('/import-library', authMiddleware, upload.single('file'), async (req
     user.games = updatedGames;
     await user.save();
 
-    res.send({ message: 'Library imported successfully', games: user.games });
+    res.send({ message: 'Libreria importata, DAJEEEEE!', games: user.games });
   } catch (err) {
     res.status(400).send({ error: err.message });
   }

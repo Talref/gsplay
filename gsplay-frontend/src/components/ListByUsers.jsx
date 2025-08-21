@@ -95,7 +95,7 @@ const ListByUsers = () => {
           {/* Right Column: Common Games List */}
           <Grid item xs={8}>
             <Typography variant="h6" sx={{ mb: 2 }}>
-              Giochi Comuni
+              Giochi Comuni.
             </Typography>
             {commonGames.length > 0 ? (
               <List>
