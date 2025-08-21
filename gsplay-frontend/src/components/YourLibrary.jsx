@@ -67,14 +67,13 @@ const YourLibrary = () => {
   // Refresh the game list  
   const handleRefreshGames = async () => {
     try {
-      await refreshGames();
-      setSnackbarMessage('Games refreshed successfully!');
+      const response = await refreshGames();
+      setSnackbarMessage(response.message || 'Games refreshed successfully!');
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
 
-      // Refetch the game list after refreshing
-      const gamesData = await fetchGames();
-      setGames(gamesData);
+      // Use the game list from the refresh response, no second API call needed
+      setGames(response.games);
     } catch (error) {
       setSnackbarMessage('Error fetching games. Did you link your SteamID?');
       setSnackbarSeverity('error');
@@ -156,7 +155,7 @@ const YourLibrary = () => {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           {/* Refresh Library button */}
           <Button variant="default" onClick={handleRefreshGames}>
-            Aggiorna Libreria
+            Aggiorna Libreria Steam
           </Button>
 
           <Button variant="accent" onClick={handleImportClick}>

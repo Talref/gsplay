@@ -225,7 +225,9 @@ router.post('/refresh-games', authMiddleware, async (req, res) => {
     const otherGames = user.games.filter((g) => g.platform !== "steam");
 
     // Replace user.games with otherGames + refreshed Steam games
-    user.games = [...otherGames, ...steamGames];
+    const allGames = [...otherGames, ...steamGames];
+    allGames.sort((a, b) => a.name.localeCompare(b.name));
+    user.games = allGames;
     await user.save();
 
     res.send({ 
@@ -261,13 +263,15 @@ router.post('/import-library', authMiddleware, upload.single('file'), async (req
       return res.status(400).send({ error: 'Parsed games missing platform' });
     }
 
-    user.games = [
+    const updatedGames = [
       ...user.games.filter(g => g.platform !== platform),
       ...games
     ];
+    updatedGames.sort((a, b) => a.name.localeCompare(b.name));
+    user.games = updatedGames;
     await user.save();
 
-    res.send({ message: 'Library imported successfully', games });
+    res.send({ message: 'Library imported successfully', games: user.games });
   } catch (err) {
     res.status(400).send({ error: err.message });
   }
