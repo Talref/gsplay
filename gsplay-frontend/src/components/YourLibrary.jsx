@@ -120,9 +120,15 @@ const YourLibrary = () => {
   };
 
   // Function to handle clicking on a game
-  const handleGameClick = (steamId) => {
-    const steamUrl = `https://store.steampowered.com/app/${steamId}`;
-    window.open(steamUrl, '_blank'); // Open the Steam page in a new tab
+  const handleGameClick = (name) => {
+    //try to handle formatting
+    let formattedTitle = name.toLowerCase();
+    formattedTitle = formattedTitle.replace(/\(|\)/g, ' ').trim();
+    formattedTitle = formattedTitle.replace(/\s+/g, '-');
+    formattedTitle = formattedTitle.replace(/[^a-z0-9-]/g, '');
+    //compose url
+    const gameUrl = `https://www.igdb.com/games/${formattedTitle}`;
+    window.open(gameUrl, '_blank');
   };
 
   return (
@@ -158,7 +164,7 @@ const YourLibrary = () => {
             {user?.steamId ? 'Cambia SteamID' : 'Aggiungi SteamID'}
           </Button>
 
-          {/* Help link */}
+          {/* SteamID Help link */}
           <Link 
             component="button" 
             variant="body1" 
@@ -229,7 +235,7 @@ const YourLibrary = () => {
               {games.map((game, index) => (
                 <ListItem
                   key={index}
-                  onClick={() => handleGameClick(game.steamId)} // Make the list item clickable
+                  onClick={() => handleGameClick(game.name)} // Make the list item clickable
                   sx={{
                     cursor: 'pointer', // Change cursor to pointer on hover
                     '&:hover': {
