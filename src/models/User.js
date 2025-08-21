@@ -4,7 +4,8 @@ const bcrypt = require('bcrypt');
 
 const gameSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  steamId: { type: String },
+  platform: { type: String, required: true },   // "steam" | "gog" | "epic" | "amazon"
+  platformId: { type: String },                 // appid, gogid, epicid...
 });
 
 const userSchema = new mongoose.Schema({

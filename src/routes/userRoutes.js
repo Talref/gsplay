@@ -2,10 +2,24 @@
 const express = require('express');
 const jwt = require('jsonwebtoken'); 
 const User = require('../models/User');
+const dispatcher = require('../parsers/dispatcher');
+const multer = require('multer');
 const router = express.Router();
 const axios = require('axios');
 const authMiddleware = require('../middleware/auth'); // For protecting routes
 const authLimiter = require('../middleware/rateLimiter'); // For rate limiting
+
+// Multer config to handle json properly (library import)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 }, // 2 MB
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype !== 'application/json') {
+      return cb(new Error('Only JSON files are allowed'));
+    }
+    cb(null, true);
+  }
+});
 
 // Signup
 router.post('/signup', authLimiter, async (req, res) => {
@@ -27,6 +41,7 @@ router.post('/signup', authLimiter, async (req, res) => {
   }
 });
 
+// Auth logic
 router.post('/login', authLimiter, async (req, res) => {
   try {
     const { name, password } = req.body;
@@ -62,7 +77,7 @@ router.post('/login', authLimiter, async (req, res) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days, to match token expiry
     });
 
     res.json({ message: 'Logged in successfully' }); // No token in response body
@@ -182,35 +197,83 @@ router.post('/set-steam-id', authMiddleware, async (req, res) => {
     const user = await User.findById(req.user.id);
     user.steamId = steamId;
     await user.save();
-    res.send({ message: 'Steam ID updated successfully', user });
+    res.send({ message: 'Steam ID aggiornato con successo!', user });
   } catch (error) {
     res.status(400).send({ error: error.message });
   }
 });
 
-// Refresh game list
+// Refresh Steam game list
 router.post('/refresh-games', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     if (!user.steamId) {
-      return res.status(400).send({ error: 'Steam ID not set' });
+      return res.status(400).send({ error: 'Steam ID not presente' });
     }
 
     const response = await axios.get(
       `http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${process.env.STEAM_API_KEY}&steamid=${user.steamId}&format=json&include_played_free_games=true&include_appinfo=true`
     );
 
-    const games = response.data.response.games.map((game) => ({
+    const steamGames = response.data.response.games.map((game) => ({
       name: game.name,
-      steamId: game.appid,
+      platform: "steam",
+      platformId: String(game.appid),
     }));
 
-    user.games = games;
+    // Keep all non-Steam games
+    const otherGames = user.games.filter((g) => g.platform !== "steam");
+
+    // Replace user.games with otherGames + refreshed Steam games
+    const allGames = [...otherGames, ...steamGames];
+    allGames.sort((a, b) => a.name.localeCompare(b.name));
+    user.games = allGames;
     await user.save();
 
-    res.send({ message: 'Game list refreshed successfully', games });
+    res.send({ 
+      message: 'Successo!', 
+      games: user.games 
+    });
   } catch (error) {
     res.status(400).send({ error: error.message });
+  }
+});
+
+// Import library from JSON
+router.post('/import-library', authMiddleware, upload.single('file'), async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!req.file) {
+      return res.status(400).send({ error: 'No file uploaded' });
+    }
+
+    // The file content is in req.file.buffer (Buffer), convert to string then parse
+    const fileContent = req.file.buffer.toString('utf-8');
+
+    let games;
+    try {
+      games = await dispatcher(fileContent, req.file.originalname);
+    } catch (err) {
+      return res.status(400).send({ error: `Parsing failed: ${err.message}` });
+    }
+
+    // Replace old games from same platform
+    const platform = games[0]?.platform;
+    if (!platform) {
+      return res.status(400).send({ error: 'Parsed games missing platform' });
+    }
+
+    const updatedGames = [
+      ...user.games.filter(g => g.platform !== platform),
+      ...games
+    ];
+    updatedGames.sort((a, b) => a.name.localeCompare(b.name));
+    user.games = updatedGames;
+    await user.save();
+
+    res.send({ message: 'Libreria importata, DAJEEEEE!', games: user.games });
+  } catch (err) {
+    res.status(400).send({ error: err.message });
   }
 });
 
@@ -219,7 +282,7 @@ router.get('/user/games', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('games'); // Fetch only the games field
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Utente non trovato' });
     }
     res.json({ games: user.games }); // Return the games array
   } catch (error) {
@@ -230,31 +293,59 @@ router.get('/user/games', authMiddleware, async (req, res) => {
 // Fetch all games owned by users, aggregated and sorted by ownership count
 router.get('/users/games/all', async (req, res) => {
   try {
-    // Aggregate games and their owners
-    const games = await User.aggregate([
-      { $unwind: '$games' }, // Flatten the games array
-      {
-        $group: {
-          _id: '$games.steamId', // Group by Steam ID
-          name: { $first: '$games.name' }, // Get the game name
-          users: { $addToSet: '$name' }, // Collect unique user names
-        },
-      },
-      {
-        $project: {
-          _id: 0, // Exclude the default _id field
-          name: 1, // Include the game name
-          steamId: '$_id', // Rename _id to steamId
-          users: 1, // Include the users array
-        },
-      },
-      { $sort: { users: -1 } }, // Sort by number of users (descending)
-    ]);
+    const users = await User.find({}, 'name games').lean(); // Fetch only names and games
 
-    res.json(games); // Send the aggregated and sorted list
+    const gameMap = new Map(); // key: game name, value: { name, id, users }
+
+    users.forEach(user => {
+      if (!Array.isArray(user.games)) return;
+
+      user.games.forEach(game => {
+        const name = game.name;
+        if (!name) return;
+
+        // Initialize game entry if not exists
+        if (!gameMap.has(name)) {
+          gameMap.set(name, {
+            name,
+            id: {}, // { steamId, epicId, amazonId, gogId, ... }
+            users: []
+          });
+        }
+
+        const gameEntry = gameMap.get(name);
+
+        // Add platform-specific ID
+        if (game.platform && game.app_name) {
+          const platformKey = `${game.platform}Id`; // e.g., steamId, epicId
+          gameEntry.id[platformKey] = game.app_name;
+        }
+
+        // Check if user is already added for this game
+        let userEntry = gameEntry.users.find(u => u.user === user.name);
+        if (!userEntry) {
+          userEntry = { user: user.name, platform: [] };
+          gameEntry.users.push(userEntry);
+        }
+
+        // Add platform to user's platform list if not already there
+        if (game.platform && !userEntry.platform.includes(game.platform)) {
+          userEntry.platform.push(game.platform);
+        }
+      });
+    });
+
+    // Convert map to array and sort by number of users (descending)
+    const gamesArray = Array.from(gameMap.values()).sort(
+      (a, b) => b.users.length - a.users.length
+    );
+
+    res.json(gamesArray);
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
+
 
 module.exports = router;

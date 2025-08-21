@@ -12,7 +12,11 @@ const authMiddleware = (req, res, next) => {
     req.user = decoded; 
     next();
   } catch (error) {
-    res.status(400).send({ error: 'Invalid token.' });
+    // Any error in verifying the token (expired, malformed, etc.)
+    // should result in a 401 Unauthorized status.
+    // The frontend is specifically looking for a 401 to trigger the
+    // token refresh mechanism.
+    res.status(401).send({ error: 'Invalid or expired token.' });
   }
 };
 

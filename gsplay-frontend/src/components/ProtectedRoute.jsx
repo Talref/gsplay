@@ -12,7 +12,7 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
   }
 
   if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to="/" replace />;
   }
 
   if (adminOnly && !user.isAdmin) {
@@ -22,5 +22,4 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
   return children;
 };
 
-
-export default ProtectedRoute; 
+export default ProtectedRoute;
