@@ -18,7 +18,10 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         console.error('Session expired. Redirecting to login.');
-        window.location.href = '/login';
+        // The refresh token is invalid or expired. The user is effectively logged out.
+        // The backend clears the cookies on refresh failure, and this redirects
+        // the user to the homepage where they can log in again.
+        window.location.href = '/';
         return Promise.reject(refreshError);
       }
     }
