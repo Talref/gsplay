@@ -12,7 +12,7 @@ const authLimiter = require('../middleware/rateLimiter'); // For rate limiting
 // Multer config to handle json properly (library import)
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 2 * 1024 * 1024 }, // 2 MB
+  limits: { fileSize: 20 * 1024 * 1024 }, // 2 MB
   fileFilter: (req, file, cb) => {
     if (file.mimetype !== 'application/json') {
       return cb(new Error('Only JSON files are allowed'));

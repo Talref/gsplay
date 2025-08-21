@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Box, 
   Button, 
@@ -19,7 +19,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import Navbar from './Navbar';
 import Footer from './Footer';
-import { refreshGames, setSteamId, fetchGames } from '../services/api';
+import { refreshGames, setSteamId, fetchGames, importLibrary } from '../services/api';
 
 const YourLibrary = () => {
   const theme = useTheme();
@@ -29,6 +29,7 @@ const YourLibrary = () => {
   const [snackbarSeverity, setSnackbarSeverity] = useState('info');
   const [games, setGames] = useState([]);
   const [steamIdHelpOpen, setSteamIdHelpOpen] = useState(false);
+  const fileInputRef = useRef(null);
 
   // Fetch the user's game list on component mount
   useEffect(() => {
@@ -52,6 +53,7 @@ const YourLibrary = () => {
     }
   }, [user]);
 
+  // Refresh the game list  
   const handleRefreshGames = async () => {
     try {
       await refreshGames();
@@ -70,6 +72,7 @@ const YourLibrary = () => {
     }
   };
 
+  // Set Steam ID
   const handleSetSteamId = async () => {
     const steamId = prompt('Please enter your SteamID:');
     if (steamId) {
@@ -84,6 +87,31 @@ const YourLibrary = () => {
         setSnackbarOpen(true);
         console.error('Error setting SteamID:', error);
       }
+    }
+  };
+
+  // Import Library
+  const handleImportClick = () => {
+    fileInputRef.current.click(); // trigger hidden input
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      const response = await importLibrary(file);
+      setGames(response.games); // update local state with imported games
+      setSnackbarMessage('Library imported successfully!');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+    } catch (error) {
+      setSnackbarMessage(error.message || 'Error importing library');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      console.error('Import error:', error);
+    } finally {
+      e.target.value = null; // reset input so same file can be uploaded again if needed
     }
   };
 
@@ -113,6 +141,17 @@ const YourLibrary = () => {
           <Button variant="default" onClick={handleRefreshGames}>
             Aggiorna Libreria
           </Button>
+
+          <Button variant="accent" onClick={handleImportClick}>
+            Importa GOG/EPIC
+          </Button>
+          <input 
+            type="file" 
+            accept="application/json" 
+            ref={fileInputRef} 
+            style={{ display: 'none' }} 
+            onChange={handleFileChange} 
+          />
 
           {/* Add/Change SteamID button */}
           <Button variant="accent" onClick={handleSetSteamId}>
