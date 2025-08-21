@@ -34,6 +34,7 @@ const YourLibrary = () => {
   const [snackbarSeverity, setSnackbarSeverity] = useState('info');
   const [games, setGames] = useState([]);
   const [steamIdHelpOpen, setSteamIdHelpOpen] = useState(false);
+  const [importHelpOpen, setImportHelpOpen] = useState(false);
   const fileInputRef = useRef(null);
   const platformIcons = {
     gog: gogIcon,
@@ -158,7 +159,7 @@ const YourLibrary = () => {
             Aggiorna Libreria Steam
           </Button>
 
-          <Button variant="accent" onClick={handleImportClick}>
+          <Button variant="default" onClick={handleImportClick}>
             Importa GOG/EPIC
           </Button>
           <input 
@@ -173,7 +174,9 @@ const YourLibrary = () => {
           <Button variant="accent" onClick={handleSetSteamId}>
             {user?.steamId ? 'Cambia SteamID' : 'Aggiungi SteamID'}
           </Button>
+        </Box>
 
+        <Box sx={{ display: 'flex', alignItems: 'center', padding:2, gap: 3 }}>
           {/* SteamID Help link */}
           <Link 
             component="button" 
@@ -190,6 +193,23 @@ const YourLibrary = () => {
           >
             Come trovo il mio SteamID?
           </Link>
+        
+          {/* Import Help link */}
+          <Link 
+            component="button" 
+            variant="body1" 
+            onClick={() => setImportHelpOpen(true)}
+            sx={{
+              color: theme.palette.secondary.main,
+              textDecoration: 'underline',
+              cursor: 'pointer',
+              '&:hover': {
+                color: theme.palette.secondary.light,
+              }
+            }}
+          >
+            Come importo da GOG/Epic/Amazon?
+          </Link>
         </Box>
 
         {/* SteamID Help Dialog */}
@@ -205,7 +225,7 @@ const YourLibrary = () => {
         >
           <DialogTitle>Come trovare lo SteamID</DialogTitle>
           <DialogContent>
-            <DialogContentText sx={{ color: theme.palette.text.primary }}>
+            <DialogContentText component="div" sx={{ color: theme.palette.text.primary }}>
               Per Trovare il tuo steamID:
               <Box component="ol" sx={{ 
                 pl: 4, // Increased left padding for indentation
@@ -228,6 +248,47 @@ const YourLibrary = () => {
           <DialogActions>
             <Button 
               onClick={() => setSteamIdHelpOpen(false)} 
+              variant="default"
+            >
+              Chiudi
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Import Help Dialog */}
+        <Dialog
+          open={importHelpOpen}
+          onClose={() => setImportHelpOpen(false)}
+          PaperProps={{
+            sx: {
+              backgroundColor: theme.palette.background.paper,
+              color: theme.palette.text.primary,
+            }
+          }}
+        >
+          <DialogTitle>Come importare giochi da GOG/Epic/Amazon Games</DialogTitle>
+          <DialogContent>
+            <DialogContentText component="div" sx={{ color: theme.palette.text.primary }}>
+              <Box component="ol" sx={{ 
+                pl: 4, // Increased left padding for indentation
+                '& li': {
+                  mb: 1.5, // Increased margin bottom for each list item
+                  lineHeight: 1.6, // Increased line height
+                }
+              }}>
+                <li>Installa <Link href="https://heroicgameslauncher.com/" target="_blank" rel="noopener">Heroic Games Launcher</Link></li>
+                <li>Collega i tuoi account e popola la tua libreria</li>
+                <li>Apri C:\Users\NOME_UTENTE\AppData\Local\Programs\heroic (Windows), oppure ./config/heroic/store_cache/ (Linux)</li>
+                <li>Carica i file rilevanti che finiscono in "library" cliccando su "Importa GOG/Epic" (gog_library.json per GOG, legendary_library.json per Epic e nile_library.json per Amazon Games)</li>
+              </Box>
+              <Typography variant="body2" sx={{ mt: 2 }}>
+                Fatto! Ricorda di ricaricare i file ogni tanto se aggiungi nuovi giochi!
+              </Typography>
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button 
+              onClick={() => setImportHelpOpen(false)} 
               variant="default"
             >
               Chiudi
