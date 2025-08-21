@@ -1,3 +1,4 @@
+//api.js
 import axios from 'axios';
 
 const api = axios.create({
@@ -40,7 +41,8 @@ const request = async (method, url, data = null) => {
   }
 };
 
-// Keep all original exports (unchanged signatures!)
+
+// exports
 export const login = (credentials) => request('POST', '/login', credentials);
 export const signup = (userData) => request('POST', '/signup', userData);
 export const logout = () => request('POST', '/logout');
@@ -51,3 +53,10 @@ export const deleteAccount = () => request('DELETE', '/delete');
 export const refreshGames = () => request('POST', '/refresh-games');
 export const fetchGames = () => request('GET', '/user/games').then(res => res.games);
 export const fetchAllGames = () => request('GET', '/users/games/all');
+
+// import files to backend
+export const importLibrary = (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return request('POST', '/import-library', formData);
+};
