@@ -132,12 +132,10 @@ const YourLibrary = () => {
 
   // Function to handle clicking on a game
   const handleGameClick = (name) => {
-    //try to handle formatting
     let formattedTitle = name.toLowerCase();
-    formattedTitle = formattedTitle.replace(/\(|\)/g, ' ').trim();
+    formattedTitle = formattedTitle.replace(/\s*-\s*/g, '-');
+    formattedTitle = formattedTitle.replace(/[^a-z0-9\s-]/g, '').trim();
     formattedTitle = formattedTitle.replace(/\s+/g, '-');
-    formattedTitle = formattedTitle.replace(/[^a-z0-9-]/g, '');
-    //compose url
     const gameUrl = `https://www.igdb.com/games/${formattedTitle}`;
     window.open(gameUrl, '_blank');
   };
