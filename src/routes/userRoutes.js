@@ -282,31 +282,59 @@ router.get('/user/games', authMiddleware, async (req, res) => {
 // Fetch all games owned by users, aggregated and sorted by ownership count
 router.get('/users/games/all', async (req, res) => {
   try {
-    // Aggregate games and their owners
-    const games = await User.aggregate([
-      { $unwind: '$games' }, // Flatten the games array
-      {
-        $group: {
-          _id: '$games.steamId', // Group by Steam ID
-          name: { $first: '$games.name' }, // Get the game name
-          users: { $addToSet: '$name' }, // Collect unique user names
-        },
-      },
-      {
-        $project: {
-          _id: 0, // Exclude the default _id field
-          name: 1, // Include the game name
-          steamId: '$_id', // Rename _id to steamId
-          users: 1, // Include the users array
-        },
-      },
-      { $sort: { users: -1 } }, // Sort by number of users (descending)
-    ]);
+    const users = await User.find({}, 'name games').lean(); // Fetch only names and games
 
-    res.json(games); // Send the aggregated and sorted list
+    const gameMap = new Map(); // key: game name, value: { name, id, users }
+
+    users.forEach(user => {
+      if (!Array.isArray(user.games)) return;
+
+      user.games.forEach(game => {
+        const name = game.name;
+        if (!name) return;
+
+        // Initialize game entry if not exists
+        if (!gameMap.has(name)) {
+          gameMap.set(name, {
+            name,
+            id: {}, // { steamId, epicId, amazonId, gogId, ... }
+            users: []
+          });
+        }
+
+        const gameEntry = gameMap.get(name);
+
+        // Add platform-specific ID
+        if (game.platform && game.app_name) {
+          const platformKey = `${game.platform}Id`; // e.g., steamId, epicId
+          gameEntry.id[platformKey] = game.app_name;
+        }
+
+        // Check if user is already added for this game
+        let userEntry = gameEntry.users.find(u => u.user === user.name);
+        if (!userEntry) {
+          userEntry = { user: user.name, platform: [] };
+          gameEntry.users.push(userEntry);
+        }
+
+        // Add platform to user's platform list if not already there
+        if (game.platform && !userEntry.platform.includes(game.platform)) {
+          userEntry.platform.push(game.platform);
+        }
+      });
+    });
+
+    // Convert map to array and sort by number of users (descending)
+    const gamesArray = Array.from(gameMap.values()).sort(
+      (a, b) => b.users.length - a.users.length
+    );
+
+    res.json(gamesArray);
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
+
 
 module.exports = router;
