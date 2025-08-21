@@ -6,11 +6,12 @@
  * @returns {Array} - Array of games { name, platform, platformId }
  */
 async function parseGog(data) {
-  if (!Array.isArray(data)) {
+  
+  if (!Array.isArray(data.games)) {
     throw new Error('Expected an array of games from GOG JSON');
   }
 
-  const games = data.map(game => {
+  const games = data.games.map(game => {
     if (!game.title || !game.app_name) {
       // skip malformed entries
       return null;

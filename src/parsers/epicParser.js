@@ -6,11 +6,11 @@
  * @returns {Array} - Array of games { name, platform, platformId }
  */
 async function parseEpic(data) {
-  if (!Array.isArray(data)) {
+  if (!Array.isArray(data.library)) {
     throw new Error('Expected an array of games from Epic JSON');
   }
 
-  const games = data.map(game => {
+  const games = data.library.map(game => {
     // Only process the main game object, skipping DLCs
     // which are often included as separate entries in the list
     if (!game.title || !game.app_name) {

@@ -6,11 +6,11 @@
  * @returns {Array} - Array of games { name, platform, platformId }
  */
 async function parseAmazon(data) {
-  if (!Array.isArray(data)) {
+  if (!Array.isArray(data.library)) {
     throw new Error('Expected an array of games from Amazon JSON');
   }
 
-  const games = data.map(game => {
+  const games = data.library.map(game => {
     if (!game.title || !game.app_name) {
       // skip malformed entries
       return null;
