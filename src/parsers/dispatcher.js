@@ -1,48 +1,46 @@
-// src/parsers/dispatcher.js
+// src/utils/dispatcher.js
 
-const gogParser = require('./gogParser');
-const epicParser = require('./epicParser');
-const amazonParser = require('./amazonParser');
-const fs = require('fs').promises;
-const path = require('path');
+const parseGog = require('./parsers/gogParser');
+const parseEpic = require('./parsers/epicParser');
+const parseAmazon = require('./parsers/amazonParser');
 
-const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 MB
+/**
+ * Dispatch the file content to the correct parser based on filename
+ * @param {string} fileContent - Raw JSON string from the uploaded file
+ * @param {string} filename - Original filename uploaded by the user
+ * @returns {Promise<Array>} - Array of game objects { name, platform, platformId }
+ */
+async function dispatcher(fileContent, filename) {
+  // Normalize filename for easier matching
+  const lowerName = filename.toLowerCase();
 
-async function dispatcher(file) {
-  if (!file || !file.originalname || !file.path) {
-    throw new Error('No file provided');
+  let parser;
+
+  if (lowerName.includes('gog')) {
+    parser = parseGog;
+  } else if (lowerName.includes('epic')) {
+    parser = parseEpic;
+  } else if (lowerName.includes('amazon')) {
+    parser = parseAmazon;
+  } else {
+    throw new Error('Unknown platform: cannot determine parser from filename');
   }
 
-  // Security: check file size
-  if (file.size > MAX_FILE_SIZE) {
-    throw new Error('File too large (max 2MB)');
-  }
-
-  // Security: check file extension
-  if (path.extname(file.originalname).toLowerCase() !== '.json') {
-    throw new Error('Invalid file type, must be JSON');
-  }
-
-  // Read and parse file safely
   let data;
   try {
-    const fileContent = await fs.readFile(file.path, 'utf-8');
     data = JSON.parse(fileContent);
   } catch (err) {
     throw new Error('Invalid JSON file');
   }
 
-  // Decide which parser to call based on filename
-  const filename = file.originalname.toLowerCase();
-  if (filename.includes('gog')) {
-    return await gogParser(data);
-  } else if (filename.includes('epic') || filename.includes('legendary')) {
-    return await epicParser(data);
-  } else if (filename.includes('amazon') || filename.includes('nile')) {
-    return await amazonParser(data);
-  } else {
-    throw new Error('Unrecognized file name. Cannot determine platform');
+  // Each parser returns an array of games in the correct format
+  const games = await parser(data);
+  
+  if (!Array.isArray(games)) {
+    throw new Error('Parser did not return a valid array of games');
   }
+
+  return games;
 }
 
 module.exports = dispatcher;

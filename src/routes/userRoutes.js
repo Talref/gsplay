@@ -3,10 +3,23 @@ const express = require('express');
 const jwt = require('jsonwebtoken'); 
 const User = require('../models/User');
 const dispatcher = require('../parsers/dispatcher');
+const multer = require('multer');
 const router = express.Router();
 const axios = require('axios');
 const authMiddleware = require('../middleware/auth'); // For protecting routes
 const authLimiter = require('../middleware/rateLimiter'); // For rate limiting
+
+// Multer config to handle json properly (library import)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2 MB
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype !== 'application/json') {
+      return cb(new Error('Only JSON files are allowed'));
+    }
+    cb(null, true);
+  }
+});
 
 // Signup
 router.post('/signup', authLimiter, async (req, res) => {
@@ -217,21 +230,37 @@ router.post('/refresh-games', authMiddleware, async (req, res) => {
   }
 });
 
-// Import external libraries
-router.post('/import-library', authMiddleware, uploadMiddleware, async (req, res) => {
+// Import library from JSON
+router.post('/import-library', authMiddleware, upload.single('file'), async (req, res) => {
   try {
-    const { user } = req;
-    const file = req.file;
-    const games = await dispatcher(file);  // 👈 decides which parser to call
-    
-    // remove old games from same platform, then add new
+    const user = await User.findById(req.user.id);
+    if (!req.file) {
+      return res.status(400).send({ error: 'No file uploaded' });
+    }
+
+    // The file content is in req.file.buffer (Buffer), convert to string then parse
+    const fileContent = req.file.buffer.toString('utf-8');
+
+    let games;
+    try {
+      games = await dispatcher(fileContent, req.file.originalname);
+    } catch (err) {
+      return res.status(400).send({ error: `Parsing failed: ${err.message}` });
+    }
+
+    // Replace old games from same platform
+    const platform = games[0]?.platform;
+    if (!platform) {
+      return res.status(400).send({ error: 'Parsed games missing platform' });
+    }
+
     user.games = [
-      ...user.games.filter(g => g.platform !== games[0].platform),
+      ...user.games.filter(g => g.platform !== platform),
       ...games
     ];
     await user.save();
-    
-    res.send({ message: "Library imported", games });
+
+    res.send({ message: 'Library imported successfully', games });
   } catch (err) {
     res.status(400).send({ error: err.message });
   }
