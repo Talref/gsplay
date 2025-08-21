@@ -215,16 +215,23 @@ router.post('/refresh-games', authMiddleware, async (req, res) => {
       `http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${process.env.STEAM_API_KEY}&steamid=${user.steamId}&format=json&include_played_free_games=true&include_appinfo=true`
     );
 
-    const games = response.data.response.games.map((game) => ({
+    const steamGames = response.data.response.games.map((game) => ({
       name: game.name,
       platform: "steam",
       platformId: String(game.appid),
     }));
 
-    user.games = games;
+    // Keep all non-Steam games
+    const otherGames = user.games.filter((g) => g.platform !== "steam");
+
+    // Replace user.games with otherGames + refreshed Steam games
+    user.games = [...otherGames, ...steamGames];
     await user.save();
 
-    res.send({ message: 'Lista di giochi aggiornata con successo. Ricorda di ricaricare i file JSON per GOG, Epic e Amazon se vuoi modificarli', games });
+    res.send({ 
+      message: 'Lista di giochi aggiornata con successo. Ricorda di ricaricare i file JSON per GOG, Epic e Amazon se vuoi modificarli', 
+      games: user.games 
+    });
   } catch (error) {
     res.status(400).send({ error: error.message });
   }
