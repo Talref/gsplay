@@ -2,6 +2,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken'); 
 const User = require('../models/User');
+const dispatcher = require('../parsers/dispatcher');
 const router = express.Router();
 const axios = require('axios');
 const authMiddleware = require('../middleware/auth'); // For protecting routes
@@ -27,6 +28,7 @@ router.post('/signup', authLimiter, async (req, res) => {
   }
 });
 
+// Auth logic
 router.post('/login', authLimiter, async (req, res) => {
   try {
     const { name, password } = req.body;
@@ -188,12 +190,12 @@ router.post('/set-steam-id', authMiddleware, async (req, res) => {
   }
 });
 
-// Refresh game list
+// Refresh Steam game list
 router.post('/refresh-games', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     if (!user.steamId) {
-      return res.status(400).send({ error: 'Steam ID not set' });
+      return res.status(400).send({ error: 'Steam ID not presente' });
     }
 
     const response = await axios.get(
@@ -202,15 +204,36 @@ router.post('/refresh-games', authMiddleware, async (req, res) => {
 
     const games = response.data.response.games.map((game) => ({
       name: game.name,
-      steamId: game.appid,
+      platform: "steam",
+      platformId: String(game.appid),
     }));
 
     user.games = games;
     await user.save();
 
-    res.send({ message: 'Game list refreshed successfully', games });
+    res.send({ message: 'Lista di giochi aggiornata con successo. Ricorda di ricaricare i file JSON per GOG, Epic e Amazon se vuoi modificarli', games });
   } catch (error) {
     res.status(400).send({ error: error.message });
+  }
+});
+
+// Import external libraries
+router.post('/import-library', authMiddleware, uploadMiddleware, async (req, res) => {
+  try {
+    const { user } = req;
+    const file = req.file;
+    const games = await dispatcher(file);  // 👈 decides which parser to call
+    
+    // remove old games from same platform, then add new
+    user.games = [
+      ...user.games.filter(g => g.platform !== games[0].platform),
+      ...games
+    ];
+    await user.save();
+    
+    res.send({ message: "Library imported", games });
+  } catch (err) {
+    res.status(400).send({ error: err.message });
   }
 });
 
@@ -219,7 +242,7 @@ router.get('/user/games', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('games'); // Fetch only the games field
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Utente non trovato' });
     }
     res.json({ games: user.games }); // Return the games array
   } catch (error) {
