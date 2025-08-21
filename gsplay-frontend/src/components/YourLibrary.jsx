@@ -21,6 +21,11 @@ import Navbar from './Navbar';
 import Footer from './Footer';
 import { refreshGames, setSteamId, fetchGames, importLibrary } from '../services/api';
 
+import gogIcon from '../assets/gog.png';
+import epicIcon from '../assets/epic.png';
+import steamIcon from '../assets/steam.png';
+import amazonIcon from '../assets/amazon.png';
+
 const YourLibrary = () => {
   const theme = useTheme();
   const { user } = useAuth();
@@ -30,6 +35,12 @@ const YourLibrary = () => {
   const [games, setGames] = useState([]);
   const [steamIdHelpOpen, setSteamIdHelpOpen] = useState(false);
   const fileInputRef = useRef(null);
+  const platformIcons = {
+    gog: gogIcon,
+    epic: epicIcon,
+    steam: steamIcon,
+    amazon: amazonIcon,
+  };
 
   // Fetch the user's game list on component mount
   useEffect(() => {
@@ -243,8 +254,20 @@ const YourLibrary = () => {
                     },
                   }}
                 >
-                  <ListItemText primary={game.name} /> {/* Display the game name */}
-                </ListItem>
+                <ListItemText primary={
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  {game.name}
+                  {game.platform && (
+                    <img
+                      src={platformIcons[game.platform]}
+                      alt={game.platform}
+                      style={{ width: 20, height: 20 }}
+                    />
+                  )}
+                </span>
+                  }
+                />
+              </ListItem>
               ))}
             </List>
           ) : (
