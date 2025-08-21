@@ -203,7 +203,7 @@ const YourLibrary = () => {
               ))}
             </List>
           ) : (
-            <Typography variant="body1">No games found. Refresh your library or add a SteamID.</Typography>
+            <Typography variant="body1">Nessun gioco trovato, aggiorna la tua libreria, aggiungi il tuo SteamID o carica una lista di giochi.</Typography>
           )}
         </Box>
       </Box>
