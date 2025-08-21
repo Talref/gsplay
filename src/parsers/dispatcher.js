@@ -1,8 +1,8 @@
 // src/utils/dispatcher.js
 
-const parseGog = require('./parsers/gogParser');
-const parseEpic = require('./parsers/epicParser');
-const parseAmazon = require('./parsers/amazonParser');
+const parseGog = require('./gogParser.js');
+const parseEpic = require('./epicParser.js');
+const parseAmazon = require('./amazonParser.js');
 
 /**
  * Dispatch the file content to the correct parser based on filename
@@ -18,9 +18,9 @@ async function dispatcher(fileContent, filename) {
 
   if (lowerName.includes('gog')) {
     parser = parseGog;
-  } else if (lowerName.includes('epic')) {
+  } else if (lowerName.includes('legendary')) {
     parser = parseEpic;
-  } else if (lowerName.includes('amazon')) {
+  } else if (lowerName.includes('nile')) {
     parser = parseAmazon;
   } else {
     throw new Error('Unknown platform: cannot determine parser from filename');
