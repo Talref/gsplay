@@ -148,17 +148,17 @@ const YourLibrary = () => {
       {/* Main content */}
       <Box sx={{ padding: 4 }}>
         <Typography variant="h4" sx={{ mb: 2 }}>
-          La Tua Libreria
+          La Tua Libbreria
         </Typography>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           {/* Refresh Library button */}
           <Button variant="default" onClick={handleRefreshGames}>
-            Aggiorna Libreria Steam
+            Daje Co Steam
           </Button>
 
           <Button variant="default" onClick={handleImportClick}>
-            Importa GOG/EPIC
+            Daje Co GOG/EPIC
           </Button>
           <input 
             type="file" 
@@ -297,7 +297,7 @@ const YourLibrary = () => {
         {/* Display the game list */}
         <Box sx={{ mt: 4 }}>
           <Typography variant="h6" sx={{ mb: 2 }}>
-            I Tuoi Giochi
+            I Giochi A Cui Non Giochi Mai:
           </Typography>
           {games.length > 0 ? (
             <List>

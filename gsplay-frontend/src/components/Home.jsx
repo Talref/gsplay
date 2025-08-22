@@ -10,6 +10,10 @@ import epicIcon from '../assets/epic.png';
 import steamIcon from '../assets/steam.png';
 import amazonIcon from '../assets/amazon.png';
 
+//pretty things
+import fifty from '../assets/500.png';
+import procio from '../assets/procio.png';
+
 // Helper function to format the game name for an IGDB URL.
 const gameTitleFormatter = (name) => {
   if (!name) {
@@ -79,8 +83,13 @@ const Home = () => {
       <Navbar />
 
       <Box component="main" sx={{ flexGrow: 1, padding: 4 }}>
-        <Typography variant="h4" sx={{ mb: 2 }}>
-          Giochi piu' popolari
+        <Typography variant="h4" sx={{ mb: 0, display: 'flex', alignItems: 'center' }}>
+          <img src={fifty} alt="500" style={{ width: 150, height: 120, }} />
+          <Box sx={{ flexGrow: 1, textAlign: 'center' }}>
+            Er mejo de 'sti stanchi! <br />
+            La crema de la crema!
+          </Box>
+          <img src={procio} alt="Sir Procione III" style={{ width: 80, height: 80, marginLeft: 50 }} />
         </Typography>
 
         {/* Conditionally renders the list of games if data is available. */}
