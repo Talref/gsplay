@@ -1,4 +1,4 @@
-// api.js
+// src/services/api.js
 import axios from 'axios';
 
 const api = axios.create({
@@ -52,7 +52,6 @@ export const setSteamId = (steamId) => request('POST', '/set-steam-id', { steamI
 export const fetchMe = () => request('GET', '/users/me');
 export const fetchAllUsers = () => request('GET', '/users');
 export const deleteUser = (userId) => request('DELETE', `/users/${userId}`);
-export const deleteAccount = () => request('DELETE', '/delete');
 export const refreshGames = () => request('POST', '/refresh-games');
 export const fetchGames = () => request('GET', '/user/games').then((res) => res.games);
 export const fetchAllGames = () => request('GET', '/users/games/all');

@@ -1,0 +1,40 @@
+// src/controllers/adminController.js
+const User = require('../models/User');
+
+//ADMIN ONLY
+
+// Fetch all users
+exports.getAllUsers = async (req, res) => {
+  if (!req.user.isAdmin) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const users = await User.find({}).select('-password'); // Exclude passwords
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Delete a user
+exports.deleteUser = async (req, res) => {
+  if (!req.user.isAdmin) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    // Prevent admin from deleting themselves
+    if (req.user.id === req.params.id) {
+      return res.status(403).json({ error: 'You cannot delete your own account.' });
+    }
+
+    const user = await User.findByIdAndDelete(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
