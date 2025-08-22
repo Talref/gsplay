@@ -3,49 +3,13 @@ import { Box, Typography, useTheme, List, ListItem, ListItemText, Checkbox, Butt
 import Navbar from './Navbar';
 import Footer from './Footer';
 import { fetchAllGames } from '../services/api';
+import { gameTitleFormatter } from '../utils/formatters';
 
-// Helper function to format the game name for an IGDB URL.
-// It standardizes game titles to be URL-friendly.
-const gameTitleFormatter = (name) => {
-  if (!name) {
-    return '';
-  }
-
-  let formattedTitle = name.toLowerCase();
-  formattedTitle = formattedTitle.replace(/\s*-\s*/g, '-');
-  formattedTitle = formattedTitle.replace(/[^a-z0-9\s-]/g, '').trim();
-  formattedTitle = formattedTitle.replace(/\s+/g, '-');
-
-  return formattedTitle;
-};
-
-// New helper function to construct the correct URL based on platform and ID.
+// IGBD linking
 const gameUrlFormatter = (game) => {
-  if (!game || !game.id) {
+  if (!game || !game.name) {
     return null;
   }
-
-  // Prioritize platforms in a specific order. You can change this order.
-  const platforms = ['steamId', 'epicId', 'gogId', 'amazonId'];
-
-  for (const platform of platforms) {
-    if (game.id[platform]) {
-      switch (platform) {
-        case 'steamId':
-          return `https://store.steampowered.com/app/${game.id.steamId}`;
-        case 'epicId':
-          return `https://www.epicgames.com/store/it/p/${gameTitleFormatter(game.name)}`;
-        case 'gogId':
-          return `https://www.gog.com/en/game/${gameTitleFormatter(game.name)}`;
-        case 'amazonId':
-          return `https://www.amazon.it/dp/${game.id.amazonId}`;
-        default:
-          return null;
-      }
-    }
-  }
-
-  // Fallback to IGDB if no other platform ID is found.
   return `https://www.igdb.com/games/${gameTitleFormatter(game.name)}`;
 };
 
@@ -146,9 +110,9 @@ const ListByUsers = () => {
                     key={game.name}
                     onClick={() => handleGameClick(game)} // Pass the full game object
                     sx={{
-                      cursor: gameUrlFormatter(game) ? 'pointer' : 'default',
+                      cursor: 'pointer',
                       '&:hover': {
-                        backgroundColor: gameUrlFormatter(game) ? theme.palette.primary.light : 'initial',
+                        backgroundColor: theme.palette.primary.light,
                       },
                     }}
                   >

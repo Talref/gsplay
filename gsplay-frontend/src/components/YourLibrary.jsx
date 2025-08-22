@@ -1,25 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Box, 
-  Button, 
-  Typography, 
-  useTheme, 
-  Snackbar, 
-  Alert, 
-  List, 
-  ListItem, 
-  ListItemText,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
-  Link
-} from '@mui/material';
+import { Box, Button, Typography, useTheme, Snackbar, Alert, List, ListItem, ListItemText, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Link } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import { refreshGames, setSteamId, fetchGames, importLibrary } from '../services/api';
+import { gameTitleFormatter } from '../utils/formatters';
 
 import gogIcon from '../assets/gog.png';
 import epicIcon from '../assets/epic.png';
@@ -132,11 +117,7 @@ const YourLibrary = () => {
 
   // Function to handle clicking on a game
   const handleGameClick = (name) => {
-    let formattedTitle = name.toLowerCase();
-    formattedTitle = formattedTitle.replace(/\s*-\s*/g, '-');
-    formattedTitle = formattedTitle.replace(/[^a-z0-9\s-]/g, '').trim();
-    formattedTitle = formattedTitle.replace(/\s+/g, '-');
-    const gameUrl = `https://www.igdb.com/games/${formattedTitle}`;
+    const gameUrl = `https://www.igdb.com/games/${gameTitleFormatter(name)}`;
     window.open(gameUrl, '_blank');
   };
 

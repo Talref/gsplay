@@ -3,6 +3,7 @@ import { Box, Typography, useTheme, List, ListItem, ListItemText, Dialog, Dialog
 import Navbar from './Navbar';
 import Footer from './Footer';
 import { fetchAllGames } from '../services/api';
+import { gameTitleFormatter } from '../utils/formatters';
 
 // Import platform icons. Make sure these are the correct paths.
 import gogIcon from '../assets/gog.png';
@@ -13,20 +14,6 @@ import amazonIcon from '../assets/amazon.png';
 //pretty things
 import fifty from '../assets/500.png';
 import procio from '../assets/procio.png';
-
-// Helper function to format the game name for an IGDB URL.
-const gameTitleFormatter = (name) => {
-  if (!name) {
-    return '';
-  }
-
-  let formattedTitle = name.toLowerCase();
-  formattedTitle = formattedTitle.replace(/\s*-\s*/g, '-');
-  formattedTitle = formattedTitle.replace(/[^a-z0-9\s-]/g, '').trim();
-  formattedTitle = formattedTitle.replace(/\s+/g, '-');
-
-  return formattedTitle;
-};
 
 // Define the platform icons map here so it can be used throughout the component.
 const platformIcons = {
