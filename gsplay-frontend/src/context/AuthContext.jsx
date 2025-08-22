@@ -1,6 +1,6 @@
 //src/context/authContext.js
 import React, { createContext, useState, useEffect } from 'react';
-import { login as apiLogin, logout as apiLogout } from '../services/api';
+import { login as apiLogin, logout as apiLogout, fetchMe } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -36,8 +36,9 @@ export const AuthProvider = ({ children }) => {
   // Login function
   const loginUser = async (credentials) => {
     try {
-      await apiLogin(credentials); // Cookies set by backend
-      await fetchUserData(); // Fetch user data after login
+      // The login endpoint now returns the user data directly.
+      const response = await apiLogin(credentials);
+      setUser(response.user);
     } catch (error) {
       console.error('Login failed:', error);
       throw error;

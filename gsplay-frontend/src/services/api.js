@@ -49,6 +49,7 @@ export const login = (credentials) => request('POST', '/login', credentials);
 export const signup = (userData) => request('POST', '/signup', userData);
 export const logout = () => request('POST', '/logout');
 export const setSteamId = (steamId) => request('POST', '/set-steam-id', { steamId });
+export const fetchMe = () => request('GET', '/users/me');
 export const fetchAllUsers = () => request('GET', '/users');
 export const deleteUser = (userId) => request('DELETE', `/users/${userId}`);
 export const deleteAccount = () => request('DELETE', '/delete');

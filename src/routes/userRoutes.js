@@ -80,7 +80,10 @@ router.post('/login', authLimiter, async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days, to match token expiry
     });
 
-    res.json({ message: 'Logged in successfully' }); // No token in response body
+    // Return the user object to save a follow-up request on the client
+    const userPayload = await User.findById(user._id).select('-password').lean();
+
+    res.json({ message: 'Logged in successfully', user: userPayload });
 
   } catch (error) {
     console.error('Login error:', error);
