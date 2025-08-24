@@ -47,3 +47,17 @@ exports.listAllGamesSorted = async () => {
 
   return gamesArray;
 };
+
+// Counts the number of games owned
+exports.countUserGames = async (userId) => {
+  try {
+    const user = await User.findById(userId, 'games');
+    if (!user) {
+      return null;
+    }
+    return user.games.length;
+  } catch (error) {
+    console.error('Error counting user games:', error);
+    throw error;
+  }
+};

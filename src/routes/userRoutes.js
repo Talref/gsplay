@@ -44,5 +44,6 @@ router.delete('/users/:id', authMiddleware, adminController.deleteUser);
 
 // Library Routes
 router.get('/users/games/all', libraryController.getAllUserGames);
+router.get('/user/:userId/game-count', libraryController.countUserGames);
 
 module.exports = router;

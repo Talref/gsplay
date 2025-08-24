@@ -55,6 +55,7 @@ export const deleteUser = (userId) => request('DELETE', `/users/${userId}`);
 export const refreshGames = () => request('POST', '/refresh-games');
 export const fetchGames = () => request('GET', '/user/games').then((res) => res.games);
 export const fetchAllGames = () => request('GET', '/users/games/all');
+export const fetchUserGameCount = (userId) => request('GET', `/user/${userId}/game-count`);
 
 // Import game libraries
 export const importLibrary = (file) => {
