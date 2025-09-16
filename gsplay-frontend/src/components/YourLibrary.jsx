@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Button, Typography, useTheme, Snackbar, Alert, List, ListItem, ListItemText, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Link } from '@mui/material';
+import { Box, Button, Typography, useTheme, Snackbar, Alert, List, Link } from '@mui/material'; // Removed ListItem, ListItemText
 import { useAuth } from '../context/AuthContext';
 import Navbar from './Navbar';
 import Footer from './Footer';
-import { refreshGames, setSteamId, fetchGames, importLibrary } from '../services/api';
+import { setSteamId, importLibrary } from '../services/api';
 import { gameTitleFormatter } from '../utils/formatters';
-
-import gogIcon from '../assets/gog.png';
-import epicIcon from '../assets/epic.png';
-import steamIcon from '../assets/steam.png';
-import amazonIcon from '../assets/amazon.png';
+import useUserGames from '../hooks/useUserGames';
+import SteamIdHelpDialog from './SteamIdHelpDialog';
+import ImportHelpDialog from './ImportHelpDialog';
+import SteamIdInputDialog from './SteamIdInputDialog';
+import UserGameListItem from './UserGameListItem'; // Import the new UserGameListItem component
 
 const YourLibrary = () => {
   const theme = useTheme();
@@ -17,60 +17,27 @@ const YourLibrary = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('info');
-  const [games, setGames] = useState([]);
+  const { games, loading, error, refreshGames: refreshUserGames } = useUserGames(); // Use the new hook
   const [steamIdHelpOpen, setSteamIdHelpOpen] = useState(false);
   const [importHelpOpen, setImportHelpOpen] = useState(false);
+  const [steamIdInputOpen, setSteamIdInputOpen] = useState(false); // New state for SteamID input dialog
   const fileInputRef = useRef(null);
-  const platformIcons = {
-    gog: gogIcon,
-    epic: epicIcon,
-    steam: steamIcon,
-    amazon: amazonIcon,
-  };
-
-  // Fetch the user's game list on component mount
-  useEffect(() => {
-    const loadGames = async () => {
-      try {
-        const gamesData = await fetchGames();
-        const sortedGames = [...gamesData].sort((a, b) => 
-          a.name.localeCompare(b.name)
-        );
-        setGames(sortedGames);
-      } catch (error) {
-        setSnackbarMessage('Error fetching game list.');
-        setSnackbarSeverity('error');
-        setSnackbarOpen(true);
-        console.error('Error fetching games:', error);
-      }
-    };
-
-    if (user) {
-      loadGames();
-    }
-  }, [user]);
 
   // Refresh the game list  
   const handleRefreshGames = async () => {
-    try {
-      const response = await refreshGames();
-      setSnackbarMessage("UEEEEEE, GRANDE QUANTI CAZZO DE GIOCHI DA CHILO AOOOOO!!!!")
-      setSnackbarSeverity('success');
-      setSnackbarOpen(true);
-
-      // Use the game list from the refresh response, no second API call needed
-      setGames(response.games);
-    } catch (error) {
-      setSnackbarMessage('Errore nel recuperare i giochi. Hai inserito il tuo SteamID?');
-      setSnackbarSeverity('error');
-      setSnackbarOpen(true);
-      console.error('Errore nel recuperare i giochi. Acciderboli!', error);
-    }
+    const result = await refreshUserGames();
+    setSnackbarMessage(result.message);
+    setSnackbarSeverity(result.success ? 'success' : 'error');
+    setSnackbarOpen(true);
   };
 
   // Set Steam ID
-  const handleSetSteamId = async () => {
-    const steamId = prompt('Inserisci il tuo SteamID:');
+  const handleSetSteamIdClick = () => {
+    setSteamIdInputOpen(true); // Open the SteamID input dialog
+  };
+
+  const handleSaveSteamId = async (steamId) => {
+    setSteamIdInputOpen(false); // Close the dialog
     if (steamId) {
       try {
         await setSteamId(steamId);
@@ -150,7 +117,7 @@ const YourLibrary = () => {
           />
 
           {/* Add/Change SteamID button */}
-          <Button variant="accent" onClick={handleSetSteamId}>
+          <Button variant="accent" onClick={handleSetSteamIdClick}>
             {user?.steamId ? 'Cambia SteamID' : 'Aggiungi SteamID'}
           </Button>
         </Box>
@@ -192,92 +159,16 @@ const YourLibrary = () => {
         </Box>
 
         {/* SteamID Help Dialog */}
-        <Dialog
+        <SteamIdHelpDialog
           open={steamIdHelpOpen}
           onClose={() => setSteamIdHelpOpen(false)}
-          PaperProps={{
-            sx: {
-              backgroundColor: theme.palette.background.paper,
-              color: theme.palette.text.primary,
-            }
-          }}
-        >
-          <DialogTitle>Come trovare lo SteamID</DialogTitle>
-          <DialogContent>
-            <DialogContentText component="div" sx={{ color: theme.palette.text.primary }}>
-              Per Trovare il tuo steamID:
-              <Box component="ol" sx={{ 
-                pl: 4, // Increased left padding for indentation
-                '& li': {
-                  mb: 1.5, // Increased margin bottom for each list item
-                  lineHeight: 1.6, // Increased line height
-                }
-              }}>
-                <li>Visita il tuo <Link href="https://steamcommunity.com/my/" target="_blank" rel="noopener">profilo Steam</Link> (log in se necessario)</li>
-                <li>Il tuo SteamID sono le ultime 17 cifre dell'URL</li>
-                <li>Se il tuo profilo steam non finisce con lo SteamID visita <Link href="https://steamid.io/" target="_blank" rel="noopener">SteamID.io</Link> ed incolla il link del tuo profilo</li>
-                <li>SteamID.io calcolera' il tuo SteamID dal link (quello corretto e' SteamID64).</li>
-                <li>Inserisci il tuo SteamID nel form di questa pagina</li>
-              </Box>
-              <Typography variant="body2" sx={{ mt: 2 }}>
-                Non c'e' bisogno di ripetere questa operazione. Se aggiungete nuovi giochi alla vostra libreria basta cliccare su Aggiorna Libreria.
-              </Typography>
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button 
-              onClick={() => setSteamIdHelpOpen(false)} 
-              variant="default"
-            >
-              Chiudi
-            </Button>
-          </DialogActions>
-        </Dialog>
+        />
 
         {/* Import Help Dialog */}
-        <Dialog
+        <ImportHelpDialog
           open={importHelpOpen}
           onClose={() => setImportHelpOpen(false)}
-          PaperProps={{
-            sx: {
-              backgroundColor: theme.palette.background.paper,
-              color: theme.palette.text.primary,
-            }
-          }}
-        >
-          <DialogTitle>Come importare giochi da GOG/Epic/Amazon Games</DialogTitle>
-          <DialogContent>
-            <DialogContentText component="div" sx={{ color: theme.palette.text.primary }}>
-              <Box component="ol" sx={{ 
-                pl: 4, // Increased left padding for indentation
-                '& li': {
-                  mb: 1.5, // Increased margin bottom for each list item
-                  lineHeight: 1.6, // Increased line height
-                }
-              }}>
-                <li>Installa <Link href="https://heroicgameslauncher.com/" target="_blank" rel="noopener">Heroic Games Launcher</Link></li>
-                <li>Collega i tuoi account e popola la tua libreria</li>
-                <li>Apri:<br />
-                  C:\Users\NOME_UTENTE\AppData\Roaming\heroic\store_cache (Windows) o:<br />
-                  ~/.config/heroic/store_cache/ (Linux)<br />
-                  (attenzione, i percorsi derivano da test, se avete i file in un altra posizione pingatemi sul server - @eradan)                  
-                </li>
-                <li>Carica i file rilevanti che finiscono in "library" cliccando su "Importa GOG/Epic" (gog_library.json per GOG, legendary_library.json per Epic e nile_library.json per Amazon Games)</li>
-              </Box>
-              <Typography variant="body2" sx={{ mt: 2 }}>
-                Fatto! Ricorda di ricaricare i file ogni tanto se aggiungi nuovi giochi!
-              </Typography>
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button 
-              onClick={() => setImportHelpOpen(false)} 
-              variant="default"
-            >
-              Chiudi
-            </Button>
-          </DialogActions>
-        </Dialog>
+        />
 
         {/* Display the game list */}
         <Box sx={{ mt: 4 }}>
@@ -286,31 +177,12 @@ const YourLibrary = () => {
           </Typography>
           {games.length > 0 ? (
             <List>
-              {games.map((game, index) => (
-                <ListItem
-                  key={index}
-                  onClick={() => handleGameClick(game.name)} // Make the list item clickable
-                  sx={{
-                    cursor: 'pointer', // Change cursor to pointer on hover
-                    '&:hover': {
-                      backgroundColor: theme.palette.primary.light, // Highlight on hover
-                    },
-                  }}
-                >
-                <ListItemText primary={
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                  {game.name}
-                  {game.platform && (
-                    <img
-                      src={platformIcons[game.platform]}
-                      alt={game.platform}
-                      style={{ width: 20, height: 20 }}
-                    />
-                  )}
-                </span>
-                  }
+              {games.map((game) => (
+                <UserGameListItem
+                  key={`${game.name}-${game.platform}`}
+                  game={game}
+                  onClick={handleGameClick}
                 />
-              </ListItem>
               ))}
             </List>
           ) : (
@@ -333,6 +205,13 @@ const YourLibrary = () => {
           {snackbarMessage}
         </Alert>
       </Snackbar>
+
+      {/* SteamID Input Dialog */}
+      <SteamIdInputDialog
+        open={steamIdInputOpen}
+        onClose={() => setSteamIdInputOpen(false)}
+        onSave={handleSaveSteamId}
+      />
     </Box>
   );
 };
