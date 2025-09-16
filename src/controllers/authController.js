@@ -71,15 +71,7 @@ exports.login = async (req, res) => {
 // Refresh User Token
 exports.refreshToken = async (req, res) => {
   try {
-    const refreshToken = req.cookies.exports.refreshGames = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    const games = await gameService.refreshGames(user); // Call the service
-    res.send({ message: 'Successo!', games });
-  } catch (error) {
-    res.status(400).send({ error: error.message });
-  }
-};refreshToken;
+    const refreshToken = req.cookies.refreshToken;
     if (!refreshToken) throw new Error("No refresh token");
 
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
@@ -110,10 +102,7 @@ exports.refreshToken = async (req, res) => {
 
 // Logout User
 exports.logout = (req, res) => {
-    router.post('/logout', (req, res) => {
-        res.clearCookie('accessToken');
-        res.clearCookie('refreshToken');
-        res.send({ message: 'Logged out successfully' });
-        }
-    )
+    res.clearCookie('accessToken');
+    res.clearCookie('refreshToken');
+    res.send({ message: 'Logged out successfully' });
 };
