@@ -15,11 +15,19 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
-        await api.post('/refresh-token', {}); // use the same api instance
+        const refreshResponse = await api.post('/refresh-token', {});
+        // Update user state if refresh was successful
+        if (refreshResponse.data && refreshResponse.data.user) {
+          // Dispatch custom event to update AuthContext
+          window.dispatchEvent(new CustomEvent('tokenRefreshed', {
+            detail: refreshResponse.data
+          }));
+        }
         return api(originalRequest);
       } catch (refreshError) {
         console.warn('Session expired. User is not logged in.');
-        // Don’t redirect — just let the app handle it
+        // Clear user state on refresh failure
+        window.dispatchEvent(new CustomEvent('tokenRefreshFailed'));
         return Promise.reject(refreshError);
       }
     }
