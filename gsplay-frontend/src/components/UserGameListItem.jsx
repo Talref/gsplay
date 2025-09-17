@@ -1,6 +1,4 @@
-import React from 'react';
 import { ListItem, ListItemText, Box, useTheme } from '@mui/material';
-import { gameTitleFormatter } from '../utils/formatters';
 
 // Import platform icons. Make sure these are the correct paths.
 import gogIcon from '../assets/gog.png';

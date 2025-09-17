@@ -1,4 +1,3 @@
-import React from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, List, ListItem, ListItemText, Box, useTheme } from '@mui/material';
 import { gameTitleFormatter } from '../utils/formatters';
 

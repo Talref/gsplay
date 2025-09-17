@@ -1,4 +1,3 @@
-import React from 'react';
 import { ListItem, ListItemText, Typography, useTheme } from '@mui/material';
 
 const GameListItem = ({ game, onClick }) => {
