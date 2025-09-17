@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Button, Typography, useTheme, Snackbar, Alert, List, Link } from '@mui/material'; // Removed ListItem, ListItemText
+import { Box, Button, Typography, useTheme, Snackbar, Alert, List, Link } from '@mui/material'; 
 import { useAuth } from '../context/AuthContext';
 import Navbar from './Navbar';
 import Footer from './Footer';
@@ -9,7 +9,7 @@ import useUserGames from '../hooks/useUserGames';
 import SteamIdHelpDialog from './SteamIdHelpDialog';
 import ImportHelpDialog from './ImportHelpDialog';
 import SteamIdInputDialog from './SteamIdInputDialog';
-import UserGameListItem from './UserGameListItem'; // Import the new UserGameListItem component
+import UserGameListItem from './UserGameListItem'; 
 
 const YourLibrary = () => {
   const theme = useTheme();
@@ -17,10 +17,10 @@ const YourLibrary = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('info');
-  const { games, loading, error, refreshGames: refreshUserGames } = useUserGames(); // Use the new hook
+  const { games, loading, error, refreshGames: refreshUserGames } = useUserGames(); 
   const [steamIdHelpOpen, setSteamIdHelpOpen] = useState(false);
   const [importHelpOpen, setImportHelpOpen] = useState(false);
-  const [steamIdInputOpen, setSteamIdInputOpen] = useState(false); // New state for SteamID input dialog
+  const [steamIdInputOpen, setSteamIdInputOpen] = useState(false); 
   const fileInputRef = useRef(null);
 
   // Refresh the game list  
