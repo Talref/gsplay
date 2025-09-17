@@ -27,7 +27,17 @@ app.use('/api', userRoutes);
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('Connected to MongoDB'))
+  .then(async () => {
+    console.log('Connected to MongoDB');
+
+    // Initialize IGDB lookup tables
+    try {
+      const igdbService = require('./src/services/igdbService');
+      await igdbService.initializeLookupTables();
+    } catch (error) {
+      console.warn('Failed to initialize IGDB lookup tables:', error);
+    }
+  })
   .catch(err => console.error('MongoDB connection error:', err));
 
 // Start the server
