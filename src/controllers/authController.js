@@ -92,7 +92,10 @@ exports.refreshToken = async (req, res) => {
       maxAge: 15 * 60 * 1000 // 15 minutes
     });
 
-    res.status(204).end(); 
+    // Return the user object to update frontend state
+    const userPayload = await User.findById(user._id).select('-password').lean();
+
+    res.json({ message: 'Token refreshed successfully', user: userPayload });
   } catch (error) {
     res.clearCookie('accessToken');
     res.clearCookie('refreshToken');

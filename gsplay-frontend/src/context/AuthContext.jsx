@@ -1,5 +1,5 @@
 //src/context/authContext.js
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { login as apiLogin, logout as apiLogout, fetchMe } from '../services/api';
 
 const AuthContext = createContext();
@@ -8,13 +8,13 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true); // Add loading state
 
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     setLoading(true); // Start loading
     try {
       const response = await fetch('/api/users/me', {
         credentials: 'include',
       });
-      
+
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
@@ -27,11 +27,60 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false); // End loading
     }
-  };
+  }, []);
+
+  // Handle token refresh response
+  const handleTokenRefresh = useCallback((refreshResponse) => {
+    if (refreshResponse && refreshResponse.user) {
+      setUser(refreshResponse.user);
+    }
+  }, []);
+
+  // Proactive token refresh every 10 minutes (before 15min expiry)
+  useEffect(() => {
+    if (!user) return;
+
+    const refreshInterval = setInterval(async () => {
+      try {
+        const response = await fetch('/api/refresh-token', {
+          method: 'POST',
+          credentials: 'include',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          handleTokenRefresh(data);
+        }
+      } catch (error) {
+        console.error('Proactive refresh failed:', error);
+      }
+    }, 10 * 60 * 1000); // 10 minutes
+
+    return () => clearInterval(refreshInterval);
+  }, [user, handleTokenRefresh]);
+
+  // Listen for token refresh events
+  useEffect(() => {
+    const handleTokenRefreshed = (event) => {
+      handleTokenRefresh(event.detail);
+    };
+
+    const handleTokenRefreshFailed = () => {
+      setUser(null);
+    };
+
+    window.addEventListener('tokenRefreshed', handleTokenRefreshed);
+    window.addEventListener('tokenRefreshFailed', handleTokenRefreshFailed);
+
+    return () => {
+      window.removeEventListener('tokenRefreshed', handleTokenRefreshed);
+      window.removeEventListener('tokenRefreshFailed', handleTokenRefreshFailed);
+    };
+  }, [handleTokenRefresh]);
 
   useEffect(() => {
     fetchUserData();
-  }, []);
+  }, [fetchUserData]);
 
   // Login function
   const loginUser = async (credentials) => {
