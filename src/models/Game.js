@@ -35,7 +35,10 @@ const gameSchema = new mongoose.Schema({
   // Ratings and media
   rating: Number, // IGDB rating (0-100)
   artwork: String, // Cover image URL
-  videos: [String], // YouTube video IDs or URLs
+  releaseDate: Date, // Release date from IGDB
+  videos: [String], // Video IDs for embedding
+  publishers: [String], // Game publishers/developers
+  igdbUrl: String, // Direct link to IGDB page
 
   // Store links for purchasing
   storeLinks: [storeLinkSchema],

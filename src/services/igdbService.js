@@ -74,8 +74,13 @@ class IGDBService {
 
         if (isFresh) {
           // Load from database into memory cache
+          // Convert string keys back to numbers for proper lookup
           lookups.forEach(lookup => {
-            this.lookupCache[lookup.type] = new Map(Object.entries(lookup.data));
+            const map = new Map();
+            lookup.data.forEach((value, key) => {
+              map.set(parseInt(key), value);
+            });
+            this.lookupCache[lookup.type] = map;
           });
           this.lookupCache.isLoaded = true;
           console.log('IGDB lookup tables loaded from database');
@@ -142,17 +147,108 @@ class IGDBService {
     }
   }
 
-  // Placeholder function for game retrieval - to be implemented after reading API docs
-  async searchGames(searchTerm, limit = 10) {
-    // TODO: Implement actual IGDB query after reading docs
-    console.log(`Placeholder: Searching for games with term "${searchTerm}", limit: ${limit}`);
-    return [];
+  async searchGames(searchTerm, limit = 5) { // Reduced limit to avoid rate limits
+    await this.ensureLookupTablesLoaded();
+
+    // Get basic search results first
+    const searchQuery = `
+      search "${searchTerm}";
+      fields name, id, rating, cover.url, first_release_date;
+      limit ${limit};
+    `;
+
+    try {
+      const searchResults = await this.makeRequest('games', searchQuery);
+
+      // Get detailed data for each result
+      const detailedResults = [];
+      for (const game of searchResults) {
+        try {
+          const details = await this.getGameDetails(game.id);
+
+          if (details) {
+            detailedResults.push({
+              id: game.id,
+              name: game.name,
+              genres: details.genres || [],
+              platforms: details.availablePlatforms || [],
+              gameModes: details.gameModes || [],
+              rating: game.rating || details.rating,
+              artwork: game.cover?.url || details.artwork,
+              releaseDate: game.first_release_date ? new Date(game.first_release_date * 1000) : details.releaseDate
+            });
+          }
+        } catch (error) {
+          console.warn(`Failed to get details for game ${game.id}:`, error.message);
+          // Still include basic info if details fail
+          detailedResults.push({
+            id: game.id,
+            name: game.name,
+            genres: [],
+            platforms: [],
+            gameModes: [],
+            rating: game.rating,
+            artwork: game.cover?.url,
+            releaseDate: game.first_release_date ? new Date(game.first_release_date * 1000) : null
+          });
+        }
+
+        // Small delay to respect rate limits
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+
+      return detailedResults;
+    } catch (error) {
+      console.error('IGDB search error:', error);
+      throw error;
+    }
   }
 
   async getGameDetails(igdbId) {
-    // TODO: Implement actual IGDB query after reading docs
-    console.log(`Placeholder: Getting details for game ID ${igdbId}`);
-    return null;
+    await this.ensureLookupTablesLoaded();
+
+    const query = `
+      where id = ${igdbId};
+      fields name, id, genres, platforms, game_modes, rating, cover.url,
+             videos.video_id, summary, involved_companies.company.name,
+             first_release_date, url;
+    `;
+
+    try {
+      const results = await this.makeRequest('games', query);
+
+      if (results.length === 0) return null;
+
+      const game = results[0];
+
+      const resolvedGenres = game.genres?.map(id => this.lookupCache.genres.get(id)).filter(Boolean) || [];
+      const resolvedPlatforms = game.platforms?.map(id => this.lookupCache.platforms.get(id)).filter(Boolean) || [];
+      const resolvedGameModes = game.game_modes?.map(id => this.lookupCache.gameModes.get(id)).filter(Boolean) || [];
+
+      return {
+        id: game.id,
+        name: game.name,
+        description: game.summary,
+        genres: resolvedGenres,
+        availablePlatforms: resolvedPlatforms,
+        gameModes: resolvedGameModes,
+        rating: game.rating,
+        artwork: game.cover?.url,
+        releaseDate: game.first_release_date ? new Date(game.first_release_date * 1000) : null,
+        videos: game.videos?.map(v => v.video_id).filter(Boolean) || [],
+        publishers: game.involved_companies?.map(c => c.company?.name).filter(Boolean) || [],
+        igdbUrl: game.url
+      };
+    } catch (error) {
+      console.error('IGDB details error:', error);
+      throw error;
+    }
+  }
+
+  async ensureLookupTablesLoaded() {
+    if (!this.lookupCache.isLoaded) {
+      await this.initializeLookupTables();
+    }
   }
 }
 
