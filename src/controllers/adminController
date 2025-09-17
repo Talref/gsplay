@@ -38,3 +38,54 @@ exports.deleteUser = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Restore failed enrichment games for retry
+exports.restoreFailedGames = async (req, res) => {
+  if (!req.user.isAdmin) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const GameService = require('../services/gameService');
+    const restoredCount = await GameService.restoreFailedGames();
+
+    res.json({
+      message: `Successfully restored ${restoredCount} failed games for retry`,
+      restoredCount
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Force enrichment of all unenriched games
+exports.forceGameEnrichment = async (req, res) => {
+  if (!req.user.isAdmin) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const GameService = require('../services/gameService');
+
+    // Get all unenriched games
+    const unenrichedGames = await GameService.findUnenrichedGames(1000); // Large limit for admin
+
+    if (unenrichedGames.length === 0) {
+      return res.json({
+        message: 'No unenriched games found',
+        enrichedCount: 0
+      });
+    }
+
+    // Force enrichment
+    const enrichedCount = await GameService.enrichGamesBatch(unenrichedGames, 'admin-forced');
+
+    res.json({
+      message: `Successfully enriched ${enrichedCount}/${unenrichedGames.length} games`,
+      enrichedCount,
+      totalGames: unenrichedGames.length
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

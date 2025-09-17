@@ -2,6 +2,7 @@
 const User = require('../models/User');
 const dispatcher = require('../parsers/dispatcher');
 const axios = require('axios');
+const gameService = require('../services/gameService');
 
 // Fetch current user data
 exports.getMe = async (req, res) => {
@@ -69,9 +70,19 @@ exports.refreshGames = async (req, res) => {
     user.games = allGames;
     await user.save();
 
-    res.send({ 
-      message: 'Successo!', 
-      games: user.games 
+    // Sync with Game database (non-blocking)
+    try {
+      console.log(`🎮 Syncing ${steamGames.length} Steam games to Game DB for user ${user._id}`);
+      const syncResult = await gameService.syncGameOwnership(user._id, steamGames);
+      console.log(`✅ Game DB sync complete: +${syncResult.added} games, ${syncResult.enriched} enriched`);
+    } catch (syncError) {
+      console.warn('⚠️ Game DB sync failed:', syncError.message);
+      // Don't fail the user request - game DB sync is secondary
+    }
+
+    res.send({
+      message: 'Successo!',
+      games: user.games
     });
   } catch (error) {
     res.status(400).send({ error: error.message });
@@ -107,6 +118,16 @@ exports.importLibrary = async (req, res) => {
     updatedGames.sort((a, b) => a.name.localeCompare(b.name));
     user.games = updatedGames;
     await user.save();
+
+    // Sync with Game database (non-blocking)
+    try {
+      console.log(`🎮 Syncing ${games.length} ${platform} games to Game DB for user ${user._id}`);
+      const syncResult = await gameService.syncGameOwnership(user._id, games);
+      console.log(`✅ Game DB sync complete: +${syncResult.added} games, ${syncResult.enriched} enriched`);
+    } catch (syncError) {
+      console.warn('⚠️ Game DB sync failed:', syncError.message);
+      // Don't fail the user request - game DB sync is secondary
+    }
 
     res.send({ message: 'Libreria importata, DAJEEEEE!', games: user.games });
   } catch (err) {

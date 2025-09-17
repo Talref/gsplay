@@ -37,6 +37,27 @@ mongoose.connect(process.env.MONGO_URI)
     } catch (error) {
       console.warn('Failed to initialize IGDB lookup tables:', error);
     }
+
+    // Run startup enrichment job (safety net for server downtime)
+    try {
+      const gameService = require('./src/services/gameService');
+      console.log('🔄 Running startup enrichment check...');
+
+      // Find games that need enrichment (reasonable limit for startup)
+      const unenrichedGames = await gameService.findUnenrichedGames(50);
+
+      if (unenrichedGames.length > 0) {
+        console.log(`📋 Found ${unenrichedGames.length} unenriched games, attempting enrichment...`);
+
+        // Use the reusable batch enrichment method
+        await gameService.enrichGamesBatch(unenrichedGames, 'startup');
+      } else {
+        console.log('✅ No unenriched games found during startup check');
+      }
+
+    } catch (error) {
+      console.warn('⚠️ Startup enrichment check failed:', error.message);
+    }
   })
   .catch(err => console.error('MongoDB connection error:', err));
 

@@ -65,6 +65,10 @@ export const fetchGames = () => request('GET', '/user/games').then((res) => res.
 export const fetchAllGames = () => request('GET', '/users/games/all');
 export const fetchUserGameCount = (userId) => request('GET', `/user/${userId}/game-count`);
 
+// Admin functions
+export const restoreFailedGames = () => request('POST', '/admin/restore-failed-games');
+export const forceGameEnrichment = () => request('POST', '/admin/force-enrichment');
+
 // Import game libraries
 export const importLibrary = (file) => {
   const formData = new FormData();

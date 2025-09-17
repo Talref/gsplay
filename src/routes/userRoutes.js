@@ -41,6 +41,8 @@ router.post('/import-library', authMiddleware, upload.single('file'), userContro
 // Admin Routes
 router.get('/users', authMiddleware, adminController.getAllUsers);
 router.delete('/users/:id', authMiddleware, adminController.deleteUser);
+router.post('/admin/restore-failed-games', authMiddleware, adminController.restoreFailedGames);
+router.post('/admin/force-enrichment', authMiddleware, adminController.forceGameEnrichment);
 
 // Library Routes
 router.get('/users/games/all', libraryController.getAllUserGames);

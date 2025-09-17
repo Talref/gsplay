@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, useTheme, List, ListItem, ListItemText, Button, Snackbar, Alert } from '@mui/material';
+import { Box, Typography, useTheme, List, ListItem, ListItemText, Button, Snackbar, Alert, Grid, Paper } from '@mui/material';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import ProtectedRoute from './ProtectedRoute';
-import { fetchAllUsers, deleteUser } from '../services/api';
+import { fetchAllUsers, deleteUser, restoreFailedGames, forceGameEnrichment } from '../services/api';
 
 const AdminPage = () => {
   const theme = useTheme();
@@ -11,6 +11,8 @@ const AdminPage = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false); // State for Snackbar
   const [snackbarMessage, setSnackbarMessage] = useState(''); // Snackbar message
   const [snackbarSeverity, setSnackbarSeverity] = useState('info'); // Snackbar severity
+  const [restoreLoading, setRestoreLoading] = useState(false); // Loading state for restore button
+  const [enrichLoading, setEnrichLoading] = useState(false); // Loading state for enrichment button
 
   // Fetch all users on component mount
   useEffect(() => {
@@ -45,6 +47,42 @@ const AdminPage = () => {
     }
   };
 
+  // Handle restoring failed games
+  const handleRestoreFailedGames = async () => {
+    setRestoreLoading(true);
+    try {
+      const result = await restoreFailedGames();
+      setSnackbarMessage(result.message);
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+    } catch (error) {
+      console.error('Error restoring failed games:', error);
+      setSnackbarMessage('Error restoring failed games.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setRestoreLoading(false);
+    }
+  };
+
+  // Handle forcing game enrichment
+  const handleForceEnrichment = async () => {
+    setEnrichLoading(true);
+    try {
+      const result = await forceGameEnrichment();
+      setSnackbarMessage(result.message);
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+    } catch (error) {
+      console.error('Error forcing enrichment:', error);
+      setSnackbarMessage('Error forcing game enrichment.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setEnrichLoading(false);
+    }
+  };
+
   // Handle closing the Snackbar
   const handleCloseSnackbar = () => {
     setSnackbarOpen(false);
@@ -61,6 +99,45 @@ const AdminPage = () => {
           <Typography variant="h4" sx={{ mb: 2 }}>
             Admin Dashboard
           </Typography>
+
+          {/* Admin Controls */}
+          <Paper sx={{ p: 3, mb: 4, backgroundColor: theme.palette.primary.main }}>
+            <Typography variant="h6" sx={{ mb: 2, color: theme.palette.text.primary }}>
+              Game Database Management
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  color="secondary"
+                  onClick={handleRestoreFailedGames}
+                  disabled={restoreLoading}
+                  sx={{ py: 1.5 }}
+                >
+                  {restoreLoading ? 'Restoring...' : 'Restore Failed Games'}
+                </Button>
+                <Typography variant="caption" sx={{ mt: 1, display: 'block', color: theme.palette.text.secondary }}>
+                  Reset failed enrichments for retry
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  color="primary"
+                  onClick={handleForceEnrichment}
+                  disabled={enrichLoading}
+                  sx={{ py: 1.5 }}
+                >
+                  {enrichLoading ? 'Enriching...' : 'Force Game Enrichment'}
+                </Button>
+                <Typography variant="caption" sx={{ mt: 1, display: 'block', color: theme.palette.text.secondary }}>
+                  Manually trigger enrichment process
+                </Typography>
+              </Grid>
+            </Grid>
+          </Paper>
 
           {/* Users List */}
           <Typography variant="h6" sx={{ mb: 2 }}>

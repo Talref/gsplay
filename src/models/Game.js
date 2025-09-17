@@ -57,9 +57,7 @@ const gameSchema = new mongoose.Schema({
   }
 });
 
-// Indexes for performance
-gameSchema.index({ name: 1 }); // Already indexed via unique
-gameSchema.index({ igdbId: 1 });
+// Additional indexes for performance (name and igdbId already indexed via schema options)
 gameSchema.index({ 'owners.userId': 1 }); // For querying games owned by a user
 gameSchema.index({ genres: 1 }); // For filtering by genre
 gameSchema.index({ availablePlatforms: 1 }); // For filtering by platform
@@ -75,7 +73,8 @@ gameSchema.pre('save', function(next) {
 gameSchema.statics.normalizeGameName = function(name) {
   return name
     .toLowerCase()
-    .replace(/[^\w\s]/g, '') // Remove special characters
+    .replace(/[^\w\s\-!]/g, '') // Remove special characters but keep hyphens and exclamation marks
+    .replace(/-/g, ' ') // Convert hyphens to spaces
     .replace(/\s+/g, ' ') // Normalize whitespace
     .trim();
 };
