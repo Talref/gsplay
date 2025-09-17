@@ -43,6 +43,7 @@ router.get('/users', authMiddleware, adminController.getAllUsers);
 router.delete('/users/:id', authMiddleware, adminController.deleteUser);
 router.post('/admin/restore-failed-games', authMiddleware, adminController.restoreFailedGames);
 router.post('/admin/force-enrichment', authMiddleware, adminController.forceGameEnrichment);
+router.get('/admin/game-stats', authMiddleware, adminController.getGameStats);
 
 // Library Routes
 router.get('/users/games/all', libraryController.getAllUserGames);

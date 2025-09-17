@@ -3,7 +3,7 @@ import { Box, Typography, useTheme, List, ListItem, ListItemText, Button, Snackb
 import Navbar from './Navbar';
 import Footer from './Footer';
 import ProtectedRoute from './ProtectedRoute';
-import { fetchAllUsers, deleteUser, restoreFailedGames, forceGameEnrichment } from '../services/api';
+import { fetchAllUsers, deleteUser, restoreFailedGames, forceGameEnrichment, getGameStats } from '../services/api';
 
 const AdminPage = () => {
   const theme = useTheme();
@@ -13,8 +13,10 @@ const AdminPage = () => {
   const [snackbarSeverity, setSnackbarSeverity] = useState('info'); // Snackbar severity
   const [restoreLoading, setRestoreLoading] = useState(false); // Loading state for restore button
   const [enrichLoading, setEnrichLoading] = useState(false); // Loading state for enrichment button
+  const [gameStats, setGameStats] = useState(null); // Game statistics
+  const [statsLoading, setStatsLoading] = useState(true); // Loading state for stats
 
-  // Fetch all users on component mount
+  // Fetch all users and game stats on component mount
   useEffect(() => {
     const loadUsers = async () => {
       try {
@@ -28,7 +30,19 @@ const AdminPage = () => {
       }
     };
 
+    const loadGameStats = async () => {
+      try {
+        const stats = await getGameStats();
+        setGameStats(stats);
+      } catch (error) {
+        console.error('Error fetching game stats:', error);
+      } finally {
+        setStatsLoading(false);
+      }
+    };
+
     loadUsers();
+    loadGameStats();
   }, []);
 
   // Handle deleting a user
@@ -99,6 +113,72 @@ const AdminPage = () => {
           <Typography variant="h4" sx={{ mb: 2 }}>
             Admin Dashboard
           </Typography>
+
+          {/* Game Statistics */}
+          <Paper sx={{ p: 3, mb: 4, backgroundColor: theme.palette.background.paper }}>
+            <Typography variant="h6" sx={{ mb: 2, color: theme.palette.text.primary }}>
+              Game Database Statistics
+            </Typography>
+            {statsLoading ? (
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                Loading statistics...
+              </Typography>
+            ) : gameStats ? (
+              <Grid container spacing={3}>
+                <Grid item xs={6} sm={3}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4" sx={{ color: theme.palette.primary.main, fontWeight: 'bold' }}>
+                      {gameStats.totalGames}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                      Total Games
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={6} sm={3}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4" sx={{ color: theme.palette.success.main, fontWeight: 'bold' }}>
+                      {gameStats.enrichedGames}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                      Enriched
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={6} sm={3}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4" sx={{ color: theme.palette.warning.main, fontWeight: 'bold' }}>
+                      {gameStats.unenrichedGames}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                      Pending
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={6} sm={3}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4" sx={{ color: theme.palette.error.main, fontWeight: 'bold' }}>
+                      {gameStats.failedGames}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                      Failed
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12}>
+                  <Box sx={{ textAlign: 'center', mt: 2 }}>
+                    <Typography variant="h6" sx={{ color: theme.palette.text.primary }}>
+                      Success Rate: {gameStats.successRate}%
+                    </Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+            ) : (
+              <Typography variant="body2" sx={{ color: theme.palette.error.main }}>
+                Failed to load statistics
+              </Typography>
+            )}
+          </Paper>
 
           {/* Admin Controls */}
           <Paper sx={{ p: 3, mb: 4, backgroundColor: theme.palette.primary.main }}>

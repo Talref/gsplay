@@ -89,3 +89,40 @@ exports.forceGameEnrichment = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Get game database statistics
+exports.getGameStats = async (req, res) => {
+  if (!req.user.isAdmin) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const GameService = require('../services/gameService');
+    const stats = await GameService.getGameStats();
+
+    // Add additional statistics
+    const Game = require('../models/Game');
+
+    const totalGames = await Game.countDocuments();
+    const failedGames = await Game.countDocuments({ igdbId: -1 });
+    const unenrichedGames = await Game.countDocuments({
+      $or: [
+        { igdbId: { $exists: false } },
+        { igdbId: null }
+      ],
+      igdbId: { $ne: -1 }
+    });
+    const enrichedGames = totalGames - failedGames - unenrichedGames;
+
+    res.json({
+      totalGames,
+      enrichedGames,
+      unenrichedGames,
+      failedGames,
+      successRate: totalGames > 0 ? ((enrichedGames / totalGames) * 100).toFixed(1) : 0,
+      ...stats
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
