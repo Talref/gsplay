@@ -11,7 +11,7 @@ import {
   Rating
 } from '@mui/material';
 import { People as PeopleIcon } from '@mui/icons-material';
-import { filterPlatforms } from '../utils/formatters';
+import { filterPlatforms } from '../../utils/formatters';
 
 const GameResultsList = ({ games, loading, onGameClick }) => {
   if (loading) {

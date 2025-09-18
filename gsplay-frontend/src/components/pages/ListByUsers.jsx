@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, useTheme, List, ListItem, ListItemText, Checkbox, Button, Grid } from '@mui/material';
-import Navbar from './Navbar';
-import Footer from './Footer';
-import { fetchAllGames } from '../services/api';
-import { gameTitleFormatter } from '../utils/formatters';
+import Navbar from '../layout/Navbar';
+import Footer from '../layout/Footer';
+import { fetchAllGames } from '../../services/api';
+import { gameTitleFormatter } from '../../utils/formatters';
 
 // IGBD linking
 const gameUrlFormatter = (game) => {

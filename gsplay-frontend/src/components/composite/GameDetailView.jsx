@@ -24,14 +24,14 @@ import {
   CalendarToday as CalendarIcon,
   Star as StarIcon
 } from '@mui/icons-material';
-import { getGameDetails } from '../services/api';
-import { filterPlatforms, groupOwnersByUser } from '../utils/formatters';
+import { getGameDetails } from '../../services/api';
+import { filterPlatforms, groupOwnersByUser } from '../../utils/formatters';
 
 // Import platform icons
-import steamIcon from '../assets/steam.png';
-import epicIcon from '../assets/epic.png';
-import gogIcon from '../assets/gog.png';
-import amazonIcon from '../assets/amazon.png';
+import steamIcon from '../../assets/steam.png';
+import epicIcon from '../../assets/epic.png';
+import gogIcon from '../../assets/gog.png';
+import amazonIcon from '../../assets/amazon.png';
 
 // Platform icon mapping
 const platformIcons = {

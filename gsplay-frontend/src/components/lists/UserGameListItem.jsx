@@ -1,10 +1,10 @@
 import { ListItem, ListItemText, Box, useTheme } from '@mui/material';
 
 // Import platform icons.
-import gogIcon from '../assets/gog.png';
-import epicIcon from '../assets/epic.png';
-import steamIcon from '../assets/steam.png';
-import amazonIcon from '../assets/amazon.png';
+import gogIcon from '../../assets/gog.png';
+import epicIcon from '../../assets/epic.png';
+import steamIcon from '../../assets/steam.png';
+import amazonIcon from '../../assets/amazon.png';
 
 // Define the platform icons map here so it can be used throughout the component.
 const platformIcons = {

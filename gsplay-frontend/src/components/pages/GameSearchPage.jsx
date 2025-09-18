@@ -25,14 +25,14 @@ import {
 } from '@mui/material';
 import { Search as SearchIcon, FilterList as FilterIcon, Close as CloseIcon, Sort as SortIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { searchGames, getFilterOptions } from '../services/api';
-import SearchFilters from './SearchFilters';
-import GameResultsList from './GameResultsList';
-import GameDetailView from './GameDetailView';
-import SearchSuggestions from './SearchSuggestions';
-import Navbar from './Navbar';
-import Footer from './Footer';
-import { useSearchSuggestions } from '../hooks/useSearchSuggestions';
+import { searchGames, getFilterOptions } from '../../services/api';
+import SearchFilters from '../forms/SearchFilters';
+import GameResultsList from '../lists/GameResultsList';
+import GameDetailView from '../composite/GameDetailView';
+import SearchSuggestions from '../composite/SearchSuggestions';
+import Navbar from '../layout/Navbar';
+import Footer from '../layout/Footer';
+import { useSearchSuggestions } from '../../hooks/useSearchSuggestions';
 
 const GameSearchPage = () => {
   const theme = useTheme();

@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { Box, Typography, useTheme, List } from '@mui/material'; // Removed ListItem, ListItemText
-import Navbar from './Navbar';
-import Footer from './Footer';
-import useGameList from '../hooks/useGameList'; // Import the new hook
-import GameDetailsDialog from './GameDetailsDialog'; // Import the new dialog component
-import GameListItem from './GameListItem'; // Import the new GameListItem component
+import Navbar from '../layout/Navbar';
+import Footer from '../layout/Footer';
+import useGameList from '../../hooks/useGameList'; // Import the new hook
+import GameDetailsDialog from '../dialogs/GameDetailsDialog'; // Import the new dialog component
+import GameListItem from '../lists/GameListItem'; // Import the new GameListItem component
 
 //pretty things
-import fifty from '../assets/500.png';
-import procio from '../assets/procio.png';
+import fifty from '../../assets/500.png';
+import procio from '../../assets/procio.png';
 
 const Home = () => {
   const theme = useTheme();

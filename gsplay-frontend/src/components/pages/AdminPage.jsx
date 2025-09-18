@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, useTheme, List, ListItem, ListItemText, Button, Snackbar, Alert, Grid, Paper, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
-import Navbar from './Navbar';
-import Footer from './Footer';
-import ProtectedRoute from './ProtectedRoute';
-import { fetchAllUsers, deleteUser, restoreFailedGames, forceGameEnrichment, scanAllUsersGames, dropGamesCollection, getGameStats } from '../services/api';
+import Navbar from '../layout/Navbar';
+import Footer from '../layout/Footer';
+import ProtectedRoute from '../composite/ProtectedRoute';
+import { fetchAllUsers, deleteUser, restoreFailedGames, forceGameEnrichment, scanAllUsersGames, dropGamesCollection, getGameStats } from '../../services/api';
 
 const AdminPage = () => {
   const theme = useTheme();

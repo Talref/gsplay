@@ -1,11 +1,11 @@
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, List, ListItem, ListItemText, Box, useTheme } from '@mui/material';
-import { gameTitleFormatter } from '../utils/formatters';
+import { gameTitleFormatter } from '../../utils/formatters';
 
 // Import platform icons. Make sure these are the correct paths.
-import gogIcon from '../assets/gog.png';
-import epicIcon from '../assets/epic.png';
-import steamIcon from '../assets/steam.png';
-import amazonIcon from '../assets/amazon.png';
+import gogIcon from '../../assets/gog.png';
+import epicIcon from '../../assets/epic.png';
+import steamIcon from '../../assets/steam.png';
+import amazonIcon from '../../assets/amazon.png';
 
 // Define the platform icons map here so it can be used throughout the component.
 const platformIcons = {

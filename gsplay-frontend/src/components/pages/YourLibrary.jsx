@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Box, Button, Typography, useTheme, Snackbar, Alert, List, Link } from '@mui/material'; 
-import { useAuth } from '../context/AuthContext';
-import Navbar from './Navbar';
-import Footer from './Footer';
-import { setSteamId, importLibrary } from '../services/api';
-import { gameTitleFormatter } from '../utils/formatters';
-import useUserGames from '../hooks/useUserGames';
-import SteamIdHelpDialog from './SteamIdHelpDialog';
-import ImportHelpDialog from './ImportHelpDialog';
-import SteamIdInputDialog from './SteamIdInputDialog';
-import UserGameListItem from './UserGameListItem'; 
+import { useAuth } from '../../context/AuthContext';
+import Navbar from '../layout/Navbar';
+import Footer from '../layout/Footer';
+import { setSteamId, importLibrary } from '../../services/api';
+import { gameTitleFormatter } from '../../utils/formatters';
+import useUserGames from '../../hooks/useUserGames';
+import SteamIdHelpDialog from '../dialogs/SteamIdHelpDialog';
+import ImportHelpDialog from '../dialogs/ImportHelpDialog';
+import SteamIdInputDialog from '../dialogs/SteamIdInputDialog';
+import UserGameListItem from '../lists/UserGameListItem';
 
 const YourLibrary = () => {
   const theme = useTheme();

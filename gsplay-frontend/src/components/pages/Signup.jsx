@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { signup } from '../services/api';
+import { signup } from '../../services/api';
 import { Button, TextField, Box, useTheme } from '@mui/material';
 
 const Signup = ({ onSuccess }) => {

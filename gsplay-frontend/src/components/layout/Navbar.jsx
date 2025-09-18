@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { AppBar, Toolbar, Typography, Button, Box, IconButton, useTheme, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { Link } from 'react-router-dom';
-import Login from './Login';
-import Signup from './Signup';
+import Login from '../pages/Login';
+import Signup from '../pages/Signup';
 
 const Navbar = () => {
   const theme = useTheme();
