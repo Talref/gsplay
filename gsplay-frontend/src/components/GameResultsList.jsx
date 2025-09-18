@@ -39,10 +39,10 @@ const GameResultsList = ({ games, loading, onGameClick }) => {
     return (
       <Box sx={{ textAlign: 'center', py: 8 }}>
         <Typography variant="h6" color="text.secondary">
-          No games found
+          Nessun gioco trovato
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-          Try adjusting your search criteria or filters
+          Prova a modificare i criteri di ricerca o i filtri
         </Typography>
       </Box>
     );
@@ -133,7 +133,7 @@ const GameResultsList = ({ games, loading, onGameClick }) => {
                   <Box sx={{ mb: 1 }}>
                     <Typography variant="body2" color="text.secondary">
                       {filteredPlatforms.slice(0, 3).join(', ')}
-                      {filteredPlatforms.length > 3 && ` +${filteredPlatforms.length - 3} more`}
+                      {filteredPlatforms.length > 3 && ` +${filteredPlatforms.length - 3} altri`}
                     </Typography>
                   </Box>
                 );
@@ -143,7 +143,7 @@ const GameResultsList = ({ games, loading, onGameClick }) => {
               <Box sx={{ display: 'flex', alignItems: 'center', mt: 'auto' }}>
                 <PeopleIcon sx={{ mr: 0.5, fontSize: 16, color: 'text.secondary' }} />
                 <Typography variant="body2" color="text.secondary">
-                  {game.ownerCount} {game.ownerCount === 1 ? 'owner' : 'owners'}
+                  {game.ownerCount} {game.ownerCount === 1 ? 'proprietario' : 'proprietari'}
                 </Typography>
               </Box>
             </CardContent>

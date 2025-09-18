@@ -46,15 +46,15 @@ const Navbar = () => {
             Filtra sta gente
           </Button>
 
-          <Button component={Link} to="/search" variant="default" sx={{ ml: 2 }}>
-            🔍 Search Games
-          </Button>
-
           {user && (
             <Button component={Link} to="/library" variant="default" sx={{ ml: 2 }}>
               La Mejo Libreria: La Tua!!!
             </Button>
           )}
+
+          <Button component={Link} to="/search" variant="default" sx={{ ml: 2 }}>
+            🔍 Ricerca Giochi
+          </Button>
 
           <Box sx={{ flexGrow: 1 }} />
           

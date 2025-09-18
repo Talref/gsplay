@@ -136,10 +136,10 @@ const GameSearchPage = () => {
       <Navbar />
       <Container maxWidth="xl" sx={{ py: 4, flexGrow: 1 }}>
         <Typography variant="h3" component="h1" gutterBottom align="center">
-          Discover Games
+          Scopri Giochi
         </Typography>
         <Typography variant="h6" color="text.secondary" align="center" sx={{ mb: 4 }}>
-          Search and explore our game database
+          Cerca ed esplora il nostro database di giochi
         </Typography>
 
       {/* Search Bar */}
@@ -149,7 +149,7 @@ const GameSearchPage = () => {
             <TextField
               fullWidth
               variant="outlined"
-              placeholder="Search for games..."
+              placeholder="Cerca giochi..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
@@ -166,7 +166,7 @@ const GameSearchPage = () => {
               disabled={loading}
               sx={{ height: 56 }}
             >
-              {loading ? <CircularProgress size={24} /> : 'Search'}
+              {loading ? <CircularProgress size={24} /> : 'Cerca'}
             </Button>
           </Grid>
         </Grid>
@@ -191,7 +191,7 @@ const GameSearchPage = () => {
               sx={{ '& .MuiDrawer-paper': { width: 300, p: 2 } }}
             >
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                <Typography variant="h6">Filters</Typography>
+                <Typography variant="h6">Filtri</Typography>
                 <IconButton onClick={() => setFiltersOpen(false)}>
                   <CloseIcon />
                 </IconButton>

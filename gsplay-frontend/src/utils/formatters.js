@@ -60,3 +60,70 @@ export const filterPlatforms = (platforms) => {
 
   return availablePlatforms;
 };
+
+/**
+ * Groups owners by user ID and merges their platforms
+ * @param {Array} owners - Array of owner objects
+ * @returns {Array} Grouped owners with merged platforms
+ */
+export const groupOwnersByUser = (owners) => {
+  if (!owners || !Array.isArray(owners)) {
+    return [];
+  }
+
+  const groupedOwners = new Map();
+
+  owners.forEach(owner => {
+    const userId = owner.userId?._id || owner.userId;
+    const userName = owner.userId?.name || owner.name || 'Unknown User';
+
+    if (groupedOwners.has(userId)) {
+      // Merge platforms for existing user
+      const existingOwner = groupedOwners.get(userId);
+      const mergedPlatforms = [...new Set([...existingOwner.platforms, ...owner.platforms])];
+      existingOwner.platforms = mergedPlatforms;
+    } else {
+      // Add new user
+      groupedOwners.set(userId, {
+        userId: userId,
+        name: userName,
+        platforms: [...owner.platforms]
+      });
+    }
+  });
+
+  return Array.from(groupedOwners.values());
+};
+
+/**
+ * Gets the platform icon path for a given platform name
+ * @param {string} platform - Platform name
+ * @returns {string} Icon path or null if not found
+ */
+export const getPlatformIcon = (platform) => {
+  if (!platform) return null;
+
+  const platformIconMap = {
+    'steam': '/steam.png',
+    'epic': '/epic.png',
+    'gog': '/gog.png',
+    'amazon': '/amazon.png',
+    'procio': '/procio.png',
+    // Add more platform mappings as needed
+  };
+
+  // Try exact match first
+  const lowerPlatform = platform.toLowerCase();
+  if (platformIconMap[lowerPlatform]) {
+    return platformIconMap[lowerPlatform];
+  }
+
+  // Try partial matches
+  for (const [key, icon] of Object.entries(platformIconMap)) {
+    if (lowerPlatform.includes(key) || key.includes(lowerPlatform)) {
+      return icon;
+    }
+  }
+
+  return null;
+};

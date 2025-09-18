@@ -1,6 +1,6 @@
 import { ListItem, ListItemText, Box, useTheme } from '@mui/material';
 
-// Import platform icons. Make sure these are the correct paths.
+// Import platform icons.
 import gogIcon from '../assets/gog.png';
 import epicIcon from '../assets/epic.png';
 import steamIcon from '../assets/steam.png';

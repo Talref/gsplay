@@ -89,7 +89,7 @@ const SearchFilters = ({ filters, filterOptions, onFilterChange }) => {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h6">
-          Filters
+          Filtri
         </Typography>
         {hasActiveFilters && (
           <Button
@@ -114,19 +114,19 @@ const SearchFilters = ({ filters, filterOptions, onFilterChange }) => {
       <Divider sx={{ mb: 2 }} />
 
       <FilterSection
-        title="Genres"
+        title="Generi"
         category="genres"
         options={filterOptions.genres || []}
       />
 
       <FilterSection
-        title="Platforms"
+        title="Piattaforme"
         category="platforms"
         options={filterOptions.platforms || []}
       />
 
       <FilterSection
-        title="Game Modes"
+        title="Modalita' di Gioco"
         category="gameModes"
         options={filterOptions.gameModes || []}
       />
@@ -134,7 +134,7 @@ const SearchFilters = ({ filters, filterOptions, onFilterChange }) => {
       {hasActiveFilters && (
         <Box sx={{ mt: 2, p: 2, bgcolor: 'action.selected', borderRadius: 1 }}>
           <Typography variant="body2" color="text.secondary">
-            Active filters: {Object.values(filters).reduce((sum, arr) => sum + arr.length, 0)}
+            Filtri Attivi: {Object.values(filters).reduce((sum, arr) => sum + arr.length, 0)}
           </Typography>
         </Box>
       )}
