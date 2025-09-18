@@ -16,10 +16,14 @@ import {
   Alert,
   IconButton,
   Drawer,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
   useMediaQuery,
   useTheme
 } from '@mui/material';
-import { Search as SearchIcon, FilterList as FilterIcon, Close as CloseIcon } from '@mui/icons-material';
+import { Search as SearchIcon, FilterList as FilterIcon, Close as CloseIcon, Sort as SortIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { searchGames, getFilterOptions } from '../services/api';
 import SearchFilters from './SearchFilters';
@@ -56,18 +60,22 @@ const GameSearchPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [filtersOpen, setFiltersOpen] = useState(!isMobile);
+  const [sortBy, setSortBy] = useState('name'); // Default sort by name
 
   // Load filter options on mount
   useEffect(() => {
     loadFilterOptions();
   }, []);
 
-  // Search when filters change
+  // Load all games on initial mount and search when filters, sort, or page change
   useEffect(() => {
     if (Object.values(filterOptions).some(arr => arr.length > 0)) {
       performSearch();
+    } else {
+      // Load all games on initial load
+      performSearch();
     }
-  }, [filters, pagination.page]);
+  }, [filters, pagination.page, sortBy]);
 
   const loadFilterOptions = async () => {
     try {
@@ -90,8 +98,8 @@ const GameSearchPage = () => {
         gameModes: filters.gameModes,
         page: pagination.page,
         limit: pagination.limit,
-        sortBy: 'name',
-        sortOrder: 'asc'
+        sortBy: sortBy,
+        sortOrder: sortBy === 'rating' ? 'desc' : 'asc' // Ratings descending, others ascending
       };
 
       const result = await searchGames(searchParams);
@@ -129,6 +137,11 @@ const GameSearchPage = () => {
 
   const toggleFilters = () => {
     setFiltersOpen(!filtersOpen);
+  };
+
+  const handleSortChange = (event) => {
+    setSortBy(event.target.value);
+    setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page when sorting
   };
 
   return (
@@ -224,6 +237,26 @@ const GameSearchPage = () => {
             />
           ) : (
             <>
+              {/* Sort and Results Header */}
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography variant="h6">
+                  {games.length > 0 ? `${pagination.total} giochi trovati` : 'Nessun gioco trovato'}
+                </Typography>
+                <FormControl size="small" sx={{ minWidth: 200 }}>
+                  <InputLabel>Ordina per</InputLabel>
+                  <Select
+                    value={sortBy}
+                    label="Ordina per"
+                    onChange={handleSortChange}
+                    startAdornment={<SortIcon sx={{ mr: 1, color: 'text.secondary' }} />}
+                  >
+                    <MenuItem value="name">Alfabetico</MenuItem>
+                    <MenuItem value="rating">Valutazioni</MenuItem>
+                    <MenuItem value="ownerCount">Posseduti da</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+
               <GameResultsList
                 games={games}
                 loading={loading}
