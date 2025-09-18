@@ -8,6 +8,7 @@ const authController = require('../controllers/authController');
 const userController = require('../controllers/userController');
 const adminController = require('../controllers/adminController');
 const libraryController = require('../controllers/libraryController');
+const gameController = require('../controllers/gameController');
 
 // Import middlewares
 const authMiddleware = require('../middleware/auth');
@@ -43,10 +44,17 @@ router.get('/users', authMiddleware, adminController.getAllUsers);
 router.delete('/users/:id', authMiddleware, adminController.deleteUser);
 router.post('/admin/restore-failed-games', authMiddleware, adminController.restoreFailedGames);
 router.post('/admin/force-enrichment', authMiddleware, adminController.forceGameEnrichment);
+router.post('/admin/scan-all-users', authMiddleware, adminController.scanAllUsersGames);
+router.post('/admin/drop-games-collection', authMiddleware, adminController.dropGamesCollection);
 router.get('/admin/game-stats', authMiddleware, adminController.getGameStats);
 
 // Library Routes
 router.get('/users/games/all', libraryController.getAllUserGames);
 router.get('/user/:userId/game-count', libraryController.countUserGames);
+
+// Game Search Routes (Public - no auth required for discovery)
+router.get('/games/search', gameController.searchGames);
+router.get('/games/:id/details', gameController.getGameDetails);
+router.get('/games/filters', gameController.getFilterOptions);
 
 module.exports = router;

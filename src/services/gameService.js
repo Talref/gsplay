@@ -5,14 +5,8 @@ const igdbService = require('./igdbService');
  * Service class for managing game data and IGDB integration
  */
 class GameService {
-  /**
-   * Normalize game names for consistent linking
-   * @param {string} name - Game name to normalize
-   * @returns {string} Normalized game name
-   */
-  static normalizeGameName(name) {
-    return Game.normalizeGameName(name);
-  }
+  // Game names are stored exactly as provided by platform APIs
+  // No normalization needed - we use case-insensitive regex matching instead
 
   /**
    * Create or update game from IGDB data
@@ -38,22 +32,25 @@ class GameService {
       let game = await Game.findOne({ igdbId });
 
       if (!game && additionalData.name) {
-        // If not found by IGDB ID, try to find by normalized name
-        // This handles cases where game was created by user sync but not yet enriched
-        const normalizedName = this.normalizeGameName(additionalData.name);
-        game = await Game.findOne({ name: normalizedName });
+        // If not found by IGDB ID, try to find by exact name match (case-insensitive)
+        game = await Game.findOne({
+          name: { $regex: `^${additionalData.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' }
+        });
 
         // If still not found, try a broader search for similar games
         if (!game) {
-          // Look for games with similar normalized names (handle IGDB name variations)
+          // Look for games with similar names using flexible regex
           const similarGames = await Game.find({
-            name: { $regex: normalizedName.replace(/\s+/g, '.*'), $options: 'i' },
+            name: { $regex: additionalData.name.replace(/\s+/g, '.*'), $options: 'i' },
             owners: { $exists: true, $ne: [] }
           }).limit(5);
 
-          // Find the best match (exact normalized match or highest owner count)
+          // Find the best match (exact match first, then highest owner count)
           if (similarGames.length > 0) {
-            game = similarGames.find(g => this.normalizeGameName(g.name) === normalizedName) || similarGames[0];
+            const exactMatch = similarGames.find(g =>
+              g.name.toLowerCase() === additionalData.name.toLowerCase()
+            );
+            game = exactMatch || similarGames[0];
             console.log(`🔗 Matched similar game: "${game.name}" for IGDB: "${additionalData.name}"`);
           }
         }
@@ -156,43 +153,44 @@ class GameService {
       // Create maps for efficient lookup
       const userGameMap = new Map();
       userGames.forEach(game => {
-        const normalized = this.normalizeGameName(game.name);
-        userGameMap.set(normalized, game);
+        userGameMap.set(game.name.toLowerCase(), game);
       });
 
       const currentGameMap = new Map();
       currentGames.forEach(game => {
-        currentGameMap.set(game.name, game);
+        currentGameMap.set(game.name.toLowerCase(), game);
       });
 
       // Find games to add ownership to
       const gamesToAdd = userGames.filter(game => {
-        const normalized = this.normalizeGameName(game.name);
-        return !currentGameMap.has(normalized);
+        return !currentGameMap.has(game.name.toLowerCase());
       });
 
-      // Find games to remove ownership from
-      const gamesToRemove = currentGames.filter(game => {
-        return !userGameMap.has(game.name);
-      });
+      // Don't remove ownership - scan only adds games, doesn't manage ownership
+      const gamesToRemove = [];
 
       // Bulk operations
       const bulkOps = [];
 
       // Add ownership to new games
       for (const userGame of gamesToAdd) {
-        const normalized = this.normalizeGameName(userGame.name);
         bulkOps.push({
           updateOne: {
-            filter: { name: normalized },
+            filter: { name: userGame.name },
             update: {
-              $addToSet: {
+              $setOnInsert: {
+                name: userGame.name,
+                createdAt: new Date()
+              },
+              $set: {
+                lastUpdated: new Date()
+              },
+              $push: {
                 owners: {
                   userId: userId,
                   platforms: [userGame.platform]
                 }
-              },
-              $set: { lastUpdated: new Date() }
+              }
             },
             upsert: true // Create if doesn't exist
           }
@@ -223,12 +221,10 @@ class GameService {
 
         // Fetch the actual Mongoose documents created by bulkWrite
         // bulkWrite returns plain objects, but we need Mongoose documents for enrichment
-        const normalizedNames = gamesToAdd.map(game =>
-          this.normalizeGameName(game.name)
-        );
+        const gameNames = gamesToAdd.map(game => game.name);
 
         const gameDocuments = await Game.find({
-          name: { $in: normalizedNames }
+          name: { $in: gameNames }
         });
 
         console.log(`📋 Retrieved ${gameDocuments.length} Mongoose documents for enrichment`);
@@ -245,6 +241,88 @@ class GameService {
       };
     } catch (error) {
       console.error('Error syncing game ownership:', error);
+      throw error;
+    }
+  }
+
+  // Add games to database without enrichment (for admin scan)
+  static async addGamesToDatabase(userId, userGames) {
+    try {
+      // Get all current games for this user from Game model
+      const currentGames = await Game.find({ 'owners.userId': userId });
+
+      // Create maps for efficient lookup
+      const userGameMap = new Map();
+      userGames.forEach(game => {
+        userGameMap.set(game.name.toLowerCase(), game);
+      });
+
+      const currentGameMap = new Map();
+      currentGames.forEach(game => {
+        currentGameMap.set(game.name.toLowerCase(), game);
+      });
+
+      // Find games to add ownership to
+      const gamesToAdd = userGames.filter(game => {
+        return !currentGameMap.has(game.name.toLowerCase());
+      });
+
+      // Don't remove ownership - scan only adds games, doesn't manage ownership
+      const gamesToRemove = [];
+
+      // Bulk operations
+      const bulkOps = [];
+
+      // Add ownership to new games
+      for (const userGame of gamesToAdd) {
+        bulkOps.push({
+          updateOne: {
+            filter: { name: userGame.name },
+            update: {
+              $setOnInsert: {
+                name: userGame.name,
+                createdAt: new Date()
+              },
+              $set: {
+                lastUpdated: new Date()
+              },
+              $push: {
+                owners: {
+                  userId: userId,
+                  platforms: [userGame.platform]
+                }
+              }
+            },
+            upsert: true // Create if doesn't exist
+          }
+        });
+      }
+
+      // Remove ownership from games user no longer owns
+      for (const game of gamesToRemove) {
+        bulkOps.push({
+          updateOne: {
+            filter: { _id: game._id },
+            update: {
+              $pull: { owners: { userId: userId } },
+              $set: { lastUpdated: new Date() }
+            }
+          }
+        });
+      }
+
+      if (bulkOps.length > 0) {
+        await Game.bulkWrite(bulkOps);
+      }
+
+      return {
+        success: true,
+        added: gamesToAdd.length,
+        removed: gamesToRemove.length,
+        enriched: 0 // No enrichment in this function
+      };
+    } catch (error) {
+      console.error('Error adding games to database:', error);
       throw error;
     }
   }
@@ -331,7 +409,7 @@ class GameService {
           // Use the IGDB data but keep the original game name from database
           console.log(`📝 Updating game "${game.name}" with IGDB ID ${igdbGame.id}`);
           const updatedGame = await this.createOrUpdateFromIGDB(igdbGame.id, {
-            name: game.name, // Keep the original normalized name from database
+            name: game.name, // Keep the original game name from database
             description: details.description,
             genres: details.genres,
             availablePlatforms: details.availablePlatforms,

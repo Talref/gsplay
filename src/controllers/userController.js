@@ -70,15 +70,15 @@ exports.refreshGames = async (req, res) => {
     user.games = allGames;
     await user.save();
 
-    // Sync with Game database (non-blocking)
-    try {
-      console.log(`🎮 Syncing ${steamGames.length} Steam games to Game DB for user ${user._id}`);
-      const syncResult = await gameService.syncGameOwnership(user._id, steamGames);
-      console.log(`✅ Game DB sync complete: +${syncResult.added} games, ${syncResult.enriched} enriched`);
-    } catch (syncError) {
-      console.warn('⚠️ Game DB sync failed:', syncError.message);
-      // Don't fail the user request - game DB sync is secondary
-    }
+    // Sync with Game database (truly asynchronous - don't block user response)
+    console.log(`🎮 Starting background sync of ${steamGames.length} Steam games for user ${user._id}`);
+    gameService.syncGameOwnership(user._id, steamGames)
+      .then(syncResult => {
+        console.log(`✅ Background sync complete: +${syncResult.added} games, ${syncResult.enriched} enriched`);
+      })
+      .catch(syncError => {
+        console.error('❌ Background sync failed:', syncError.message);
+      });
 
     res.send({
       message: 'Successo!',
@@ -119,15 +119,15 @@ exports.importLibrary = async (req, res) => {
     user.games = updatedGames;
     await user.save();
 
-    // Sync with Game database (non-blocking)
-    try {
-      console.log(`🎮 Syncing ${games.length} ${platform} games to Game DB for user ${user._id}`);
-      const syncResult = await gameService.syncGameOwnership(user._id, games);
-      console.log(`✅ Game DB sync complete: +${syncResult.added} games, ${syncResult.enriched} enriched`);
-    } catch (syncError) {
-      console.warn('⚠️ Game DB sync failed:', syncError.message);
-      // Don't fail the user request - game DB sync is secondary
-    }
+    // Sync with Game database (truly asynchronous - don't block user response)
+    console.log(`🎮 Starting background sync of ${games.length} ${platform} games for user ${user._id}`);
+    gameService.syncGameOwnership(user._id, games)
+      .then(syncResult => {
+        console.log(`✅ Background sync complete: +${syncResult.added} games, ${syncResult.enriched} enriched`);
+      })
+      .catch(syncError => {
+        console.error('❌ Background sync failed:', syncError.message);
+      });
 
     res.send({ message: 'Libreria importata, DAJEEEEE!', games: user.games });
   } catch (err) {

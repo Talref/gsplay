@@ -126,3 +126,85 @@ exports.getGameStats = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Drop games collection only (keeps users intact)
+exports.dropGamesCollection = async (req, res) => {
+  if (!req.user.isAdmin) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const Game = require('../models/Game');
+    await Game.deleteMany({}); // Delete all games but keep the collection
+
+    res.json({
+      message: 'Games collection cleared successfully. All games have been deleted, but users remain intact.',
+      warning: 'Game data cannot be recovered!'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Scan all users and sync their games to the game database
+exports.scanAllUsersGames = async (req, res) => {
+  if (!req.user.isAdmin) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const GameService = require('../services/gameService');
+    const User = require('../models/User');
+
+    // Get all users
+    const users = await User.find({});
+    console.log(`Found ${users.length} users to scan`);
+
+    let totalGamesAdded = 0;
+    let totalGamesRemoved = 0;
+    let totalEnriched = 0;
+
+    // Process each user
+    for (const user of users) {
+      try {
+        console.log(`Processing user: ${user.name} (${user._id})`);
+
+        // Get user's games from their profile
+        const userGames = user.games || [];
+
+        if (userGames.length === 0) {
+          console.log(`User ${user.name} has no games`);
+          continue;
+        }
+
+        console.log(`User ${user.name} has ${userGames.length} games`);
+
+        // Add this user's games to the game database (without enrichment)
+        const result = await GameService.addGamesToDatabase(user._id, userGames);
+
+        totalGamesAdded += result.added;
+        totalGamesRemoved += result.removed;
+        totalEnriched += result.enriched;
+
+        console.log(`User ${user.name}: +${result.added} -${result.removed} enriched: ${result.enriched}`);
+
+      } catch (userError) {
+        console.error(`Error processing user ${user.name}:`, userError.message);
+        // Continue with other users
+      }
+    }
+
+    res.json({
+      message: `Successfully scanned ${users.length} users`,
+      usersProcessed: users.length,
+      totalGamesAdded,
+      totalGamesRemoved,
+      totalEnriched,
+      summary: `Added ${totalGamesAdded}, Removed ${totalGamesRemoved}, Enriched ${totalEnriched} games`
+    });
+
+  } catch (error) {
+    console.error('Error scanning all users games:', error);
+    res.status(500).json({ error: error.message });
+  }
+};

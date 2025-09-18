@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, useTheme, List, ListItem, ListItemText, Button, Snackbar, Alert, Grid, Paper } from '@mui/material';
+import { Box, Typography, useTheme, List, ListItem, ListItemText, Button, Snackbar, Alert, Grid, Paper, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import ProtectedRoute from './ProtectedRoute';
-import { fetchAllUsers, deleteUser, restoreFailedGames, forceGameEnrichment, getGameStats } from '../services/api';
+import { fetchAllUsers, deleteUser, restoreFailedGames, forceGameEnrichment, scanAllUsersGames, dropGamesCollection, getGameStats } from '../services/api';
 
 const AdminPage = () => {
   const theme = useTheme();
@@ -13,8 +13,10 @@ const AdminPage = () => {
   const [snackbarSeverity, setSnackbarSeverity] = useState('info'); // Snackbar severity
   const [restoreLoading, setRestoreLoading] = useState(false); // Loading state for restore button
   const [enrichLoading, setEnrichLoading] = useState(false); // Loading state for enrichment button
+  const [scanLoading, setScanLoading] = useState(false); // Loading state for scan button
   const [gameStats, setGameStats] = useState(null); // Game statistics
   const [statsLoading, setStatsLoading] = useState(true); // Loading state for stats
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, action: '', message: '' }); // Confirmation dialog
 
   // Fetch all users and game stats on component mount
   useEffect(() => {
@@ -97,9 +99,61 @@ const AdminPage = () => {
     }
   };
 
+  // Handle scanning all users games
+  const handleScanAllUsers = async () => {
+    setScanLoading(true);
+    try {
+      const result = await scanAllUsersGames();
+      setSnackbarMessage(result.message);
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+    } catch (error) {
+      console.error('Error scanning all users games:', error);
+      setSnackbarMessage('Error scanning all users games.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setScanLoading(false);
+    }
+  };
+
+  // Handle dropping games collection with confirmation
+  const handleDropGamesCollection = () => {
+    setConfirmDialog({
+      open: true,
+      action: 'dropGamesCollection',
+      message: '⚠️ WARNING: This will permanently delete ALL games from the database but keep all users intact. Game data cannot be recovered. Are you absolutely sure you want to continue?'
+    });
+  };
+
+  // Execute the confirmed action
+  const handleConfirmAction = async () => {
+    if (confirmDialog.action === 'dropGamesCollection') {
+      try {
+        const result = await dropGamesCollection();
+        setSnackbarMessage(result.message);
+        setSnackbarSeverity('warning');
+        setSnackbarOpen(true);
+        // Reload the page after dropping games collection
+        setTimeout(() => window.location.reload(), 2000);
+      } catch (error) {
+        console.error('Error dropping games collection:', error);
+        setSnackbarMessage('Error dropping games collection.');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+      }
+    }
+    setConfirmDialog({ open: false, action: '', message: '' });
+  };
+
   // Handle closing the Snackbar
   const handleCloseSnackbar = () => {
     setSnackbarOpen(false);
+  };
+
+  // Handle closing confirmation dialog
+  const handleCloseConfirmDialog = () => {
+    setConfirmDialog({ open: false, action: '', message: '' });
   };
 
   return (
@@ -186,7 +240,7 @@ const AdminPage = () => {
               Game Database Management
             </Typography>
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={4}>
                 <Button
                   fullWidth
                   variant="contained"
@@ -201,7 +255,22 @@ const AdminPage = () => {
                   Reset failed enrichments for retry
                 </Typography>
               </Grid>
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={4}>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  color="info"
+                  onClick={handleScanAllUsers}
+                  disabled={scanLoading}
+                  sx={{ py: 1.5 }}
+                >
+                  {scanLoading ? 'Scanning...' : 'Scan All Users'}
+                </Button>
+                <Typography variant="caption" sx={{ mt: 1, display: 'block', color: theme.palette.text.secondary }}>
+                  Add all user games to database (no enrichment)
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={4}>
                 <Button
                   fullWidth
                   variant="contained"
@@ -262,6 +331,36 @@ const AdminPage = () => {
           ) : (
             <Typography variant="body1">No users found.</Typography>
           )}
+
+          {/* Danger Zone */}
+          <Paper sx={{ p: 3, mt: 4, backgroundColor: theme.palette.error.main, border: `2px solid ${theme.palette.error.dark}` }}>
+            <Typography variant="h6" sx={{ mb: 2, color: theme.palette.error.contrastText, fontWeight: 'bold' }}>
+              ⚠️ DANGER ZONE
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 3, color: theme.palette.error.contrastText }}>
+              These actions are irreversible and will permanently delete data. Use with extreme caution.
+            </Typography>
+            <Button
+              fullWidth
+              variant="contained"
+              color="error"
+              onClick={handleDropGamesCollection}
+              sx={{
+                py: 2,
+                fontWeight: 'bold',
+                fontSize: '1.1rem',
+                backgroundColor: theme.palette.error.dark,
+                '&:hover': {
+                  backgroundColor: theme.palette.error.main,
+                }
+              }}
+            >
+              🗑️ CLEAR GAMES COLLECTION
+            </Button>
+            <Typography variant="caption" sx={{ mt: 1, display: 'block', color: theme.palette.error.contrastText, textAlign: 'center' }}>
+              This will delete ALL games but keep users intact
+            </Typography>
+          </Paper>
         </Box>
 
         {/* Footer */}
@@ -278,6 +377,36 @@ const AdminPage = () => {
             {snackbarMessage}
           </Alert>
         </Snackbar>
+
+        {/* Confirmation Dialog */}
+        <Dialog
+          open={confirmDialog.open}
+          onClose={handleCloseConfirmDialog}
+          aria-labelledby="confirm-dialog-title"
+          aria-describedby="confirm-dialog-description"
+        >
+          <DialogTitle id="confirm-dialog-title" sx={{ color: theme.palette.error.main, fontWeight: 'bold' }}>
+            ⚠️ DANGER: Irreversible Action
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText id="confirm-dialog-description" sx={{ color: theme.palette.text.primary }}>
+              {confirmDialog.message}
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseConfirmDialog} color="primary">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmAction}
+              color="error"
+              variant="contained"
+              autoFocus
+            >
+              Yes, I'm Sure
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </ProtectedRoute>
   );

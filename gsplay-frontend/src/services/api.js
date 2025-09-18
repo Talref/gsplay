@@ -68,7 +68,18 @@ export const fetchUserGameCount = (userId) => request('GET', `/user/${userId}/ga
 // Admin functions
 export const restoreFailedGames = () => request('POST', '/admin/restore-failed-games');
 export const forceGameEnrichment = () => request('POST', '/admin/force-enrichment');
+export const scanAllUsersGames = () => request('POST', '/admin/scan-all-users');
+export const dropGamesCollection = () => request('POST', '/admin/drop-games-collection');
 export const getGameStats = () => request('GET', '/admin/game-stats');
+
+// Game search functions
+export const searchGames = (params) => {
+  const queryString = new URLSearchParams(params).toString();
+  return request('GET', `/games/search?${queryString}`);
+};
+
+export const getGameDetails = (gameId) => request('GET', `/games/${gameId}/details`);
+export const getFilterOptions = () => request('GET', '/games/filters');
 
 // Import game libraries
 export const importLibrary = (file) => {

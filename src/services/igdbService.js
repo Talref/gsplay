@@ -153,7 +153,7 @@ class IGDBService {
     // Get basic search results first
     const searchQuery = `
       search "${searchTerm}";
-      fields name, id, rating, cover.url, first_release_date;
+      fields name, id, rating, cover.image_id, first_release_date;
       limit ${limit};
     `;
 
@@ -174,7 +174,9 @@ class IGDBService {
               platforms: details.availablePlatforms || [],
               gameModes: details.gameModes || [],
               rating: game.rating || details.rating,
-              artwork: game.cover?.url || details.artwork,
+              artwork: game.cover?.image_id ?
+                `https://images.igdb.com/igdb/image/upload/t_720p/${game.cover.image_id}.jpg` :
+                details.artwork,
               releaseDate: game.first_release_date ? new Date(game.first_release_date * 1000) : details.releaseDate
             });
           }
@@ -188,7 +190,9 @@ class IGDBService {
             platforms: [],
             gameModes: [],
             rating: game.rating,
-            artwork: game.cover?.url,
+            artwork: game.cover?.image_id ?
+              `https://images.igdb.com/igdb/image/upload/t_720p/${game.cover.image_id}.jpg` :
+              null,
             releaseDate: game.first_release_date ? new Date(game.first_release_date * 1000) : null
           });
         }
@@ -209,7 +213,7 @@ class IGDBService {
 
     const query = `
       where id = ${igdbId};
-      fields name, id, genres, platforms, game_modes, rating, cover.url,
+      fields name, id, genres, platforms, game_modes, rating, cover.image_id,
              videos.video_id, summary, involved_companies.company.name,
              first_release_date, url;
     `;
@@ -233,7 +237,9 @@ class IGDBService {
         availablePlatforms: resolvedPlatforms,
         gameModes: resolvedGameModes,
         rating: game.rating,
-        artwork: game.cover?.url,
+        artwork: game.cover?.image_id ?
+          `https://images.igdb.com/igdb/image/upload/t_720p/${game.cover.image_id}.jpg` :
+          null,
         releaseDate: game.first_release_date ? new Date(game.first_release_date * 1000) : null,
         videos: game.videos?.map(v => v.video_id).filter(Boolean) || [],
         publishers: game.involved_companies?.map(c => c.company?.name).filter(Boolean) || [],

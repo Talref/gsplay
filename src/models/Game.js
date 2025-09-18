@@ -11,7 +11,7 @@ const ownerSchema = new mongoose.Schema({
 }, { _id: false });
 
 const gameSchema = new mongoose.Schema({
-  // Primary linking key - normalized game name
+  // Primary linking key - exact game name from platform APIs
   name: {
     type: String,
     required: true,
@@ -69,15 +69,8 @@ gameSchema.pre('save', function(next) {
   next();
 });
 
-// Static method to normalize game names for consistent linking
-gameSchema.statics.normalizeGameName = function(name) {
-  return name
-    .toLowerCase()
-    .replace(/[^\w\s\-!]/g, '') // Remove special characters but keep hyphens and exclamation marks
-    .replace(/-/g, ' ') // Convert hyphens to spaces
-    .replace(/\s+/g, ' ') // Normalize whitespace
-    .trim();
-};
+// Game names are stored exactly as provided by platform APIs
+// No normalization needed - platforms provide consistent naming
 
 const Game = mongoose.model('Game', gameSchema);
 

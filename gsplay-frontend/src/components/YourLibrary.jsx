@@ -64,7 +64,8 @@ const YourLibrary = () => {
 
     try {
       const response = await importLibrary(file);
-      setGames(response.games); // update local state with imported games
+      // Refresh the games list to get the updated data from the server
+      await refreshUserGames();
       setSnackbarMessage("ANVEDI QUANTI GIOCHI SEI UN VERO GAMER!!!!1!!!");
       setSnackbarSeverity('success');
       setSnackbarOpen(true);

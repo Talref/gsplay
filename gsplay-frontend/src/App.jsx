@@ -7,6 +7,7 @@ import Signup from './components/Signup';
 import ListByUsers from './components/ListByUsers';
 import YourLibrary from './components/YourLibrary';
 import AdminPage from './components/AdminPage';
+import GameSearchPage from './components/GameSearchPage';
 import Unauthorized from './components/Unauthorized';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -28,6 +29,7 @@ function App() {
             <AdminPage />
           </ProtectedRoute>
         } />
+        <Route path="/search" element={<GameSearchPage />} />
         <Route path="/unauthorized" element={<Unauthorized />} />
       </Routes>
     </Router>
