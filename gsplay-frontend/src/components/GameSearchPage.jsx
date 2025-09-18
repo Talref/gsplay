@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Container,
@@ -29,8 +29,10 @@ import { searchGames, getFilterOptions } from '../services/api';
 import SearchFilters from './SearchFilters';
 import GameResultsList from './GameResultsList';
 import GameDetailView from './GameDetailView';
+import SearchSuggestions from './SearchSuggestions';
 import Navbar from './Navbar';
 import Footer from './Footer';
+import { useSearchSuggestions } from '../hooks/useSearchSuggestions';
 
 const GameSearchPage = () => {
   const theme = useTheme();
@@ -61,6 +63,19 @@ const GameSearchPage = () => {
   const [error, setError] = useState(null);
   const [filtersOpen, setFiltersOpen] = useState(!isMobile);
   const [sortBy, setSortBy] = useState('name'); // Default sort by name
+  const searchInputRef = useRef(null);
+
+  // Search suggestions hook
+  const {
+    suggestions,
+    loading: suggestionsLoading,
+    selectedIndex,
+    isVisible: suggestionsVisible,
+    handleInputChange,
+    handleKeyDown,
+    handleSuggestionSelect,
+    hideSuggestions
+  } = useSearchSuggestions();
 
   // Load filter options on mount
   useEffect(() => {
@@ -144,6 +159,40 @@ const GameSearchPage = () => {
     setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page when sorting
   };
 
+  // Search input handlers
+  const handleSearchInputChange = (event) => {
+    const value = event.target.value;
+    setSearchTerm(value);
+    handleInputChange(value);
+  };
+
+  const handleSearchKeyDown = (event) => {
+    handleKeyDown(event, searchTerm, handleSuggestionSelect);
+  };
+
+  const handleSuggestionClick = (suggestion) => {
+    if (suggestion) {
+      // Navigate to game detail
+      setSelectedGame(suggestion);
+      hideSuggestions();
+    } else {
+      // Perform search with current term
+      handleSearch();
+    }
+  };
+
+  // Hide suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchInputRef.current && !searchInputRef.current.contains(event.target)) {
+        hideSuggestions();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [hideSuggestions]);
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Navbar />
@@ -159,17 +208,28 @@ const GameSearchPage = () => {
       <Paper sx={{ p: 3, mb: 3 }}>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} md={10}>
-            <TextField
-              fullWidth
-              variant="outlined"
-              placeholder="Cerca giochi..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-              InputProps={{
-                startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
-              }}
-            />
+            <Box sx={{ position: 'relative' }}>
+              <TextField
+                ref={searchInputRef}
+                fullWidth
+                variant="outlined"
+                placeholder="Cerca giochi..."
+                value={searchTerm}
+                onChange={handleSearchInputChange}
+                onKeyDown={handleSearchKeyDown}
+                InputProps={{
+                  startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                }}
+              />
+              <SearchSuggestions
+                suggestions={suggestions}
+                loading={suggestionsLoading}
+                selectedIndex={selectedIndex}
+                isVisible={suggestionsVisible}
+                onSelect={handleSuggestionClick}
+                anchorEl={searchInputRef.current}
+              />
+            </Box>
           </Grid>
           <Grid item xs={12} md={2}>
             <Button

@@ -18,9 +18,9 @@ exports.searchGames = async (req, res) => {
     // Build MongoDB query
     const query = {};
 
-    // Text search on name
+    // Text search on name (case-insensitive regex)
     if (name && name.trim()) {
-      query.$text = { $search: name.trim() };
+      query.name = { $regex: name.trim(), $options: 'i' };
     }
 
     // Array filters
