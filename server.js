@@ -100,4 +100,5 @@ app.listen(server.port, server.host, () => {
   console.log(`🚀 Server running at http://${server.host}:${server.port}/`);
   console.log(`📝 Environment: ${server.environment}`);
   console.log(`🔗 CORS Origin: ${server.cors.origin}`);
+  console.log(`📊 Log Level: ${process.env.LOG_LEVEL}`);
 });

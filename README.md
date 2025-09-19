@@ -324,6 +324,12 @@ npm test -- --clearCache
 npm test -- tests/unit/specific-test.test.js
 ```
 
+**Verbose Logging**
+```bash
+# Enable detailed request logging and slow request warnings
+LOG_LEVEL=verbose npm run dev
+```
+
 For more troubleshooting, see [Setup Guide](docs/Setup-Guide.md).
 
 ## 📄 License

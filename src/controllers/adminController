@@ -173,11 +173,11 @@ exports.scanAllUsersGames = async (req, res) => {
         const userGames = user.games || [];
 
         if (userGames.length === 0) {
-          console.log(`User ${user.name} has no games`);
+          console.log(`User ${user.name}: No games found`);
           continue;
         }
 
-        console.log(`User ${user.name} has ${userGames.length} games`);
+        console.log(`User ${user.name}: Processing ${userGames.length} games`);
 
         // Add this user's games to the game database (without enrichment)
         const result = await GameService.addGamesToDatabase(user._id, userGames);
@@ -186,7 +186,17 @@ exports.scanAllUsersGames = async (req, res) => {
         totalGamesRemoved += result.removed;
         totalEnriched += result.enriched;
 
-        console.log(`User ${user.name}: +${result.added} -${result.removed} enriched: ${result.enriched}`);
+        // Only log meaningful changes
+        const changes = [];
+        if (result.added > 0) changes.push(`+${result.added} added`);
+        if (result.removed > 0) changes.push(`-${result.removed} removed`);
+        if (result.enriched > 0) changes.push(`${result.enriched} enriched`);
+
+        if (changes.length > 0) {
+          console.log(`User ${user.name}: ${changes.join(', ')}`);
+        } else {
+          console.log(`User ${user.name}: No changes needed`);
+        }
 
       } catch (userError) {
         console.error(`Error processing user ${user.name}:`, userError.message);
