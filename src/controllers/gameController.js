@@ -1,185 +1,132 @@
 // src/controllers/gameController.js
 const Game = require('../models/Game');
+const { buildCompleteQueryOptions } = require('../services/queryBuilders/gameQueryBuilder');
+const { transformGamesForList } = require('../services/dataTransformers/gameTransformer');
+const { createPaginationMetadata } = require('../services/dataTransformers/paginationTransformer');
+const { validateSearchParams } = require('../services/validators/searchValidators');
+const { createErrorResponse, createNotFoundResponse } = require('../utils/errors/errorResponseFormatter');
+const ERROR_TYPES = require('../utils/errors/errorTypes');
+const HTTP_STATUS = require('../utils/errors/httpStatusCodes');
 
 // Search games with filters
 exports.searchGames = async (req, res) => {
   try {
-    const {
-      name = '',
-      genres = [],
-      platforms = [],
-      gameModes = [],
-      page = 1,
-      limit = 20,
-      sortBy = 'name',
-      sortOrder = 'asc'
-    } = req.query;
-
-    // Build MongoDB query
-    const query = {};
-
-    // Text search on name (case-insensitive regex)
-    if (name && name.trim()) {
-      query.name = { $regex: name.trim(), $options: 'i' };
+    // Validate and sanitize input parameters
+    const validation = validateSearchParams(req.query);
+    if (!validation.isValid) {
+      const errorResponse = createErrorResponse(
+        ERROR_TYPES.VALIDATION_ERROR,
+        'Invalid search parameters',
+        { fields: validation.errors },
+        req.requestId
+      );
+      return res.status(HTTP_STATUS.BAD_REQUEST).json(errorResponse);
     }
 
-    // Array filters
-    if (genres.length > 0) {
-      const genreArray = Array.isArray(genres) ? genres : [genres];
-      query.genres = { $in: genreArray };
-    }
+    const params = validation.validated;
 
-    if (platforms.length > 0) {
-      let platformArray = Array.isArray(platforms) ? platforms : [platforms];
+    // Build query options using the query builder
+    const { query, sort, skip, limit } = buildCompleteQueryOptions(params);
 
-      // Expand "PC" category to include all PC platforms
-      if (platformArray.includes('PC')) {
-        const pcPlatforms = ['PC (Microsoft Windows)', 'Linux', 'Mac'];
-        // Replace "PC" with actual PC platforms, and keep any other selected platforms
-        platformArray = platformArray.filter(p => p !== 'PC').concat(pcPlatforms);
-      }
-
-      query.availablePlatforms = { $in: platformArray };
-    }
-
-    if (gameModes.length > 0) {
-      const modeArray = Array.isArray(gameModes) ? gameModes : [gameModes];
-      query.gameModes = { $in: modeArray };
-    }
-
-    // Only return enriched games (with IGDB data)
-    query.igdbId = { $exists: true, $ne: null, $ne: -1 };
-
-    // Sorting
-    const sortOptions = {};
-    sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
-
-    // Pagination
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
-    // Execute query
+    // Execute query with proper field selection
     const games = await Game.find(query)
       .select('name genres availablePlatforms gameModes rating artwork releaseDate owners')
-      .sort(sortOptions)
+      .sort(sort)
       .skip(skip)
-      .limit(parseInt(limit))
+      .limit(limit)
       .lean();
 
     // Get total count for pagination
     const total = await Game.countDocuments(query);
 
-    // Transform owners count
-    const gamesWithOwnerCount = games.map(game => ({
-      ...game,
-      ownerCount: game.owners ? game.owners.length : 0,
-      owners: undefined // Remove owners array from response
-    }));
+    // Transform games for response
+    const transformedGames = transformGamesForList(games);
+
+    // Create pagination metadata
+    const pagination = createPaginationMetadata(total, params.page, params.limit);
 
     res.json({
-      games: gamesWithOwnerCount,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / parseInt(limit))
-      },
+      games: transformedGames,
+      pagination,
       filters: {
-        name,
-        genres: Array.isArray(genres) ? genres : [genres].filter(Boolean),
-        platforms: Array.isArray(platforms) ? platforms : [platforms].filter(Boolean),
-        gameModes: Array.isArray(gameModes) ? gameModes : [gameModes].filter(Boolean)
+        name: params.name,
+        genres: params.genres,
+        platforms: params.platforms,
+        gameModes: params.gameModes
       }
     });
 
   } catch (error) {
     console.error('Game search error:', error);
-    res.status(500).json({ error: 'Failed to search games' });
+
+    // Use standardized error response
+    const errorResponse = createErrorResponse(
+      ERROR_TYPES.INTERNAL_SERVER_ERROR,
+      'Failed to search games',
+      process.env.NODE_ENV === 'development' ? { originalError: error.message } : undefined,
+      req.requestId
+    );
+
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(errorResponse);
   }
 };
+
+const { validateGameId } = require('../services/validators/searchValidators');
+const { transformGameForDetails } = require('../services/dataTransformers/gameTransformer');
 
 // Get detailed game information with owners
 exports.getGameDetails = async (req, res) => {
   try {
-    const { id } = req.params;
+    // Validate game ID
+    const idValidation = validateGameId(req.params.id);
+    if (!idValidation.isValid) {
+      const errorResponse = createErrorResponse(
+        ERROR_TYPES.INVALID_FORMAT,
+        'Invalid game ID format',
+        { field: 'id', value: req.params.id },
+        req.requestId
+      );
+      return res.status(HTTP_STATUS.BAD_REQUEST).json(errorResponse);
+    }
 
-    const game = await Game.findById(id)
+    const gameId = idValidation.validated;
+
+    const game = await Game.findById(gameId)
       .populate('owners.userId', 'name') // Populate owner names
       .lean();
 
     if (!game) {
-      return res.status(404).json({ error: 'Game not found' });
+      const errorResponse = createNotFoundResponse('Game', req.requestId);
+      return res.status(HTTP_STATUS.NOT_FOUND).json(errorResponse);
     }
 
-    // Transform owners data
-    const owners = game.owners ? game.owners.map(owner => ({
-      userId: owner.userId._id,
-      name: owner.userId.name,
-      platforms: owner.platforms
-    })) : [];
-
-    const gameDetails = {
-      ...game,
-      owners,
-      ownerCount: owners.length
-    };
+    // Transform game for detailed response
+    const gameDetails = transformGameForDetails(game);
 
     res.json(gameDetails);
 
   } catch (error) {
     console.error('Game details error:', error);
-    res.status(500).json({ error: 'Failed to get game details' });
+
+    // Use standardized error response
+    const errorResponse = createErrorResponse(
+      ERROR_TYPES.INTERNAL_SERVER_ERROR,
+      'Failed to get game details',
+      process.env.NODE_ENV === 'development' ? { originalError: error.message } : undefined,
+      req.requestId
+    );
+
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(errorResponse);
   }
 };
+
+const { getFilterOptions } = require('../services/queryBuilders/filterQueryBuilder');
 
 // Get available filter options
 exports.getFilterOptions = async (req, res) => {
   try {
-    // Curated list of relevant platforms for your community
-    // Updated to match IGDB's exact platform names from database
-    const curatedPlatforms = [
-      'PC (Microsoft Windows)', // IGDB's exact name for PC
-      'Linux',
-      'Mac', // IGDB calls macOS this
-      'PlayStation 4',
-      'PlayStation 5',
-      'Xbox One',
-      'Xbox Series X|S', // IGDB uses | not /
-      'Xbox', // Generic Xbox
-      'Nintendo Switch',
-      'Nintendo Switch 2' // Future-proofing
-    ];
-
-    // Get distinct values for other filters
-    const [genres, allPlatforms, gameModes] = await Promise.all([
-      Game.distinct('genres'),
-      Game.distinct('availablePlatforms'),
-      Game.distinct('gameModes')
-    ]);
-
-    // Filter platforms to only include curated ones that exist in database
-    let availablePlatforms = curatedPlatforms.filter(platform =>
-      allPlatforms.includes(platform)
-    );
-
-    // Group PC platforms under single "PC" category for better UX
-    const pcPlatforms = ['PC (Microsoft Windows)', 'Linux', 'Mac'];
-    const hasAnyPcPlatform = pcPlatforms.some(platform => availablePlatforms.includes(platform));
-
-    if (hasAnyPcPlatform) {
-      // Remove individual PC platforms and add unified "PC" category
-      availablePlatforms = availablePlatforms.filter(platform => !pcPlatforms.includes(platform));
-      availablePlatforms.unshift('PC'); // Add PC at the beginning
-    }
-
-    // Filter out null/undefined values and sort
-    const filterOptions = {
-      genres: genres.filter(Boolean).sort(),
-      platforms: availablePlatforms.sort(),
-      gameModes: gameModes.filter(Boolean).sort()
-    };
-
+    const filterOptions = await getFilterOptions();
     res.json(filterOptions);
-
   } catch (error) {
     console.error('Filter options error:', error);
     res.status(500).json({ error: 'Failed to get filter options' });

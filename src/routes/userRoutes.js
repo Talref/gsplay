@@ -12,7 +12,7 @@ const gameController = require('../controllers/gameController');
 
 // Import middlewares
 const authMiddleware = require('../middleware/auth');
-const authLimiter = require('../middleware/rateLimiter');
+const { authLimiter } = require('../middleware/rateLimiter');
 
 // Configure Multer
 const upload = multer({

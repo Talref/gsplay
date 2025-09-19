@@ -1,11 +1,12 @@
 const axios = require('axios');
 const IgdbLookup = require('../models/IgdbLookup');
+const igdbConfig = require('../../config/igdb');
 
 class IGDBService {
   constructor() {
-    this.clientId = process.env.TW_CLIENTID;
-    this.clientSecret = process.env.TW_CLIENTSECRET;
-    this.baseUrl = 'https://api.igdb.com/v4';
+    this.clientId = igdbConfig.api.clientId;
+    this.clientSecret = igdbConfig.api.clientSecret;
+    this.baseUrl = igdbConfig.api.baseUrl;
     this.token = null;
     this.tokenExpiry = null;
     this.lookupCache = {
@@ -17,21 +18,21 @@ class IGDBService {
   }
 
   async getAccessToken() {
-    // Return cached token if still valid (with 5min buffer)
-    if (this.token && this.tokenExpiry && Date.now() < (this.tokenExpiry - 300000)) {
+    // Return cached token if still valid (with buffer from config)
+    if (this.token && this.tokenExpiry && Date.now() < (this.tokenExpiry - igdbConfig.api.tokenRefreshBuffer)) {
       return this.token;
     }
 
     try {
-      const response = await axios.post('https://id.twitch.tv/oauth2/token', {
+      const response = await axios.post(igdbConfig.api.tokenUrl, {
         client_id: this.clientId,
         client_secret: this.clientSecret,
         grant_type: 'client_credentials'
       });
 
       this.token = response.data.access_token;
-      // Token expires in 60 days, but we'll refresh every 50 days for safety
-      this.tokenExpiry = Date.now() + (response.data.expires_in * 1000);
+      // Use token expiry from config
+      this.tokenExpiry = Date.now() + igdbConfig.api.tokenExpiry;
 
       console.log('IGDB access token refreshed successfully');
       return this.token;
@@ -67,10 +68,11 @@ class IGDBService {
       // Try to load from database first
       const lookups = await IgdbLookup.find({});
 
-      if (lookups.length === 3) {
-        // Check if data is fresh (less than 30 days old)
+      const requiredTables = igdbConfig.lookups.requiredTables;
+      if (lookups.length === requiredTables.length) {
+        // Check if data is fresh using config
         const oldestUpdate = Math.min(...lookups.map(l => l.lastUpdated.getTime()));
-        const isFresh = Date.now() - oldestUpdate < 30 * 24 * 60 * 60 * 1000;
+        const isFresh = Date.now() - oldestUpdate < igdbConfig.lookups.refreshInterval;
 
         if (isFresh) {
           // Load from database into memory cache
@@ -83,27 +85,38 @@ class IGDBService {
             this.lookupCache[lookup.type] = map;
           });
           this.lookupCache.isLoaded = true;
-          console.log('IGDB lookup tables loaded from database');
+          console.log('✅ IGDB lookup tables loaded from database');
           return;
         }
       }
 
       // Fetch fresh data from IGDB if no data or data is stale
-      console.log('Fetching fresh IGDB lookup data...');
+      console.log('🔄 Fetching fresh IGDB lookup data...');
       await this.refreshLookupTables();
 
     } catch (error) {
-      console.error('Failed to initialize lookup tables:', error);
-      throw error;
+      // Handle database authentication/connection errors gracefully
+      if (error.code === 13 || error.message.includes('authentication')) {
+        console.warn('⚠️ Database authentication required for IGDB lookup tables');
+        console.warn('📝 IGDB functionality will work without cached lookup tables');
+        // Mark as loaded to prevent further attempts
+        this.lookupCache.isLoaded = true;
+        return;
+      }
+
+      console.error('❌ Failed to initialize IGDB lookup tables:', error.message);
+      // Don't throw - let the service continue without lookup tables
+      this.lookupCache.isLoaded = true;
     }
   }
 
   async refreshLookupTables() {
     try {
+      const batchSize = igdbConfig.lookups.batchSize;
       const [genres, platforms, gameModes] = await Promise.all([
-        this.makeRequest('genres', 'fields id, name; limit 500;'),
-        this.makeRequest('platforms', 'fields id, name; limit 500;'),
-        this.makeRequest('game_modes', 'fields id, name; limit 500;')
+        this.makeRequest('genres', `fields ${igdbConfig.fields.genre.join(', ')}; limit ${batchSize};`),
+        this.makeRequest('platforms', `fields ${igdbConfig.fields.platform.join(', ')}; limit ${batchSize};`),
+        this.makeRequest('game_modes', `fields ${igdbConfig.fields.gameMode.join(', ')}; limit ${batchSize};`)
       ]);
 
       // Update memory cache
@@ -147,14 +160,17 @@ class IGDBService {
     }
   }
 
-  async searchGames(searchTerm, limit = 5) { // Reduced limit to avoid rate limits
+  async searchGames(searchTerm, limit = igdbConfig.requests.defaultLimit) {
     await this.ensureLookupTablesLoaded();
+
+    // Validate limit against config
+    const actualLimit = Math.min(limit, igdbConfig.requests.maxLimit);
 
     // Get basic search results first
     const searchQuery = `
       search "${searchTerm}";
-      fields name, id, rating, cover.image_id, first_release_date;
-      limit ${limit};
+      fields ${igdbConfig.fields.game.join(', ')};
+      limit ${actualLimit};
     `;
 
     try {
@@ -197,8 +213,8 @@ class IGDBService {
           });
         }
 
-        // Small delay to respect rate limits
-        await new Promise(resolve => setTimeout(resolve, 200));
+        // Rate limit delay from config
+        await new Promise(resolve => setTimeout(resolve, igdbConfig.requests.rateLimitDelay));
       }
 
       return detailedResults;
@@ -213,9 +229,7 @@ class IGDBService {
 
     const query = `
       where id = ${igdbId};
-      fields name, id, genres, platforms, game_modes, rating, cover.image_id,
-             videos.video_id, summary, involved_companies.company.name,
-             first_release_date, url;
+      fields ${igdbConfig.fields.game.join(', ')};
     `;
 
     try {
