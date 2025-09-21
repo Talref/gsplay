@@ -449,10 +449,10 @@ const RetroGames = () => {
                   .map((user, index) => (
                     <Box key={user.userId} sx={{ mb: 2, ml: 3, mr: 3 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                        <Typography variant="retroText" sx={{ minWidth: '30px', fontWeight: 'bold', color: theme.palette.text.primary }}>
-                          #{index + 1}
+                        <Typography variant="retroTextSmall" sx={{ minWidth: '30px', fontWeight: 'bold', color: theme.palette.text.primary }}>
+                          #{index + 1}  {user.username}
                         </Typography>
-                        <Typography variant="retroText" sx={{ flex: 1, fontWeight: 'bold', color: theme.palette.text.primary }}>
+                        <Typography variant="retroTextSmall" sx={{ flex: 1, fontWeight: 'bold', color: theme.palette.text.primary }}>
                           {user.username}
                         </Typography>
                         <Typography variant="retroTextSmall" sx={{ minWidth: '50px', textAlign: 'right', fontWeight: 'bold' }}>
@@ -504,13 +504,10 @@ const RetroGames = () => {
                     return (
                       <Box key={user.userId} sx={{ mb: 3, ml: 3, mr: 3 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                          <Typography variant="retroText" sx={{ minWidth: '30px', fontWeight: 'bold', color: theme.palette.text.primary }}>
-                            #{index + 1}
+                          <Typography variant="retroTextSmall" sx={{ minWidth: '30px', fontWeight: 'bold', color: theme.palette.text.primary }}>
+                            #{index + 1}  {user.username}
                           </Typography>
-                          <Typography variant="retroText" sx={{ flex: 1, fontWeight: 'bold', color: theme.palette.text.primary }}>
-                            {user.username}
-                          </Typography>
-                          <Typography variant="retroTextSmall" sx={{ minWidth: '60px', textAlign: 'right', fontWeight: 'bold' }}>
+                          <Typography variant="retroTextSmall" sx={{ flex: 1, minWidth: '60px', textAlign: 'right', fontWeight: 'bold' }}>
                             {user.totalPoints || 0} pts
                           </Typography>
                         </Box>
