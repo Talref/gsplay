@@ -56,6 +56,15 @@ const Navbar = () => {
             🔍 Ricerca Giochi
           </Button>
 
+          <Button
+            component={Link}
+            to="/retro-games"
+            variant="retro"
+            sx={{ ml: 2 }}
+          >
+            🕹️ RETRO
+          </Button>
+
           <Box sx={{ flexGrow: 1 }} />
           
           {user?.isAdmin && (

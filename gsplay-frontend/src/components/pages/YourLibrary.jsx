@@ -3,12 +3,13 @@ import { Box, Button, Typography, useTheme, Snackbar, Alert, List, Link } from '
 import { useAuth } from '../../context/AuthContext';
 import Navbar from '../layout/Navbar';
 import Footer from '../layout/Footer';
-import { setSteamId, importLibrary } from '../../services/api';
+import { setSteamId, setRetroAchievementsUsername, importLibrary } from '../../services/api';
 import { gameTitleFormatter } from '../../utils/formatters';
 import useUserGames from '../../hooks/useUserGames';
 import SteamIdHelpDialog from '../dialogs/SteamIdHelpDialog';
 import ImportHelpDialog from '../dialogs/ImportHelpDialog';
 import SteamIdInputDialog from '../dialogs/SteamIdInputDialog';
+import RetroAchievementsUsernameInputDialog from '../dialogs/RetroAchievementsUsernameInputDialog';
 import UserGameListItem from '../lists/UserGameListItem';
 
 const YourLibrary = () => {
@@ -20,7 +21,8 @@ const YourLibrary = () => {
   const { games, loading, error, refreshGames: refreshUserGames } = useUserGames(); 
   const [steamIdHelpOpen, setSteamIdHelpOpen] = useState(false);
   const [importHelpOpen, setImportHelpOpen] = useState(false);
-  const [steamIdInputOpen, setSteamIdInputOpen] = useState(false); 
+  const [steamIdInputOpen, setSteamIdInputOpen] = useState(false);
+  const [retroAchievementsInputOpen, setRetroAchievementsInputOpen] = useState(false);
   const fileInputRef = useRef(null);
 
   // Refresh the game list  
@@ -83,6 +85,28 @@ const YourLibrary = () => {
     setSnackbarOpen(false);
   };
 
+  // Set RetroAchievements Username
+  const handleSetRetroAchievementsClick = () => {
+    setRetroAchievementsInputOpen(true);
+  };
+
+  const handleSaveRetroAchievementsUsername = async (username) => {
+    setRetroAchievementsInputOpen(false);
+    if (username) {
+      try {
+        await setRetroAchievementsUsername(username);
+        setSnackbarMessage('RetroAchievements account linked successfully!');
+        setSnackbarSeverity('success');
+        setSnackbarOpen(true);
+      } catch (error) {
+        setSnackbarMessage('Error linking RetroAchievements account. Please check the username.');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+        console.error('Error setting RetroAchievements username:', error);
+      }
+    }
+  };
+
   // Function to handle clicking on a game
   const handleGameClick = (name) => {
     const gameUrl = `https://www.igdb.com/games/${gameTitleFormatter(name)}`;
@@ -121,6 +145,11 @@ const YourLibrary = () => {
           <Button variant="accent" onClick={handleSetSteamIdClick}>
             {user?.steamId ? 'Cambia SteamID' : 'Aggiungi SteamID'}
           </Button>
+
+          {/* Add/Change RetroAchievements Username button */}
+          <Button variant="success" onClick={handleSetRetroAchievementsClick}>
+            {user?.retroAchievementsUsername ? 'Cambia RA Username' : 'Collega RetroAchievements'}
+          </Button>
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', padding:2, gap: 3 }}>
@@ -142,9 +171,9 @@ const YourLibrary = () => {
           </Link>
         
           {/* Import Help link */}
-          <Link 
-            component="button" 
-            variant="body1" 
+          <Link
+            component="button"
+            variant="body1"
             onClick={() => setImportHelpOpen(true)}
             sx={{
               color: theme.palette.secondary.main,
@@ -156,6 +185,23 @@ const YourLibrary = () => {
             }}
           >
             Come importo da GOG/Epic/Amazon?
+          </Link>
+
+          {/* RetroAchievements Help link */}
+          <Link
+            component="button"
+            variant="body1"
+            onClick={() => window.open('https://retroachievements.org', '_blank')}
+            sx={{
+              color: theme.palette.secondary.main,
+              textDecoration: 'underline',
+              cursor: 'pointer',
+              '&:hover': {
+                color: theme.palette.secondary.light,
+              }
+            }}
+          >
+            Che cos'è RetroAchievements?
           </Link>
         </Box>
 
@@ -212,6 +258,13 @@ const YourLibrary = () => {
         open={steamIdInputOpen}
         onClose={() => setSteamIdInputOpen(false)}
         onSave={handleSaveSteamId}
+      />
+
+      {/* RetroAchievements Username Input Dialog */}
+      <RetroAchievementsUsernameInputDialog
+        open={retroAchievementsInputOpen}
+        onClose={() => setRetroAchievementsInputOpen(false)}
+        onSave={handleSaveRetroAchievementsUsername}
       />
     </Box>
   );

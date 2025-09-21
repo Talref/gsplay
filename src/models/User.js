@@ -14,6 +14,10 @@ const userSchema = new mongoose.Schema({
   steamId: { type: String },
   isAdmin: { type: Boolean, required: true, default: false },
   games: [gameSchema],
+  // RetroAchievements integration
+  retroAchievementsULID: { type: String },
+  retroAchievementsUsername: { type: String },
+  retroAchievementsLinkedAt: { type: Date },
 });
 
 // Hash the password before saving the user

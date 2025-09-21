@@ -78,6 +78,7 @@ const theme = createTheme({
           style: {
             backgroundColor: '#00284d',
             color: '#7fffd4',
+            fontSize: '0.875rem',
             '&:hover': {
               backgroundColor: '#002b80',
             },
@@ -103,6 +104,23 @@ const theme = createTheme({
             },
           },
         },
+        {
+          props: { variant: 'retro' },
+          style: {
+            backgroundColor: '#00284d',
+            color: '#7fffd4',
+            fontFamily: 'RetroGaming8Bit, monospace',
+            fontSize: '0.6rem',
+            fontWeight: 'bold',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            padding: '4px 8px',
+            '&:hover': {
+              backgroundColor: '#002b80',
+            },
+          },
+        },
+
       ],
     },
     MuiTypography: {
@@ -129,6 +147,55 @@ const theme = createTheme({
           color: '#7fffd4', // Use secondary text color for body1
         },
       },
+      variants: [
+        {
+          props: { variant: 'retroTitle' },
+          style: {
+            fontFamily: 'RetroGaming8Bit, monospace',
+            fontSize: '2.5rem',
+            fontWeight: 'bold',
+            textTransform: 'uppercase',
+            letterSpacing: '2px',
+            color: '#7fffd4',
+            textShadow: '2px 2px 4px rgba(0, 0, 0, 0.5)',
+          },
+        },
+        {
+          props: { variant: 'retroTitleSmall' },
+          style: {
+            fontFamily: 'RetroGaming8Bit, monospace',
+            fontSize: '1.5rem',
+            fontWeight: 'bold',
+            textTransform: 'uppercase',
+            letterSpacing: '1px',
+            color: '#7fffd4',
+            textShadow: '1px 1px 2px rgba(0, 0, 0, 0.3)',
+          },
+        },
+        {
+          props: { variant: 'retroText' },
+          style: {
+            fontFamily: 'RetroGaming8Bit, monospace',
+            fontSize: '1.1rem',
+            fontWeight: 'bold',
+            textTransform: 'uppercase',
+            letterSpacing: '0.8px',
+            color: '#7fffd4',
+            textShadow: '1px 1px 1px rgba(0, 0, 0, 0.2)',
+          },
+        },
+        {
+          props: { variant: 'retroTextSmall' },
+          style: {
+            fontFamily: 'RetroGaming8Bit, monospace',
+            fontSize: '0.7rem',
+            textTransform: 'uppercase',
+            letterSpacing: '0.6px',
+            color: '#7fffd4',
+            textShadow: '1px 1px 1px rgba(0, 0, 0, 0.15)',
+          },
+        },
+      ],
     },
     MuiBox: {
       styleOverrides: {

@@ -6,9 +6,19 @@
   }
 
   html, body, #root {
-    background-color: #0a1529 !important; /* Match your theme's dark background */
-    color: #7fffd4 !important; /* Match your text color */
-    transition: none !important; /* Disable theme transition on load */
+    background-color: #0a1529; 
+    color: #7fffd4;
+    transition: none;
+  }
+
+  body {
     width: 100%;
     height: 100%;
   }
+
+/* 8-bit font for retro gaming elements */
+@font-face {
+  font-family: 'RetroGaming8Bit';
+  src: url('/8bit.ttf') format('truetype');
+  font-display: swap;
+}

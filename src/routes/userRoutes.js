@@ -9,6 +9,7 @@ const userController = require('../controllers/userController');
 const adminController = require('../controllers/adminController');
 const libraryController = require('../controllers/libraryController');
 const gameController = require('../controllers/gameController');
+const retroAchievementsController = require('../controllers/retroAchievementsController');
 
 // Import middlewares
 const authMiddleware = require('../middleware/auth');
@@ -36,6 +37,7 @@ router.post('/logout', authController.logout);
 router.get('/users/me', authMiddleware, userController.getMe);
 router.get('/user/games', authMiddleware, userController.getGames);
 router.post('/set-steam-id', authMiddleware, userController.setSteamId);
+router.post('/set-retroachievements-username', authMiddleware, userController.setRetroAchievementsUsername);
 router.post('/refresh-games', authMiddleware, userController.refreshGames);
 router.post('/import-library', authMiddleware, upload.single('file'), userController.importLibrary);
 
@@ -56,5 +58,14 @@ router.get('/user/:userId/game-count', libraryController.countUserGames);
 router.get('/games/search', gameController.searchGames);
 router.get('/games/:id/details', gameController.getGameDetails);
 router.get('/games/filters', gameController.getFilterOptions);
+
+// RetroAchievements Routes
+router.get('/retro-games', retroAchievementsController.getAvailableGomIds);
+router.get('/retro-games/active', retroAchievementsController.getActiveGameOfMonth);
+router.put('/retro-games/active/description', authMiddleware, retroAchievementsController.updateActiveGameDescription);
+router.get('/retro-games/:gomId', retroAchievementsController.getGameOfMonth);
+
+// Admin RetroAchievements Routes
+router.post('/admin/set-game-of-month', authMiddleware, retroAchievementsController.setGameOfMonth);
 
 module.exports = router;

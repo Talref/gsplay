@@ -8,6 +8,7 @@ import ListByUsers from './components/pages/ListByUsers';
 import YourLibrary from './components/pages/YourLibrary';
 import AdminPage from './components/pages/AdminPage';
 import GameSearchPage from './components/pages/GameSearchPage';
+import RetroGames from './components/pages/RetroGames';
 import Unauthorized from './components/ui/Unauthorized';
 import ProtectedRoute from './components/composite/ProtectedRoute';
 
@@ -30,6 +31,7 @@ function App() {
           </ProtectedRoute>
         } />
         <Route path="/search" element={<GameSearchPage />} />
+        <Route path="/retro-games" element={<RetroGames />} />
         <Route path="/unauthorized" element={<Unauthorized />} />
       </Routes>
     </Router>

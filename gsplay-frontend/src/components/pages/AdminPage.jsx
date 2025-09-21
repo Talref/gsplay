@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, useTheme, List, ListItem, ListItemText, Button, Snackbar, Alert, Grid, Paper, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
+import { Box, Typography, useTheme, List, ListItem, ListItemText, Button, Snackbar, Alert, Grid, Paper, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, TextField } from '@mui/material';
 import Navbar from '../layout/Navbar';
 import Footer from '../layout/Footer';
 import ProtectedRoute from '../composite/ProtectedRoute';
-import { fetchAllUsers, deleteUser, restoreFailedGames, forceGameEnrichment, scanAllUsersGames, dropGamesCollection, getGameStats } from '../../services/api';
+import { fetchAllUsers, deleteUser, restoreFailedGames, forceGameEnrichment, scanAllUsersGames, dropGamesCollection, getGameStats, setGameOfMonth } from '../../services/api';
 
 const AdminPage = () => {
   const theme = useTheme();
@@ -17,6 +17,9 @@ const AdminPage = () => {
   const [gameStats, setGameStats] = useState(null); // Game statistics
   const [statsLoading, setStatsLoading] = useState(true); // Loading state for stats
   const [confirmDialog, setConfirmDialog] = useState({ open: false, action: '', message: '' }); // Confirmation dialog
+  const [gomDialogOpen, setGomDialogOpen] = useState(false); // Game of Month dialog
+  const [gameIdInput, setGameIdInput] = useState(''); // Game ID input
+  const [setGomLoading, setSetGomLoading] = useState(false); // Loading state for set GoM
 
   // Fetch all users and game stats on component mount
   useEffect(() => {
@@ -156,6 +159,46 @@ const AdminPage = () => {
     setConfirmDialog({ open: false, action: '', message: '' });
   };
 
+  // Handle opening Game of Month dialog
+  const handleOpenGomDialog = () => {
+    setGomDialogOpen(true);
+  };
+
+  // Handle closing Game of Month dialog
+  const handleCloseGomDialog = () => {
+    setGomDialogOpen(false);
+    setGameIdInput('');
+  };
+
+  // Handle setting Game of Month
+  const handleSetGameOfMonth = async () => {
+    const gameId = parseInt(gameIdInput.trim());
+    if (!gameId || isNaN(gameId)) {
+      setSnackbarMessage('Please enter a valid game ID (numeric only).');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      return;
+    }
+
+    setSetGomLoading(true);
+    try {
+      const result = await setGameOfMonth(gameId);
+      const { gomId, gameName, action } = result.data;
+      const actionText = action === 'reactivated' ? 'reactivated' : 'set';
+      setSnackbarMessage(`Game of the Month ${actionText} successfully! GoM ID: ${gomId} (${gameName})`);
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+      handleCloseGomDialog();
+    } catch (error) {
+      console.error('Error setting game of month:', error);
+      setSnackbarMessage('Error setting game of month. Please check the game ID and try again.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setSetGomLoading(false);
+    }
+  };
+
   return (
     <ProtectedRoute adminOnly>
       <Box sx={theme.components.MuiBox.styleOverrides.root}>
@@ -288,6 +331,36 @@ const AdminPage = () => {
             </Grid>
           </Paper>
 
+          {/* RetroAchievements Management */}
+          <Paper sx={{ p: 3, mb: 4, backgroundColor: theme.palette.success.main }}>
+            <Typography variant="h6" sx={{ mb: 2, color: theme.palette.text.primary }}>
+              🕹️ RetroAchievements Management
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 3, color: theme.palette.text.secondary }}>
+              Set up monthly gaming challenges for your community. Track progress, achievements, and friendly competition.
+            </Typography>
+            <Button
+              fullWidth
+              variant="contained"
+              color="primary"
+              onClick={handleOpenGomDialog}
+              sx={{
+                py: 2,
+                fontWeight: 'bold',
+                fontSize: '1.1rem',
+                backgroundColor: theme.palette.primary.dark,
+                '&:hover': {
+                  backgroundColor: theme.palette.primary.main,
+                }
+              }}
+            >
+              🎮 Start New Game of the Month
+            </Button>
+            <Typography variant="caption" sx={{ mt: 1, display: 'block', color: theme.palette.text.secondary, textAlign: 'center' }}>
+              Enter a RetroAchievements game ID to begin tracking community progress
+            </Typography>
+          </Paper>
+
           {/* Users List */}
           <Typography variant="h6" sx={{ mb: 2 }}>
             Users
@@ -404,6 +477,62 @@ const AdminPage = () => {
               autoFocus
             >
               Yes, I'm Sure
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Game of Month Dialog */}
+        <Dialog
+          open={gomDialogOpen}
+          onClose={handleCloseGomDialog}
+          aria-labelledby="gom-dialog-title"
+          aria-describedby="gom-dialog-description"
+        >
+          <DialogTitle id="gom-dialog-title" sx={{ color: theme.palette.primary.main, fontWeight: 'bold' }}>
+            🎮 Start New Game of the Month
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText id="gom-dialog-description" sx={{ mb: 2, color: theme.palette.text.primary }}>
+              Enter the RetroAchievements game ID to set up a new monthly challenge. You can find game IDs on the RetroAchievements website.
+            </DialogContentText>
+            <TextField
+              autoFocus
+              margin="dense"
+              id="gameId"
+              label="Game ID"
+              type="number"
+              fullWidth
+              variant="outlined"
+              value={gameIdInput}
+              onChange={(e) => setGameIdInput(e.target.value)}
+              placeholder="e.g., 11296"
+              helperText="Numeric ID from RetroAchievements.org"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  '& fieldset': {
+                    borderColor: theme.palette.primary.main,
+                  },
+                  '&:hover fieldset': {
+                    borderColor: theme.palette.primary.dark,
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: theme.palette.primary.main,
+                  },
+                },
+              }}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseGomDialog} color="secondary">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSetGameOfMonth}
+              color="primary"
+              variant="contained"
+              disabled={setGomLoading || !gameIdInput.trim()}
+            >
+              {setGomLoading ? 'Setting up...' : 'Start Game of the Month'}
             </Button>
           </DialogActions>
         </Dialog>

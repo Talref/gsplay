@@ -57,6 +57,7 @@ export const login = (credentials) => request('POST', '/login', credentials);
 export const signup = (userData) => request('POST', '/signup', userData);
 export const logout = () => request('POST', '/logout');
 export const setSteamId = (steamId) => request('POST', '/set-steam-id', { steamId });
+export const setRetroAchievementsUsername = (username) => request('POST', '/set-retroachievements-username', { username });
 export const fetchMe = () => request('GET', '/users/me');
 export const fetchAllUsers = () => request('GET', '/users');
 export const deleteUser = (userId) => request('DELETE', `/users/${userId}`);
@@ -71,6 +72,7 @@ export const forceGameEnrichment = () => request('POST', '/admin/force-enrichmen
 export const scanAllUsersGames = () => request('POST', '/admin/scan-all-users');
 export const dropGamesCollection = () => request('POST', '/admin/drop-games-collection');
 export const getGameStats = () => request('GET', '/admin/game-stats');
+export const setGameOfMonth = (gameId) => request('POST', '/admin/set-game-of-month', { gameId });
 
 // Game search functions
 export const searchGames = (params) => {
@@ -80,6 +82,10 @@ export const searchGames = (params) => {
 
 export const getGameDetails = (gameId) => request('GET', `/games/${gameId}/details`);
 export const getFilterOptions = () => request('GET', '/games/filters');
+
+// RetroAchievements functions
+export const getActiveGameOfMonth = () => request('GET', '/retro-games/active');
+export const updateActiveGameDescription = (description) => request('PUT', '/retro-games/active/description', { description });
 
 // Import game libraries
 export const importLibrary = (file) => {

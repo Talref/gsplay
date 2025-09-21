@@ -13,6 +13,7 @@ const cookieParser = require('cookie-parser');
 // Import configuration files
 const appConfig = require('./config/app');
 const igdbConfig = require('./config/igdb');
+const retroAchievementsConfig = require('./config/retroAchievements');
 
 // Import routes and middleware
 const userRoutes = require('./src/routes/userRoutes');
@@ -52,6 +53,7 @@ app.get('/config-test', (req, res) => {
     port: server.port,
     database: database.uri ? 'Configured' : 'Not configured',
     igdb: igdbConfig.api.clientId ? 'Configured' : 'Not configured',
+    retroAchievements: retroAchievementsConfig.api.username ? 'Configured' : 'Not configured',
     features: appConfig.features
   });
 });
@@ -76,6 +78,31 @@ mongoose.connect(database.uri, database.options)
       } catch (error) {
         console.warn('⚠️ Failed to initialize IGDB lookup tables:', error.message);
         console.warn('📝 IGDB functionality may be limited until resolved');
+      }
+    }
+
+    // Initialize RetroAchievements service if enabled
+    if (retroAchievementsConfig.api.enabled !== false) {
+      try {
+        const retroAchievementsService = require('./src/services/retroAchievementsService');
+        await retroAchievementsService.initialize();
+        console.log('✅ RetroAchievements service initialized successfully');
+
+        // Start cron job for progress tracking (every 5 minutes)
+        const retroAchievementsCronService = require('./src/services/retroAchievementsCronService');
+        setInterval(async () => {
+          try {
+            await retroAchievementsCronService.updateProgressForActiveGame();
+          } catch (error) {
+            console.error('❌ Cron job failed:', error);
+          }
+        }, 5 * 60 * 1000); // 5 minutes
+
+        console.log('✅ RetroAchievements cron job started (runs every 5 minutes)');
+
+      } catch (error) {
+        console.warn('⚠️ Failed to initialize RetroAchievements service:', error.message);
+        console.warn('📝 RetroAchievements functionality may be limited until resolved');
       }
     }
   })

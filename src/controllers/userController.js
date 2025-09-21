@@ -3,6 +3,7 @@ const User = require('../models/User');
 const dispatcher = require('../parsers/dispatcher');
 const axios = require('axios');
 const gameService = require('../services/gameService');
+const retroAchievementsService = require('../services/retroAchievementsService');
 
 // Fetch current user data
 exports.getMe = async (req, res) => {
@@ -39,6 +40,55 @@ exports.setSteamId = async (req, res) => {
     await user.save();
     res.send({ message: 'Steam ID aggiornato con successo!', user });
   } catch (error) {
+    res.status(400).send({ error: error.message });
+  }
+};
+
+// Set RetroAchievements Username
+exports.setRetroAchievementsUsername = async (req, res) => {
+  try {
+    const { username } = req.body;
+
+    if (!username || typeof username !== 'string' || username.trim().length < 3) {
+      return res.status(400).send({ error: 'Valid username is required (minimum 3 characters)' });
+    }
+
+    // Validate username format (alphanumeric, underscores, hyphens)
+    if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+      return res.status(400).send({ error: 'Username can only contain letters, numbers, underscores, and hyphens' });
+    }
+
+    const user = await User.findById(req.user.id);
+
+    // Verify the username exists on RetroAchievements
+    try {
+      const userProfile = await retroAchievementsService.getUserProfile(username.trim());
+      if (!userProfile) {
+        return res.status(400).send({ error: 'Username not found on RetroAchievements' });
+      }
+
+      // Update user with RetroAchievements info
+      user.retroAchievementsUsername = username.trim();
+      user.retroAchievementsULID = userProfile.id; // Store the ULID
+      user.retroAchievementsLinkedAt = new Date();
+
+      await user.save();
+
+      res.send({
+        message: 'RetroAchievements account linked successfully!',
+        user: {
+          retroAchievementsUsername: user.retroAchievementsUsername,
+          retroAchievementsLinkedAt: user.retroAchievementsLinkedAt
+        }
+      });
+
+    } catch (apiError) {
+      console.error('RetroAchievements API error:', apiError);
+      return res.status(400).send({ error: 'Failed to verify RetroAchievements account. Please check the username.' });
+    }
+
+  } catch (error) {
+    console.error('Error setting RetroAchievements username:', error);
     res.status(400).send({ error: error.message });
   }
 };
