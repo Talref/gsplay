@@ -452,10 +452,7 @@ const RetroGames = () => {
                         <Typography variant="retroTextSmall" sx={{ minWidth: '30px', fontWeight: 'bold', color: theme.palette.text.primary }}>
                           #{index + 1}  {user.username}
                         </Typography>
-                        <Typography variant="retroTextSmall" sx={{ flex: 1, fontWeight: 'bold', color: theme.palette.text.primary }}>
-                          {user.username}
-                        </Typography>
-                        <Typography variant="retroTextSmall" sx={{ minWidth: '50px', textAlign: 'right', fontWeight: 'bold' }}>
+                        <Typography variant="retroTextSmall" sx={{ flex: 1, minWidth: '50px', textAlign: 'right', fontWeight: 'bold' }}>
                           {user.completionPercentage || 0}%
                         </Typography>
                       </Box>
