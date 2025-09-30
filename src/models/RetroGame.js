@@ -57,7 +57,6 @@ retroGameSchema.pre('save', async function(next) {
 
 // Index for efficient queries
 retroGameSchema.index({ isActive: 1 });
-retroGameSchema.index({ gomId: 1 });
 
 const RetroGame = mongoose.model('RetroGame', retroGameSchema);
 
