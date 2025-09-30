@@ -23,6 +23,7 @@ const requestLogger = require('./src/middleware/logging/requestLogger');
 const { sanitizeInput } = require('./src/middleware/validation/sanitizeInput');
 
 const app = express();
+app.set('trust proxy', 1); // Trust first proxy
 
 // Server Configuration from config
 const { server, database, security } = appConfig;
