@@ -102,7 +102,7 @@ const GameOfTheMonthCard = ({ sx = {} }) => {
       {/* Header */}
       <Box sx={{
         backgroundColor: theme.palette.primary.main,
-        p: theme.tokens.spacing.sm,
+        p: theme.tokens.spacing.xs,
         borderRadius: `${theme.tokens.borderRadius.large}px ${theme.tokens.borderRadius.large}px 0 0`,
         display: 'flex',
         alignItems: 'center',
@@ -115,11 +115,11 @@ const GameOfTheMonthCard = ({ sx = {} }) => {
 
       {/* Content area - Box art and description side by side */}
       <Box sx={{
-        px: theme.tokens.spacing.md,
+        px: theme.tokens.spacing.sm,
         py: theme.tokens.spacing.sm,
         display: 'flex',
-        gap: theme.tokens.spacing.sm,
-        minHeight: '200px',
+        gap: theme.tokens.spacing.xs,
+        minHeight: '300px',
         alignItems: 'flex-start'
       }}>
         {/* Box art on the left */}
@@ -135,11 +135,11 @@ const GameOfTheMonthCard = ({ sx = {} }) => {
               src={`https://retroachievements.org${game.imageBoxArt}`}
               alt={`${game.gameName} box art`}
               sx={{
-                maxWidth: '180px',
-                maxHeight: '180px',
+                maxWidth: '250px',
+                maxHeight: '250px',
                 objectFit: 'contain',
                 borderRadius: 1,
-                boxShadow: 2
+                boxShadow: 3
               }}
             />
           ) : (
