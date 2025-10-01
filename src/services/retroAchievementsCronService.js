@@ -106,25 +106,21 @@ class RetroAchievementsCronService {
       hardcore: []
     };
 
-    // TEMPORARILY DISABLED DATE FILTERING FOR TESTING
-    // Include ALL achievements regardless of date for testing purposes
     Object.values(achievements).forEach(achievement => {
-      // Check softcore unlock
+      // Check softcore unlock - only include achievements earned after GoM started
       if (achievement.dateEarned) {
-        // TEMP: Always include for testing
-        // const earnedDate = new Date(achievement.dateEarned);
-        // if (earnedDate >= startDate) {
+        const earnedDate = new Date(achievement.dateEarned);
+        if (earnedDate >= startDate) {
           newAchievements.softcore.push(achievement.id);
-        // }
+        }
       }
 
-      // Check hardcore unlock
+      // Check hardcore unlock - only include achievements earned after GoM started
       if (achievement.dateEarnedHardcore) {
-        // TEMP: Always include for testing
-        // const earnedHardcoreDate = new Date(achievement.dateEarnedHardcore);
-        // if (earnedHardcoreDate >= startDate) {
+        const earnedHardcoreDate = new Date(achievement.dateEarnedHardcore);
+        if (earnedHardcoreDate >= startDate) {
           newAchievements.hardcore.push(achievement.id);
-        // }
+        }
       }
     });
 
