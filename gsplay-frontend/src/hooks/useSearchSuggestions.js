@@ -75,8 +75,8 @@ export const useSearchSuggestions = () => {
         event.preventDefault();
         if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
           onSelect(suggestions[selectedIndex]);
-        } else if (inputValue.trim()) {
-          // If no suggestion selected but there's input, perform full search
+        } else {
+          // Always trigger search with current input (whether from suggestion or typing)
           onSelect(null, inputValue);
         }
         break;

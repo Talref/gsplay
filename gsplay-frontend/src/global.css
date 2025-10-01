@@ -1,20 +1,17 @@
 /* src/global.css  */
+
+/* Global reset - keep box-sizing for consistent sizing */
 * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
+  box-sizing: border-box;
+}
 
-  html, body, #root {
-    background-color: #0a1529; 
-    color: #7fffd4;
-    transition: none;
-  }
-
-  body {
-    width: 100%;
-    height: 100%;
-  }
+/* Base body styles - colors handled by theme CSS baseline */
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
 
 /* 8-bit font for retro gaming elements */
 @font-face {

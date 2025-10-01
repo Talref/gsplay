@@ -1,40 +1,77 @@
 import { createTheme } from '@mui/material/styles';
 
+// Design tokens for consistent theming
+const designTokens = {
+  colors: {
+    retro: {
+      background: '#0a1529',  // Main app background
+      surface: '#00284d',     // Card backgrounds, secondary surfaces
+      surfaceHover: '#002b80', // Hover states for surfaces (original paper color)
+      accent: '#7fffd4',      // Primary accent color (cyan/green)
+      accentHover: '#a9ffe2', // Brighter accent for hovers
+      warning: '#ff4444',     // Error/warning states
+      warningHover: '#cc3636', // Darker warning for hovers
+      contrast: '#001f3f',    // Dark contrast color for buttons
+      textPrimary: '#b3ffe6', // Main body text
+      textSecondary: '#7fffd4', // Secondary text (headers, links)
+    }
+  },
+  spacing: {
+    xs: 4,  // Small spacing (buttons, small gaps)
+    sm: 8,  // Standard small (card padding, list items)
+    md: 16, // Medium spacing (content sections)
+    lg: 24, // Large spacing (major sections)
+    xl: 32  // Extra large (page margins)
+  },
+  borderRadius: {
+    small: 4,   // Small elements
+    medium: 5,  // Buttons, form elements
+    large: 12   // Cards, major containers
+  },
+  shadows: {
+    small: '0 1px 1px rgba(0, 0, 0, 0.2)',
+    medium: '0 4px 8px rgba(127, 255, 212, 0.2)' // Keeping the retro glow effect
+  }
+};
+
 const theme = createTheme({
+  // Expose tokens to components
+  tokens: designTokens,
+
   palette: {
     primary: {
-      main: '#001f3f',
+      main: designTokens.colors.retro.contrast, // #001f3f
     },
     secondary: {
-      main: '#7fffd4',
+      main: designTokens.colors.retro.accent, // #7fffd4
     },
     warning: {
-      main: '#ff4444',
+      main: designTokens.colors.retro.warning, // #ff4444
     },
     background: {
-      default: '#0a1529',
-      paper: '#002b80',
+      default: designTokens.colors.retro.background, // #0a1529
+      paper: designTokens.colors.retro.surfaceHover, // #002b80 (original paper)
     },
     text: {
-      primary: '#b3ffe6',
-      secondary: '#7fffd4',
+      primary: designTokens.colors.retro.textPrimary, // #b3ffe6
+      secondary: designTokens.colors.retro.textSecondary, // #7fffd4
     },
   },
   components: {
     MuiCssBaseline: {
       styleOverrides: {
         body: {
-          backgroundColor: '#0a1529',
-          color: '#7fffd4',
+          backgroundColor: designTokens.colors.retro.background,
+          color: designTokens.colors.retro.textSecondary,
           transition: 'none !important',
         },
         // Global link styles
         a: {
-          color: '#7fffd4', // Use your secondary color
+          color: designTokens.colors.retro.textSecondary, // Use accent color for links
           textDecoration: 'underline',
           transition: 'color 0.2s ease',
           '&:hover': {
-            color: '#a9ffe2', // Brighter version for hover
+            color: designTokens.colors.retro.accentHover, // Brighter version for hover
             textDecoration: 'underline',
           },
         },
@@ -43,12 +80,12 @@ const theme = createTheme({
     MuiLink: {
       styleOverrides: {
         root: {
-          color: '#7fffd4', // Same as global links
+          color: designTokens.colors.retro.textSecondary, // Same as global links
           textDecoration: 'underline',
           fontWeight: 500,
           transition: 'color 0.2s ease',
           '&:hover': {
-            color: '#a9ffe2', // Brighter hover
+            color: designTokens.colors.retro.accentHover, // Brighter hover
             textDecoration: 'underline',
             cursor: 'pointer',
           },
@@ -69,54 +106,54 @@ const theme = createTheme({
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: '5px',
+          borderRadius: `${designTokens.borderRadius.medium}px`,
         },
       },
       variants: [
         {
           props: { variant: 'default' },
           style: {
-            backgroundColor: '#00284d',
-            color: '#7fffd4',
+            backgroundColor: designTokens.colors.retro.surface,
+            color: designTokens.colors.retro.accent,
             fontSize: '0.875rem',
             '&:hover': {
-              backgroundColor: '#002b80',
+              backgroundColor: designTokens.colors.retro.surfaceHover,
             },
           },
         },
         {
           props: { variant: 'accent' },
           style: {
-            backgroundColor: '#7fffd4',
-            color: '#001f3f',
+            backgroundColor: designTokens.colors.retro.accent,
+            color: designTokens.colors.retro.contrast,
             '&:hover': {
-              backgroundColor: '#66ccaa',
+              backgroundColor: '#66ccaa', // Custom hover, keeping the original saturation
             },
           },
         },
         {
           props: { variant: 'warning' },
           style: {
-            backgroundColor: '#ff4444',
+            backgroundColor: designTokens.colors.retro.warning,
             color: '#ffffff',
             '&:hover': {
-              backgroundColor: '#cc3636',
+              backgroundColor: designTokens.colors.retro.warningHover,
             },
           },
         },
         {
           props: { variant: 'retro' },
           style: {
-            backgroundColor: '#00284d',
-            color: '#7fffd4',
+            backgroundColor: designTokens.colors.retro.surface,
+            color: designTokens.colors.retro.accent,
             fontFamily: 'RetroGaming8Bit, monospace',
             fontSize: '0.6rem',
             fontWeight: 'bold',
             textTransform: 'uppercase',
             letterSpacing: '0.5px',
-            padding: '4px 8px',
+            padding: `${designTokens.spacing.xs}px ${designTokens.spacing.sm}px`,
             '&:hover': {
-              backgroundColor: '#002b80',
+              backgroundColor: designTokens.colors.retro.surfaceHover,
             },
           },
         },
@@ -126,25 +163,25 @@ const theme = createTheme({
     MuiTypography: {
       styleOverrides: {
         h1: {
-          color: '#7fffd4',
+          color: designTokens.colors.retro.textSecondary,
         },
         h2: {
-          color: '#7fffd4',
+          color: designTokens.colors.retro.textSecondary,
         },
         h3: {
-          color: '#7fffd4',
+          color: designTokens.colors.retro.textSecondary,
         },
         h4: {
-          color: '#7fffd4',
+          color: designTokens.colors.retro.textSecondary,
         },
         h5: {
-          color: '#7fffd4',
+          color: designTokens.colors.retro.textSecondary,
         },
         h6: {
-          color: '#7fffd4',
+          color: designTokens.colors.retro.textSecondary,
         },
         body1: {
-          color: '#7fffd4', // Use secondary text color for body1
+          color: designTokens.colors.retro.textSecondary,
         },
       },
       variants: [
@@ -156,7 +193,7 @@ const theme = createTheme({
             fontWeight: 'bold',
             textTransform: 'uppercase',
             letterSpacing: '2px',
-            color: '#7fffd4',
+            color: designTokens.colors.retro.textSecondary,
             textShadow: '2px 2px 4px rgba(0, 0, 0, 0.5)',
           },
         },
@@ -168,7 +205,7 @@ const theme = createTheme({
             fontWeight: 'bold',
             textTransform: 'uppercase',
             letterSpacing: '1px',
-            color: '#7fffd4',
+            color: designTokens.colors.retro.textSecondary,
             textShadow: '1px 1px 2px rgba(0, 0, 0, 0.3)',
           },
         },
@@ -180,7 +217,7 @@ const theme = createTheme({
             fontWeight: 'bold',
             textTransform: 'uppercase',
             letterSpacing: '0.8px',
-            color: '#7fffd4',
+            color: designTokens.colors.retro.textSecondary,
             textShadow: '1px 1px 1px rgba(0, 0, 0, 0.2)',
           },
         },
@@ -191,7 +228,7 @@ const theme = createTheme({
             fontSize: '0.7rem',
             textTransform: 'uppercase',
             letterSpacing: '0.6px',
-            color: '#7fffd4',
+            color: designTokens.colors.retro.textSecondary,
             textShadow: '1px 1px 1px rgba(0, 0, 0, 0.15)',
           },
         },
@@ -203,20 +240,20 @@ const theme = createTheme({
           display: 'flex',
           flexDirection: 'column',
           minHeight: '100vh',
-          backgroundColor: '#0a1529',
+          backgroundColor: designTokens.colors.retro.background,
         },
       },
     },
     MuiListItem: {
       styleOverrides: {
         root: {
-          backgroundColor: '#00284d',
-          borderRadius: '5px',
-          marginBottom: '8px',
+          backgroundColor: designTokens.colors.retro.surface,
+          borderRadius: `${designTokens.borderRadius.medium}px`,
+          marginBottom: designTokens.spacing.sm,
           transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
           '&:hover': {
             transform: 'translateY(-2px)',
-            boxShadow: '0 4px 8px rgba(127, 255, 212, 0.2)',
+            boxShadow: designTokens.shadows.medium,
           },
         },
       },
@@ -224,7 +261,7 @@ const theme = createTheme({
     MuiListItemText: {
       styleOverrides: {
         primary: {
-          color: '#7fffd4',
+          color: designTokens.colors.retro.accent,
           fontWeight: '500',
         },
       },

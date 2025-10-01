@@ -2,29 +2,19 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Container,
-  Grid,
   Paper,
   Typography,
   TextField,
   Button,
-  Card,
-  CardContent,
-  CardMedia,
-  Chip,
   Pagination,
   CircularProgress,
   Alert,
-  IconButton,
-  Drawer,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
-  useMediaQuery,
-  useTheme
 } from '@mui/material';
-import { Search as SearchIcon, FilterList as FilterIcon, Close as CloseIcon, Sort as SortIcon } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { Search as SearchIcon, Sort as SortIcon } from '@mui/icons-material';
 import { searchGames, getFilterOptions } from '../../services/api';
 import SearchFilters from '../forms/SearchFilters';
 import GameResultsList from '../lists/GameResultsList';
@@ -35,10 +25,6 @@ import Footer from '../layout/Footer';
 import { useSearchSuggestions } from '../../hooks/useSearchSuggestions';
 
 const GameSearchPage = () => {
-  const theme = useTheme();
-  const navigate = useNavigate();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-
   // State
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
@@ -61,7 +47,6 @@ const GameSearchPage = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [filtersOpen, setFiltersOpen] = useState(!isMobile);
   const [sortBy, setSortBy] = useState('name'); // Default sort by name
   const searchInputRef = useRef(null);
 
@@ -150,10 +135,6 @@ const GameSearchPage = () => {
     setSelectedGame(null);
   };
 
-  const toggleFilters = () => {
-    setFiltersOpen(!filtersOpen);
-  };
-
   const handleSortChange = (event) => {
     setSortBy(event.target.value);
     setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page when sorting
@@ -167,16 +148,33 @@ const GameSearchPage = () => {
   };
 
   const handleSearchKeyDown = (event) => {
-    handleKeyDown(event, searchTerm, handleSuggestionSelect);
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      hideSuggestions();
+      if (selectedIndex >= 0 && suggestions[selectedIndex]) {
+        // If a suggestion is selected, go to game detail
+        setSelectedGame(suggestions[selectedIndex]);
+      } else {
+        // Otherwise, trigger search
+        handleSearch();
+      }
+    } else {
+      // Handle other keys for suggestion navigation
+      handleKeyDown(event, searchTerm, handleSuggestionSelect);
+    }
   };
 
-  const handleSuggestionClick = (suggestion) => {
+  const handleSuggestionClick = (suggestion, searchTerm) => {
     if (suggestion) {
       // Navigate to game detail
       setSelectedGame(suggestion);
       hideSuggestions();
-    } else {
+    } else if (searchTerm) {
       // Perform search with current term
+      setSearchTerm(searchTerm);
+      handleSearch();
+    } else {
+      // Fall back to current search term
       handleSearch();
     }
   };
@@ -206,43 +204,38 @@ const GameSearchPage = () => {
 
       {/* Search Bar */}
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={10}>
-            <Box sx={{ position: 'relative' }}>
-              <TextField
-                ref={searchInputRef}
-                fullWidth
-                variant="outlined"
-                placeholder="Cerca giochi..."
-                value={searchTerm}
-                onChange={handleSearchInputChange}
-                onKeyDown={handleSearchKeyDown}
-                InputProps={{
-                  startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
-                }}
-              />
-              <SearchSuggestions
-                suggestions={suggestions}
-                loading={suggestionsLoading}
-                selectedIndex={selectedIndex}
-                isVisible={suggestionsVisible}
-                onSelect={handleSuggestionClick}
-                anchorEl={searchInputRef.current}
-              />
-            </Box>
-          </Grid>
-          <Grid item xs={12} md={2}>
-            <Button
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+          <Box sx={{ flex: 1, position: 'relative' }}>
+            <TextField
+              ref={searchInputRef}
               fullWidth
-              variant="contained"
-              onClick={handleSearch}
-              disabled={loading}
-              sx={{ height: 56 }}
-            >
-              {loading ? <CircularProgress size={24} /> : 'Cerca'}
-            </Button>
-          </Grid>
-        </Grid>
+              variant="outlined"
+              placeholder="Cerca giochi..."
+              value={searchTerm}
+              onChange={handleSearchInputChange}
+              onKeyDown={handleSearchKeyDown}
+              InputProps={{
+                startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
+              }}
+            />
+            <SearchSuggestions
+              suggestions={suggestions}
+              loading={suggestionsLoading}
+              selectedIndex={selectedIndex}
+              isVisible={suggestionsVisible}
+              onSelect={handleSuggestionClick}
+              anchorEl={searchInputRef.current}
+            />
+          </Box>
+          <Button
+            variant="contained"
+            onClick={handleSearch}
+            disabled={loading}
+            sx={{ height: 56, minWidth: 120 }}
+          >
+            {loading ? <CircularProgress size={24} /> : 'Cerca'}
+          </Button>
+        </Box>
       </Paper>
 
       {/* Error Display */}
@@ -252,44 +245,21 @@ const GameSearchPage = () => {
         </Alert>
       )}
 
-      {/* Main Content */}
-      <Grid container spacing={3}>
-        {/* Filters Sidebar */}
-        <Grid item xs={12} md={3}>
-          {isMobile ? (
-            <Drawer
-              anchor="left"
-              open={filtersOpen}
-              onClose={() => setFiltersOpen(false)}
-              sx={{ '& .MuiDrawer-paper': { width: 300, p: 2 } }}
-            >
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                <Typography variant="h6">Filtri</Typography>
-                <IconButton onClick={() => setFiltersOpen(false)}>
-                  <CloseIcon />
-                </IconButton>
-              </Box>
-              <SearchFilters
-                filters={filters}
-                filterOptions={filterOptions}
-                onFilterChange={handleFilterChange}
-              />
-            </Drawer>
-          ) : (
-            filtersOpen && (
-              <Paper sx={{ p: 3, position: 'sticky', top: 20 }}>
-                <SearchFilters
-                  filters={filters}
-                  filterOptions={filterOptions}
-                  onFilterChange={handleFilterChange}
-                />
-              </Paper>
-            )
-          )}
-        </Grid>
+      {/* Main Content - Desktop Only Layout */}
+      <Box sx={{ display: 'flex', gap: 3 }}>
+        {/* Left Sidebar - Filters */}
+        <Box sx={{ width: 320, flexShrink: 0 }}>
+          <Paper sx={{ p: 3, position: 'sticky', top: 20 }}>
+            <SearchFilters
+              filters={filters}
+              filterOptions={filterOptions}
+              onFilterChange={handleFilterChange}
+            />
+          </Paper>
+        </Box>
 
-        {/* Results */}
-        <Grid item xs={12} md={filtersOpen ? 9 : 12}>
+        {/* Right Content Area */}
+        <Box sx={{ flex: 1, minWidth: 0 }}>
           {selectedGame ? (
             <GameDetailView
               game={selectedGame}
@@ -297,26 +267,29 @@ const GameSearchPage = () => {
             />
           ) : (
             <>
-              {/* Sort and Results Header */}
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h6">
-                  {games.length > 0 ? `${pagination.total} giochi trovati` : 'Nessun gioco trovato'}
-                </Typography>
-                <FormControl size="small" sx={{ minWidth: 200 }}>
-                  <InputLabel>Ordina per</InputLabel>
-                  <Select
-                    value={sortBy}
-                    label="Ordina per"
-                    onChange={handleSortChange}
-                    startAdornment={<SortIcon sx={{ mr: 1, color: 'text.secondary' }} />}
-                  >
-                    <MenuItem value="name">Alfabetico</MenuItem>
-                    <MenuItem value="rating">Valutazioni</MenuItem>
-                    <MenuItem value="ownerCount">Posseduti da</MenuItem>
-                  </Select>
-                </FormControl>
-              </Box>
+              {/* Sort Header - Top of Right Area */}
+              <Paper sx={{ p: 3, mb: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="h6">
+                    {loading ? 'Caricamento...' : (games.length > 0 ? `${pagination.total} giochi trovati` : 'Nessun gioco trovato')}
+                  </Typography>
+                  <FormControl size="small" sx={{ minWidth: 200 }}>
+                    <InputLabel>Ordina per</InputLabel>
+                    <Select
+                      value={sortBy}
+                      label="Ordina per"
+                      onChange={handleSortChange}
+                      startAdornment={<SortIcon sx={{ mr: 1, color: 'text.secondary' }} />}
+                    >
+                      <MenuItem value="name">Alfabetico</MenuItem>
+                      <MenuItem value="rating">Valutazioni</MenuItem>
+                      <MenuItem value="ownerCount">Posseduti da</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Box>
+              </Paper>
 
+              {/* Game Results List */}
               <GameResultsList
                 games={games}
                 loading={loading}
@@ -337,8 +310,8 @@ const GameSearchPage = () => {
               )}
             </>
           )}
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
       </Container>
       <Footer />
     </Box>
