@@ -15,10 +15,11 @@ import {
   MenuItem,
 } from '@mui/material';
 import { Search as SearchIcon, Sort as SortIcon } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+// Removed useNavigate - using inline details instead
 import { searchGames, getFilterOptions } from '../../services/api';
 import GamesFiltersSidebar from '../features/search/GamesFiltersSidebar';
 import GameResultsList from '../lists/GameResultsList';
+import GameDetailView from '../composite/GameDetailView';
 import SearchSuggestions from '../composite/SearchSuggestions';
 import Navbar from '../layout/Navbar';
 import Footer from '../layout/Footer';
@@ -38,6 +39,7 @@ const SearchGamesPage = () => {
     gameModes: []
   });
   const [games, setGames] = useState([]);
+  const [selectedGame, setSelectedGame] = useState(null);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -48,8 +50,6 @@ const SearchGamesPage = () => {
   const [error, setError] = useState(null);
   const [sortBy, setSortBy] = useState('name');
   const searchInputRef = useRef(null);
-  const navigate = useNavigate();
-
   // Search suggestions hook
   const {
     suggestions,
@@ -127,7 +127,11 @@ const SearchGamesPage = () => {
   };
 
   const handleGameClick = (game) => {
-    navigate(`/games/${game._id}`);
+    setSelectedGame(game);
+  };
+
+  const handleBackToSearch = () => {
+    setSelectedGame(null);
   };
 
   const handleSortChange = (event) => {
@@ -147,7 +151,8 @@ const SearchGamesPage = () => {
       event.preventDefault();
       hideSuggestions();
       if (selectedIndex >= 0 && suggestions[selectedIndex]) {
-        navigate(`/games/${suggestions[selectedIndex]._id}`);
+        // Select game and show it inline in search page
+        setSelectedGame(suggestions[selectedIndex]);
       } else {
         handleSearch();
       }
@@ -158,7 +163,8 @@ const SearchGamesPage = () => {
 
   const handleSuggestionClick = (suggestion, searchTerm) => {
     if (suggestion) {
-      navigate(`/games/${suggestion._id}`);
+      // Select game and show it inline in search page
+      setSelectedGame(suggestion);
       hideSuggestions();
     } else if (searchTerm) {
       setSearchTerm(searchTerm);
@@ -249,46 +255,55 @@ const SearchGamesPage = () => {
 
           {/* Right Content Area */}
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            {/* Sort Header - Top of Right Area */}
-            <Paper sx={{ p: 3, mb: 3 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6">
-                  {loading ? 'Caricamento...' : (games.length > 0 ? `${pagination.total} giochi trovati` : 'Nessun gioco trovato')}
-                </Typography>
-                <FormControl size="small" sx={{ minWidth: 200 }}>
-                  <InputLabel>Ordina per</InputLabel>
-                  <Select
-                    value={sortBy}
-                    label="Ordina per"
-                    onChange={handleSortChange}
-                    startAdornment={<SortIcon sx={{ mr: 1, color: 'text.secondary' }} />}
-                  >
-                    <MenuItem value="name">Alfabetico</MenuItem>
-                    <MenuItem value="rating">Valutazioni</MenuItem>
-                    <MenuItem value="ownerCount">Posseduti da</MenuItem>
-                  </Select>
-                </FormControl>
-              </Box>
-            </Paper>
+            {selectedGame ? (
+              <GameDetailView
+                game={selectedGame}
+                onBack={handleBackToSearch}
+              />
+            ) : (
+              <>
+                {/* Sort Header - Top of Right Area */}
+                <Paper sx={{ p: 3, mb: 3 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="h6">
+                      {loading ? 'Caricamento...' : (games.length > 0 ? `${pagination.total} giochi trovati` : 'Nessun gioco trovato')}
+                    </Typography>
+                    <FormControl size="small" sx={{ minWidth: 200 }}>
+                      <InputLabel>Ordina per</InputLabel>
+                      <Select
+                        value={sortBy}
+                        label="Ordina per"
+                        onChange={handleSortChange}
+                        startAdornment={<SortIcon sx={{ mr: 1, color: 'text.secondary' }} />}
+                      >
+                        <MenuItem value="name">Alfabetico</MenuItem>
+                        <MenuItem value="rating">Valutazioni</MenuItem>
+                        <MenuItem value="ownerCount">Posseduti da</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Box>
+                </Paper>
 
-            {/* Game Results List */}
-            <GameResultsList
-              games={games}
-              loading={loading}
-              onGameClick={handleGameClick}
-            />
-
-            {/* Pagination */}
-            {pagination.pages > 1 && (
-              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-                <Pagination
-                  count={pagination.pages}
-                  page={pagination.page}
-                  onChange={handlePageChange}
-                  color="primary"
-                  size="large"
+                {/* Game Results List */}
+                <GameResultsList
+                  games={games}
+                  loading={loading}
+                  onGameClick={handleGameClick}
                 />
-              </Box>
+
+                {/* Pagination */}
+                {pagination.pages > 1 && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                    <Pagination
+                      count={pagination.pages}
+                      page={pagination.page}
+                      onChange={handlePageChange}
+                      color="primary"
+                      size="large"
+                    />
+                  </Box>
+                )}
+              </>
             )}
           </Box>
         </Box>

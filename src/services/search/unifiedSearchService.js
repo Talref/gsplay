@@ -28,7 +28,7 @@ async function performGameSearch(params) {
 
   // Execute query with proper field selection
   const games = await Game.find(query)
-    .select('name genres availablePlatforms gameModes rating artwork releaseDate owners')
+    .select('name genres availablePlatforms gameModes rating artwork releaseDate owners description videos')
     .sort(sort)
     .skip(skip)
     .limit(limit)

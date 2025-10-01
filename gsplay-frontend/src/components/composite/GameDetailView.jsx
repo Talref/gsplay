@@ -67,22 +67,25 @@ const GameDetailView = ({ game, gameId, onBack }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Use game prop if provided, or gameData if loaded from gameId
-  const currentGame = game || gameData;
+  // Use loaded full gameData if available, fallback to game prop
+  const currentGame = gameData || game;
 
-  // Load full game details if we have gameId and don't have full data
+  // Check if we have full enriched data (description/videos)
+  const hasFullData = currentGame?.description !== undefined && currentGame?.videos !== undefined;
+
+  // Load full game details if we have basic data but missing enriched fields
   useEffect(() => {
-    if (gameId && (!currentGame || !currentGame.description)) {
-      loadFullGameDetails();
+    if (currentGame && currentGame._id && !hasFullData) {
+      loadFullGameDetails(currentGame._id);
     }
-  }, [gameId, currentGame?._id]);
+  }, [currentGame?._id, hasFullData]);
 
-  const loadFullGameDetails = async () => {
+  const loadFullGameDetails = async (targetGameId) => {
     setLoading(true);
     setError(null);
 
     try {
-      const fullGame = await getGameDetails(gameId);
+      const fullGame = await getGameDetails(targetGameId);
       setGameData(fullGame);
     } catch (error) {
       setError(error.message || 'Failed to load game details');
@@ -121,17 +124,18 @@ const GameDetailView = ({ game, gameId, onBack }) => {
       </Button>
 
       <Container maxWidth="xl">
-        <Grid container spacing={4}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 4, mb: 4 }}>
           {/* Game Cover and Basic Info */}
-          <Grid item xs={12} md={4}>
+          <Box sx={{ flexShrink: 0, width: { xs: '100%', md: '25%' }, maxWidth: { md: '300px' } }}>
             <Card>
               <CardMedia
                 component="img"
-                height="300"
                 image={currentGame.artwork || '/placeholder-game.jpg'}
                 alt={currentGame.name}
                 sx={{
-                  objectFit: 'cover',
+                  width: '100%',
+                  aspectRatio: '3/4', // consistent portrait format
+                  objectFit: 'contain', // no cropping, whole image shown
                   bgcolor: 'grey.200'
                 }}
                 onError={(e) => {
@@ -139,7 +143,18 @@ const GameDetailView = ({ game, gameId, onBack }) => {
                 }}
               />
               <CardContent>
-                <Typography variant="h5" component="h1" gutterBottom>
+                <Typography
+                  variant="h5"
+                  component="h1"
+                  gutterBottom
+                  sx={{
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 3,
+                    WebkitBoxOrient: 'vertical'
+                  }}
+                >
                   {currentGame.name}
                 </Typography>
 
@@ -177,10 +192,10 @@ const GameDetailView = ({ game, gameId, onBack }) => {
                 </Box>
               </CardContent>
             </Card>
-          </Grid>
+          </Box>
 
           {/* Game Details */}
-          <Grid item xs={12} md={8}>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
             <Box sx={{ mb: 4 }}>
               <Typography variant="h6" gutterBottom>
                 Informazioni sul Gioco
@@ -292,8 +307,8 @@ const GameDetailView = ({ game, gameId, onBack }) => {
                 </Typography>
               </Box>
             )}
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       </Container>
 
         {/* Owners Section */}
