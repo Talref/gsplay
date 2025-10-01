@@ -7,7 +7,8 @@ import Signup from './components/pages/Signup';
 import ListByUsers from './components/pages/ListByUsers';
 import YourLibrary from './components/pages/YourLibrary';
 import AdminPage from './components/pages/AdminPage';
-import GameSearchPage from './components/pages/GameSearchPage';
+import SearchGamesPage from './components/pages/SearchGamesPage';
+import GameDetailsPage from './components/pages/GameDetailsPage';
 import RetroGames from './components/pages/RetroGames';
 import Unauthorized from './components/ui/Unauthorized';
 import ProtectedRoute from './components/composite/ProtectedRoute';
@@ -30,7 +31,8 @@ function App() {
             <AdminPage />
           </ProtectedRoute>
         } />
-        <Route path="/search" element={<GameSearchPage />} />
+        <Route path="/search" element={<SearchGamesPage />} />
+        <Route path="/games/:gameId" element={<GameDetailsPage />} />
         <Route path="/retro-games" element={<RetroGames />} />
         <Route path="/unauthorized" element={<Unauthorized />} />
       </Routes>
