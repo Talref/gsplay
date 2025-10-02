@@ -136,7 +136,17 @@ function buildOwnerCountAggregation(matchQuery, sortOrder, skip, limit) {
     { $match: matchQuery },
     {
       $addFields: {
-        ownerCount: { $size: { $ifNull: ['$owners', []] } }
+        ownerCount: {
+          $size: {
+            $setUnion: {
+              $map: {
+                input: { $ifNull: ['$owners', []] },
+                as: 'owner',
+                in: '$$owner.userId'
+              }
+            }
+          }
+        }
       }
     },
     {

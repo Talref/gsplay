@@ -11,8 +11,8 @@
 function transformGameForList(game) {
   if (!game) return null;
 
-  // Calculate owner count
-  const ownerCount = game.owners ? game.owners.length : 0;
+  // Calculate owner count - use unique userIds only
+  const ownerCount = game.owners ? new Set(game.owners.map(owner => owner.userId.toString())).size : 0;
 
   return {
     _id: game._id,
