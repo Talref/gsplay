@@ -124,9 +124,14 @@ app.get('/health', (req, res) => {
 });
 
 // Start the server using config
-app.listen(server.port, server.host, () => {
-  console.log(`🚀 Server running at http://${server.host}:${server.port}/`);
-  console.log(`📝 Environment: ${server.environment}`);
-  console.log(`🔗 CORS Origin: ${server.cors.origin}`);
-  console.log(`📊 Log Level: ${process.env.LOG_LEVEL}`);
-});
+if (require.main === module) {
+  app.listen(server.port, server.host, () => {
+    console.log(`🚀 Server running at http://${server.host}:${server.port}/`);
+    console.log(`📝 Environment: ${server.environment}`);
+    console.log(`🔗 CORS Origin: ${server.cors.origin}`);
+    console.log(`📊 Log Level: ${process.env.LOG_LEVEL}`);
+  });
+}
+
+// Export app for testing
+module.exports = app;

@@ -110,6 +110,84 @@ describe('Games API', () => {
       expect(response.body.pagination.page).toBe(1);
       expect(response.body.pagination.limit).toBe(20);
     });
+
+    test('should sort games by owner count', async () => {
+      // Create games with different numbers of owners (unique names)
+      const games = [
+        testUtils.generateTestGame({
+          name: 'Sorting Test Game With Two Owners',
+          owners: [
+            { userId: new mongoose.Types.ObjectId(), platforms: ['PC'] },
+            { userId: new mongoose.Types.ObjectId(), platforms: ['PC'] }
+          ]
+        }),
+        testUtils.generateTestGame({
+          name: 'Sorting Test Game With No Owners',
+          owners: []
+        }),
+        testUtils.generateTestGame({
+          name: 'Sorting Test Game With One Owner',
+          owners: [{ userId: new mongoose.Types.ObjectId(), platforms: ['PC'] }]
+        })
+      ];
+
+      await Game.insertMany(games);
+
+      const response = await request(app)
+        .get('/api/games/search?sortBy=ownerCount&sortOrder=asc')
+        .expect(200);
+
+      expect(response.body.games).toHaveLength(3);
+
+      // Games should be sorted by owner count ascending (0, 1, 2)
+      expect(response.body.games[0].name).toBe('Sorting Test Game With No Owners');
+      expect(response.body.games[0].ownerCount).toBe(0);
+
+      expect(response.body.games[1].name).toBe('Sorting Test Game With One Owner');
+      expect(response.body.games[1].ownerCount).toBe(1);
+
+      expect(response.body.games[2].name).toBe('Sorting Test Game With Two Owners');
+      expect(response.body.games[2].ownerCount).toBe(2);
+    });
+
+    test('should sort games by owner count descending', async () => {
+      // Create games with different numbers of owners (unique names)
+      const games = [
+        testUtils.generateTestGame({
+          name: 'Sorting Test Game Desc With No Owners',
+          owners: []
+        }),
+        testUtils.generateTestGame({
+          name: 'Sorting Test Game Desc With Two Owners',
+          owners: [
+            { userId: new mongoose.Types.ObjectId(), platforms: ['PC'] },
+            { userId: new mongoose.Types.ObjectId(), platforms: ['PC'] }
+          ]
+        }),
+        testUtils.generateTestGame({
+          name: 'Sorting Test Game Desc With One Owner',
+          owners: [{ userId: new mongoose.Types.ObjectId(), platforms: ['PC'] }]
+        })
+      ];
+
+      await Game.insertMany(games);
+
+      const response = await request(app)
+        .get('/api/games/search?sortBy=ownerCount&sortOrder=desc')
+        .expect(200);
+
+      expect(response.body.games).toHaveLength(3);
+
+      // Games should be sorted by owner count descending (2, 1, 0)
+      expect(response.body.games[0].name).toBe('Sorting Test Game Desc With Two Owners');
+      expect(response.body.games[0].ownerCount).toBe(2);
+
+      expect(response.body.games[1].name).toBe('Sorting Test Game Desc With One Owner');
+      expect(response.body.games[1].ownerCount).toBe(1);
+
+      expect(response.body.games[2].name).toBe('Sorting Test Game Desc With No Owners');
+      expect(response.body.games[2].ownerCount).toBe(0);
+    });
   });
 
   describe('GET /api/games/:id', () => {

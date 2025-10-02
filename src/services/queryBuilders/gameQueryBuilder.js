@@ -89,20 +89,77 @@ function buildPaginationQuery(page = 1, limit = 20) {
 
 /**
  * Build complete query options for Game.find()
+ * Note: For ownerCount sorting, uses aggregation instead of find
  * @param {Object} params - Search parameters
- * @returns {Object} Complete query options
+ * @returns {Object} Complete query options with useAggregation flag
  */
 function buildCompleteQueryOptions(params) {
   const query = buildSearchQuery(params);
-  const sort = buildSortQuery(params.sortBy, params.sortOrder);
   const pagination = buildPaginationQuery(params.page, params.limit);
 
+  // Special handling for ownerCount sorting - use aggregation
+  const useAggregation = params.sortBy === 'ownerCount';
+
+  if (useAggregation) {
+    const aggregation = buildOwnerCountAggregation(query, params.sortOrder, pagination.skip, pagination.limit);
+    return {
+      useAggregation,
+      aggregation,
+      query: null,
+      sort: null,
+      skip: null,
+      limit: null
+    };
+  }
+
+  // Standard find query
+  const sort = buildSortQuery(params.sortBy, params.sortOrder);
   return {
+    useAggregation: false,
     query,
     sort,
     skip: pagination.skip,
     limit: pagination.limit
   };
+}
+
+/**
+ * Build aggregation pipeline for sorting by owner count
+ * @param {Object} matchQuery - MongoDB match query
+ * @param {string} sortOrder - 'asc' or 'desc'
+ * @param {number} skip - Number of documents to skip
+ * @param {number} limit - Number of documents to return
+ * @returns {Array} Aggregation pipeline
+ */
+function buildOwnerCountAggregation(matchQuery, sortOrder, skip, limit) {
+  return [
+    { $match: matchQuery },
+    {
+      $addFields: {
+        ownerCount: { $size: { $ifNull: ['$owners', []] } }
+      }
+    },
+    {
+      $sort: {
+        ownerCount: sortOrder === 'desc' ? -1 : 1,
+        name: 1 // Secondary sort by name for consistent ordering
+      }
+    },
+    { $skip: skip },
+    { $limit: limit },
+    {
+      $project: {
+        name: 1,
+        genres: 1,
+        availablePlatforms: 1,
+        gameModes: 1,
+        rating: 1,
+        artwork: 1,
+        releaseDate: 1,
+        owners: 1 // Keep owners for transformer, but will be removed in response
+      }
+    }
+  ];
 }
 
 module.exports = {

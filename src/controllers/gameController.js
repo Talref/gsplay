@@ -26,18 +26,27 @@ exports.searchGames = async (req, res) => {
     const params = validation.validated;
 
     // Build query options using the query builder
-    const { query, sort, skip, limit } = buildCompleteQueryOptions(params);
+    const queryOptions = buildCompleteQueryOptions(params);
+    let games;
+    let total;
 
-    // Execute query with proper field selection
-    const games = await Game.find(query)
-      .select('name genres availablePlatforms gameModes rating artwork releaseDate owners')
-      .sort(sort)
-      .skip(skip)
-      .limit(limit)
-      .lean();
+    if (queryOptions.useAggregation) {
+      // Use aggregation pipeline for ownerCount sorting
+      games = await Game.aggregate(queryOptions.aggregation).exec();
+      // Get total count using the match query
+      total = await Game.countDocuments(queryOptions.aggregation[0].$match);
+    } else {
+      // Execute standard find query
+      games = await Game.find(queryOptions.query)
+        .select('name genres availablePlatforms gameModes rating artwork releaseDate owners')
+        .sort(queryOptions.sort)
+        .skip(queryOptions.skip)
+        .limit(queryOptions.limit)
+        .lean();
 
-    // Get total count for pagination
-    const total = await Game.countDocuments(query);
+      // Get total count for pagination
+      total = await Game.countDocuments(queryOptions.query);
+    }
 
     // Transform games for response
     const transformedGames = transformGamesForList(games);
