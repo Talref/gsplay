@@ -134,20 +134,20 @@ describe('Games API', () => {
       await Game.insertMany(games);
 
       const response = await request(app)
-        .get('/api/games/search?sortBy=ownerCount&sortOrder=asc')
+        .get('/api/games/search?sortBy=ownerCount')
         .expect(200);
 
       expect(response.body.games).toHaveLength(3);
 
-      // Games should be sorted by owner count ascending (0, 1, 2)
-      expect(response.body.games[0].name).toBe('Sorting Test Game With No Owners');
-      expect(response.body.games[0].ownerCount).toBe(0);
+      // Games should be sorted by owner count descending (most owned first: 2, 1, 0)
+      expect(response.body.games[0].name).toBe('Sorting Test Game With Two Owners');
+      expect(response.body.games[0].ownerCount).toBe(2);
 
       expect(response.body.games[1].name).toBe('Sorting Test Game With One Owner');
       expect(response.body.games[1].ownerCount).toBe(1);
 
-      expect(response.body.games[2].name).toBe('Sorting Test Game With Two Owners');
-      expect(response.body.games[2].ownerCount).toBe(2);
+      expect(response.body.games[2].name).toBe('Sorting Test Game With No Owners');
+      expect(response.body.games[2].ownerCount).toBe(0);
     });
 
     test('should sort games by owner count descending', async () => {

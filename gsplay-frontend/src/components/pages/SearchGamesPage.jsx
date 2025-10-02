@@ -98,7 +98,7 @@ const SearchGamesPage = () => {
         page: pagination.page,
         limit: pagination.limit,
         sortBy: sortBy,
-        sortOrder: sortBy === 'rating' ? 'desc' : 'asc'
+        sortOrder: sortBy === 'rating' ? 'desc' : (sortBy === 'ownerCount' ? 'desc' : 'asc')
       };
 
       const result = await searchGames(searchParams);
