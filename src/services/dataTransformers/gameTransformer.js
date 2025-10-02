@@ -45,7 +45,7 @@ function transformGameForDetails(game) {
   })) : [];
 
   // Calculate owner count - use unique userIds only
-  const ownerCount = owners.length; // owners is already transformed to unique users
+  const ownerCount = new Set(owners.map(owner => owner.userId)).size;
 
   return {
     _id: game._id,
