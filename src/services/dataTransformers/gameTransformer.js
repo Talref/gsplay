@@ -44,6 +44,9 @@ function transformGameForDetails(game) {
     platforms: owner.platforms
   })) : [];
 
+  // Calculate owner count - use unique userIds only
+  const ownerCount = owners.length; // owners is already transformed to unique users
+
   return {
     _id: game._id,
     name: game.name,
@@ -58,7 +61,7 @@ function transformGameForDetails(game) {
     publishers: game.publishers || [],
     igdbUrl: game.igdbUrl || null,
     owners,
-    ownerCount: owners.length
+    ownerCount
   };
 }
 
