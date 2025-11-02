@@ -122,7 +122,7 @@ function validatePaginationParams(page = 1, limit = 20) {
  * @param {string} sortOrder - Sort order ('asc' or 'desc')
  * @returns {Object} Validation result
  */
-function validateSortParams(sortBy = 'name', sortOrder = 'asc') {
+function validateSortParams(sortBy = 'name', sortOrder) {
   const errors = [];
   const validated = {};
 
@@ -137,11 +137,17 @@ function validateSortParams(sortBy = 'name', sortOrder = 'asc') {
     validated.sortBy = sortBy;
   }
 
+  // Set default sortOrder based on sortBy
+  let defaultSortOrder = 'asc';
+  if (sortBy === 'rating' || sortBy === 'ownerCount') {
+    defaultSortOrder = 'desc'; // Most relevant/highest first
+  }
+
   // Validate sortOrder
-  const normalizedOrder = sortOrder.toLowerCase();
+  const normalizedOrder = sortOrder ? sortOrder.toLowerCase() : defaultSortOrder;
   if (!['asc', 'desc'].includes(normalizedOrder)) {
     errors.push('Sort order must be "asc" or "desc"');
-    validated.sortOrder = 'asc';
+    validated.sortOrder = defaultSortOrder;
   } else {
     validated.sortOrder = normalizedOrder;
   }

@@ -65,54 +65,56 @@ app.use('/api', userRoutes);
 // Global error handler (must be last middleware)
 app.use(errorHandler);
 
-// Connect to MongoDB using config
-mongoose.connect(database.uri, database.options)
-  .then(async () => {
-    console.log('✅ Connected to MongoDB');
+// Connect to MongoDB using config (skip in test mode)
+if (process.env.NODE_ENV !== 'test') {
+  mongoose.connect(database.uri, database.options)
+    .then(async () => {
+      console.log('✅ Connected to MongoDB');
 
-    // Initialize IGDB lookup tables if enabled
-    if (igdbConfig.lookups.enabled !== false) {
-      try {
-        const igdbService = require('./src/services/igdbService');
-        await igdbService.initializeLookupTables();
-        console.log('✅ IGDB lookup tables initialized successfully');
-      } catch (error) {
-        console.warn('⚠️ Failed to initialize IGDB lookup tables:', error.message);
-        console.warn('📝 IGDB functionality may be limited until resolved');
+      // Initialize IGDB lookup tables if enabled
+      if (igdbConfig.lookups.enabled !== false) {
+        try {
+          const igdbService = require('./src/services/igdbService');
+          await igdbService.initializeLookupTables();
+          console.log('✅ IGDB lookup tables initialized successfully');
+        } catch (error) {
+          console.warn('⚠️ Failed to initialize IGDB lookup tables:', error.message);
+          console.warn('📝 IGDB functionality may be limited until resolved');
+        }
       }
-    }
 
-    // Initialize RetroAchievements service if enabled
-    if (retroAchievementsConfig.api.enabled !== false) {
-      try {
-        const retroAchievementsService = require('./src/services/retroAchievementsService');
-        await retroAchievementsService.initialize();
-        console.log('✅ RetroAchievements service initialized successfully');
+      // Initialize RetroAchievements service if enabled
+      if (retroAchievementsConfig.api.enabled !== false) {
+        try {
+          const retroAchievementsService = require('./src/services/retroAchievementsService');
+          await retroAchievementsService.initialize();
+          console.log('✅ RetroAchievements service initialized successfully');
 
-        // Start cron job for progress tracking (every 5 minutes)
-        const retroAchievementsCronService = require('./src/services/retroAchievementsCronService');
-        setInterval(async () => {
-          try {
-            await retroAchievementsCronService.updateProgressForActiveGame();
-          } catch (error) {
-            console.error('❌ Cron job failed:', error);
-          }
-        }, 5 * 60 * 1000); // 5 minutes
+          // Start cron job for progress tracking (every 5 minutes)
+          const retroAchievementsCronService = require('./src/services/retroAchievementsCronService');
+          setInterval(async () => {
+            try {
+              await retroAchievementsCronService.updateProgressForActiveGame();
+            } catch (error) {
+              console.error('❌ Cron job failed:', error);
+            }
+          }, 5 * 60 * 1000); // 5 minutes
 
-        console.log('✅ RetroAchievements cron job started (runs every 5 minutes)');
+          console.log('✅ RetroAchievements cron job started (runs every 5 minutes)');
 
-      } catch (error) {
-        console.warn('⚠️ Failed to initialize RetroAchievements service:', error.message);
-        console.warn('📝 RetroAchievements functionality may be limited until resolved');
+        } catch (error) {
+          console.warn('⚠️ Failed to initialize RetroAchievements service:', error.message);
+          console.warn('📝 RetroAchievements functionality may be limited until resolved');
+        }
       }
-    }
-  })
-  .catch(err => {
-    console.error('❌ MongoDB connection error:', err.message);
-    console.warn('⚠️ Server starting without database connection');
-    console.warn('📝 Some features may not work until database is configured');
-    // Don't exit - let server start for testing configuration
-  });
+    })
+    .catch(err => {
+      console.error('❌ MongoDB connection error:', err.message);
+      console.warn('⚠️ Server starting without database connection');
+      console.warn('📝 Some features may not work until database is configured');
+      // Don't exit - let server start for testing configuration
+    });
+}
 
 // Health check endpoint
 app.get('/health', (req, res) => {
