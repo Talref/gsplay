@@ -1,142 +1,144 @@
 # GSPlay Setup Guide
 
+## Overview
+
+GSPlay is a full-stack application with:
+- **Backend**: Node.js/Express API with MongoDB
+- **Frontend**: React/Vite single-page application
+- **Database**: MongoDB for data storage
+
 ## Prerequisites
 
-Before setting up GSPlay, ensure you have the following installed:
+- Node.js (v18+)
+- MongoDB (v5+)
+- Git
 
-### Required Software
-- **Node.js** (v18.0.0 or higher) - [Download](https://nodejs.org/)
-- **MongoDB** (v5.0 or higher) - [Download](https://www.mongodb.com/try/download/community)
-- **Git** - [Download](https://git-scm.com/)
+## Quick Setup
 
-### Optional Tools
-- **VS Code** - Recommended IDE with extensions for JavaScript/Node.js
-- **Postman** - For API testing
-- **MongoDB Compass** - GUI for MongoDB management
-
-## Quick Start
-
-### 1. Clone the Repository
+### 1. Clone and Install
 ```bash
 git clone https://github.com/Talref/gsplay.git
 cd gsplay
-```
-
-### 2. Install Dependencies
-```bash
 npm install
 ```
 
-### 3. Environment Setup
-```bash
-# Copy environment template
-cp .env.example .env
+### 2. Configure Environment
+Create `.env` file (see Environment Variables section below)
 
-# Edit .env file with your configuration
-nano .env
-```
-
-### 4. Database Setup
+### 3. Start Services
 ```bash
-# Start MongoDB service
+# Start MongoDB
 sudo systemctl start mongodb
-# or on macOS: brew services start mongodb/brew/mongodb-community
 
-# Verify MongoDB is running
-mongosh --eval "db.adminCommand('ismaster')"
-```
-
-### 5. Start the Application
-```bash
-# Development mode
+# Start backend
 npm run dev
 
-# Production mode
-npm start
+# Build frontend (in another terminal)
+cd gsplay-frontend
+npm install && npm run build
 ```
 
-### 6. Verify Installation
-```bash
-# Check server health
-curl http://localhost:3000/health
+## Environment Configuration
 
-# Check configuration
-curl http://localhost:3000/config-test
-```
+### .env File Setup
 
-## Detailed Configuration
-
-### Environment Variables
-
-Create a `.env` file in the root directory:
+Create a `.env` file in the project root with the following variables:
 
 ```env
-# Server Configuration
+# Application Environment
 NODE_ENV=development
+
+# Server Settings
 PORT=3000
 HOST=localhost
 
-# Database Configuration
+# Database Connection
 MONGO_URI=mongodb://localhost:27017/gsplay
 
-# IGDB API Configuration (via Twitch)
-TW_CLIENTID=your_twitch_client_id_here
-TW_CLIENTSECRET=your_twitch_client_secret_here
+# Logging Level (minimal/info/verbose/quiet)
+LOG_LEVEL=info
 
-# Steam API Configuration
-STEAM_API_KEY=your_steam_api_key_here
-
-# JWT Configuration
-JWT_SECRET=your_super_secret_jwt_key_here
-JWT_EXPIRES_IN=24h
+# Security Secrets
+SESSION_SECRET=your_session_secret_here
+JWT_SECRET=your_jwt_secret_here
 JWT_REFRESH_SECRET=your_refresh_secret_here
 
-# Session Configuration
-SESSION_SECRET=your_session_secret_here
+# API Keys (get from respective services)
+STEAM_API_KEY=your_steam_api_key
+TW_CLIENTID=your_twitch_client_id
+TW_CLIENTSECRET=your_twitch_client_secret
 
-# CORS Configuration
+# RetroAchievements (optional)
+RETROACHIEVEMENT_USERNAME=your_username
+RETROACHIEVEMENT_API_KEY=your_api_key
+
+# CORS Settings
 CORS_ORIGIN=http://localhost:5173
 ```
 
-### IGDB API Setup
+### Environment Variables Explained
 
-1. **Create Twitch Developer Account**
-   - Visit [Twitch Developer Console](https://dev.twitch.tv/console/apps)
-   - Create a new application
-   - Note: IGDB API is now managed through Twitch
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `NODE_ENV` | Yes | `development` | Environment mode (`development`/`production`) |
+| `PORT` | No | `3000` | Server port number |
+| `HOST` | No | `localhost` | Server host binding |
+| `MONGO_URI` | Yes | - | MongoDB connection string |
+| `LOG_LEVEL` | No | `info` | Logging verbosity: `minimal`, `info`, `verbose`, `quiet` |
+| `SESSION_SECRET` | Yes | - | Session encryption key (random string) |
+| `JWT_SECRET` | Yes | - | JWT token signing key (random string) |
+| `JWT_REFRESH_SECRET` | Yes | - | Refresh token signing key (random string) |
+| `STEAM_API_KEY` | Yes | - | Steam Web API key from [Steam](https://steamcommunity.com/dev/apikey) |
+| `TW_CLIENTID` | No | - | Twitch Client ID for IGDB API |
+| `TW_CLIENTSECRET` | No | - | Twitch Client Secret for IGDB API |
+| `RETROACHIEVEMENT_USERNAME` | No | - | RetroAchievements username |
+| `RETROACHIEVEMENT_API_KEY` | No | - | RetroAchievements API key |
+| `CORS_ORIGIN` | No | `http://localhost:5173` | Allowed frontend origins |
 
-2. **Configure API Keys**
-   ```env
-   TW_CLIENTID=your_twitch_client_id_here
-   TW_CLIENTSECRET=your_twitch_client_secret_here
-   ```
+### Logging Configuration
 
-### MongoDB Configuration
+The `LOG_LEVEL` variable controls application logging:
 
-#### Local MongoDB Setup
+- **`minimal`**: Only essential startup/shutdown messages
+- **`info`**: General operational messages (recommended)
+- **`verbose`**: Detailed request/response logging
+- **`quiet`**: Suppress all non-error logs
+
+**Example**: Set `LOG_LEVEL=verbose` to see all API requests during development.
+
+### API Keys Setup
+
+#### Steam API Key
+1. Visit [Steam Community Dev](https://steamcommunity.com/dev/apikey)
+2. Create application and get API key
+3. Add to `.env`: `STEAM_API_KEY=your_key_here`
+
+#### IGDB/Twitch API (Optional)
+1. Go to [Twitch Developer Console](https://dev.twitch.tv/console/apps)
+2. Create application
+3. Add Client ID/Secret to `.env`
+
+#### RetroAchievements (Optional)
+1. Visit [RetroAchievements](https://retroachievements.org/)
+2. Get username and API key from profile
+3. Add to `.env`
+
+### Database Setup
+
+#### Local MongoDB
 ```bash
-# Install MongoDB (Ubuntu/Debian)
-sudo apt update
+# Install and start
 sudo apt install mongodb
-
-# Start MongoDB
 sudo systemctl start mongodb
-sudo systemctl enable mongodb
+
+# Test connection
+mongosh --eval "db.runCommand('ping')"
 ```
 
-#### MongoDB with Authentication (Production)
-```bash
-# Create admin user
-mongosh
-use admin
-db.createUser({
-  user: "gsplay_admin",
-  pwd: "secure_password_here",
-  roles: ["userAdminAnyDatabase", "dbAdminAnyDatabase", "readWriteAnyDatabase"]
-})
-
-# Update .env
-MONGO_URI=mongodb://gsplay_admin:secure_password_here@localhost:27017/gsplay?authSource=admin
+#### Production MongoDB
+For authentication, update `MONGO_URI`:
+```
+MONGO_URI=mongodb://username:password@host:port/database?authSource=admin
 ```
 
 ## Development Workflow
@@ -182,153 +184,49 @@ db.games.find().limit(5)
 db.games.countDocuments()
 ```
 
-## Frontend Setup
+## Testing
 
-### React Frontend
+### Test Routines
 ```bash
-# Navigate to frontend directory
-cd gsplay-frontend
+# Run all tests
+npm test
 
-# Install dependencies
-npm install
+# Run with coverage report
+npm run test:coverage
 
-# Start development server
-npm run dev
+# Run specific test suites
+npm run test:unit      # Unit tests
+npm run test:integration  # Integration tests
+npm run test:api       # API tests
 
-# Build for production
-npm run build
+# Run tests in watch mode (re-run on file changes)
+npm run test:watch
+
+# Run tests with verbose output
+npm test -- --verbose
 ```
 
-### Frontend Configuration
-Update `gsplay-frontend/src/config/api.js`:
-```javascript
-export const API_BASE_URL = 'http://localhost:3000/api';
-```
+### Test Structure
+- **Unit tests**: Test individual functions and modules
+- **Integration tests**: Test component interactions
+- **API tests**: Test HTTP endpoints and responses
+- **Coverage reports**: Shows which code is tested
+
+### Writing Tests
+Tests are located in the `tests/` directory. Use the existing patterns:
+- Unit tests: `tests/unit/`
+- API tests: `tests/api/`
+- Setup: `tests/setup.js`
 
 ## Production Deployment
 
-### 1. Environment Configuration
-```env
-NODE_ENV=production
-PORT=3000
-MONGO_URI=mongodb://username:password@host:port/database?authSource=admin
-JWT_SECRET=your_production_jwt_secret
-CORS_ORIGIN=https://yourdomain.com
-TW_CLIENTID=your_twitch_client_id_here
-TW_CLIENTSECRET=your_twitch_client_secret_here
-```
+For production, set `NODE_ENV=production` and configure your web server to proxy requests to the Node.js application. Basic Caddy example:
 
-### 2. Process Management
-```bash
-# Install PM2
-npm install -g pm2
-
-# Start application
-pm2 start server.js --name gsplay
-
-# Save PM2 configuration
-pm2 save
-pm2 startup
-```
-
-### 3. Caddy Configuration
-
-Create a `Caddyfile` in your project root:
-
-```caddyfile
+```caddy
 yourdomain.com {
-    # Automatic HTTPS with Let's Encrypt
     reverse_proxy localhost:3000
-
-    # Security headers
-    header {
-        # Enable HSTS
-        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-        # Prevent clickjacking
-        X-Frame-Options "DENY"
-        # XSS protection
-        X-XSS-Protection "1; mode=block"
-        # Prevent MIME type sniffing
-        X-Content-Type-Options "nosniff"
-        # Referrer policy
-        Referrer-Policy "strict-origin-when-cross-origin"
-    }
-
-    # Gzip compression
-    encode gzip
-
-    # Rate limiting (optional)
-    rate_limit {
-        zone static {
-            key {remote_host}
-            window 1m
-            events 100
-        }
-    }
-
-    # Logging
-    log {
-        output file /var/log/caddy/gsplay.log
-        format json
-    }
 }
 ```
-
-### 4. Start Caddy
-
-⚠️ **Important**: Only proceed if you're setting up Caddy for the first time or you understand how to merge configurations.
-
-```bash
-# Install Caddy (if not already installed)
-sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
-sudo apt update
-sudo apt install caddy
-
-# Check if Caddyfile already exists
-if [ -f /etc/caddy/Caddyfile ]; then
-    echo "⚠️  WARNING: Caddyfile already exists!"
-    echo "Please backup your existing configuration:"
-    echo "sudo cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.backup"
-    echo ""
-    echo "Then manually add your GSPlay configuration to /etc/caddy/Caddyfile"
-    echo "or replace the entire file if this is a fresh Caddy installation."
-else
-    # Safe to copy for new installations
-    sudo cp Caddyfile /etc/caddy/Caddyfile
-fi
-
-# Validate configuration before applying
-sudo caddy validate --config /etc/caddy/Caddyfile
-
-# Reload Caddy configuration
-sudo systemctl reload caddy
-
-# Check status
-sudo systemctl status caddy
-```
-
-#### Alternative: Manual Configuration
-If you prefer to manually configure Caddy:
-
-1. **Check existing configuration**:
-   ```bash
-   sudo cat /etc/caddy/Caddyfile
-   ```
-
-2. **Create backup** (if file exists):
-   ```bash
-   sudo cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.backup
-   ```
-
-3. **Add your domain configuration** to the existing Caddyfile or replace it entirely.
-
-4. **Validate and reload**:
-   ```bash
-   sudo caddy validate --config /etc/caddy/Caddyfile
-   sudo systemctl reload caddy
-   ```
 
 ## Troubleshooting
 
@@ -385,91 +283,7 @@ DEBUG=* npm run dev
 tail -f logs/app.log
 ```
 
-## Performance Optimization
-
-### Database Indexes
-```javascript
-// Create indexes for better query performance
-db.games.createIndex({ name: 1 });
-db.games.createIndex({ genres: 1 });
-db.games.createIndex({ igdbId: 1 });
-db.games.createIndex({ "owners.userId": 1 });
-```
-
-### Caching
-```javascript
-// Implement Redis for session storage and caching
-npm install redis connect-redis
-```
-
-### Monitoring
-```javascript
-// Add monitoring with PM2
-pm2 install pm2-logrotate
-pm2 install pm2-server-monit
-```
-
-## Contributing
-
-### Development Guidelines
-1. Follow existing code style
-2. Write tests for new features
-3. Update documentation
-4. Use meaningful commit messages
-5. Test in both development and production modes
-
-### Branch Strategy
-```bash
-# Create feature branch
-git checkout -b feature/new-feature
-
-# Make changes and commit
-git add .
-git commit -m "Add new feature"
-
-# Push and create PR
-git push origin feature/new-feature
-```
-
-## Support
-
-### Getting Help
-1. Check this documentation
-2. Review error logs
-3. Check GitHub issues
-4. Create a new issue with:
-   - Error messages
-   - Environment details
-   - Steps to reproduce
-
-### Community
-- **GitHub Repository**: https://github.com/Talref/gsplay
-- **Issues**: Report bugs and request features
-- **Discussions**: Ask questions and share ideas
-
----
-
-## Quick Reference
-
-### Useful Commands
-```bash
-# Start development
-npm run dev
-
-# Run tests
-npm test
-
-# Generate docs
-npm run docs
-
-# Check health
-curl http://localhost:3000/health
-
-# View logs
-pm2 logs gsplay
-```
-
-### File Structure
+## File Structure
 ```
 gsplay/
 ├── src/                 # Backend source code
@@ -480,11 +294,3 @@ gsplay/
 ├── .env                # Environment variables
 └── server.js           # Main server file
 ```
-
-### Ports
-- **Backend API**: http://localhost:3000 (default, change it in .env)
-- **Frontend**: http://localhost:5173
-- **MongoDB**: localhost:27017
-- **MongoDB Express**: localhost:8081 (optional)
-
-This setup guide should get you up and running quickly. For more advanced configurations, refer to the API documentation and individual service documentation.
