@@ -47,7 +47,7 @@ const RetroAchievementsUsernameInputDialog = ({ open, onClose, onSave }) => {
       </DialogTitle>
       <DialogContent>
         <DialogContentText sx={{ mb: 2 }}>
-          Enter your RetroAchievements username to link your account and participate in community challenges.
+          Linka il tuo account Retroachievements per partecipare ai contest della community.
         </DialogContentText>
 
         <TextField
@@ -83,16 +83,16 @@ const RetroAchievementsUsernameInputDialog = ({ open, onClose, onSave }) => {
 
         <Box sx={{ mt: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
           <Typography variant="body2" sx={{ mb: 1, fontWeight: 'bold' }}>
-            📝 How to find your username:
+            📝 Come trovare il tuo username:
           </Typography>
           <Typography variant="body2" sx={{ mb: 1 }}>
-            1. Go to <a href="https://retroachievements.org" target="_blank" rel="noopener noreferrer" style={{ color: '#1976d2' }}>RetroAchievements.org</a>
+            1. Vai a <a href="https://retroachievements.org" target="_blank" rel="noopener noreferrer" style={{ color: '#1976d2' }}>RetroAchievements.org</a>
           </Typography>
           <Typography variant="body2" sx={{ mb: 1 }}>
-            2. Log in to your account
+            2. Log in con il tuo account
           </Typography>
           <Typography variant="body2">
-            3. Your username is displayed in the top-right corner
+            3. Il tuo username e' in alto a sinistra.
           </Typography>
         </Box>
       </DialogContent>

@@ -147,7 +147,7 @@ const YourLibrary = () => {
           </Button>
 
           {/* Add/Change RetroAchievements Username button */}
-          <Button variant="success" onClick={handleSetRetroAchievementsClick}>
+          <Button variant="accent" onClick={handleSetRetroAchievementsClick}>
             {user?.retroAchievementsUsername ? 'Cambia RA Username' : 'Collega RetroAchievements'}
           </Button>
         </Box>
