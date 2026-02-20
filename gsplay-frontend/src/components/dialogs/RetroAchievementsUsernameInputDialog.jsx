@@ -92,7 +92,7 @@ const RetroAchievementsUsernameInputDialog = ({ open, onClose, onSave }) => {
             2. Log in con il tuo account
           </Typography>
           <Typography variant="body2">
-            3. Il tuo username e' in alto a sinistra.
+            3. La tua pagina del profilo e' in altro a destra, Li' il tuo username e' in alto a sinistra.
           </Typography>
         </Box>
       </DialogContent>
