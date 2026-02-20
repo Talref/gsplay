@@ -30,6 +30,7 @@ const SteamIdHelpDialog = ({ open, onClose }) => {
             <li>Se il tuo profilo steam non finisce con lo SteamID visita <Link href="https://steamid.io/" target="_blank" rel="noopener">SteamID.io</Link> ed incolla il link del tuo profilo</li>
             <li>SteamID.io calcolera' il tuo SteamID dal link (quello corretto e' SteamID64).</li>
             <li>Inserisci il tuo SteamID nel form di questa pagina</li>
+            <li>ATTENZIONE: La tua lista di giochi dev'essere PUBBLICA sul tuo profilo Steam! Altrimenti l'app non puo' leggerla!</li>
           </Box>
           <Typography variant="body2" sx={{ mt: 2 }}>
             Non c'e' bisogno di ripetere questa operazione. Se aggiungete nuovi giochi alla vostra libreria basta cliccare su Aggiorna Libreria.
