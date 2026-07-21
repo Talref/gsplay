@@ -1,21 +1,4 @@
-/* src/global.css  */
-
-/* Global reset - keep box-sizing for consistent sizing */
-* {
-  box-sizing: border-box;
-}
-
-/* Base body styles - colors handled by theme CSS baseline */
-body {
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-}
-
-/* 8-bit font for retro gaming elements */
-@font-face {
-  font-family: 'RetroGaming8Bit';
-  src: url('/8bit.ttf') format('truetype');
-  font-display: swap;
-}
+* { box-sizing: border-box; }
+html, body, #root { min-height: 100%; margin: 0; }
+@font-face { font-family: RetroGaming8Bit; src: url('/8bit.ttf') format('truetype'); font-display: swap; }
+.pixel-label { font-family: RetroGaming8Bit, monospace; font-size: .68rem; letter-spacing: .08em; }

@@ -2,6 +2,9 @@
 
 A comprehensive game library management application built with Node.js, Express, MongoDB, and React. GSPlay integrates with the Internet Game Database (IGDB) to provide detailed game information and user library management.
 
+> ## v2 rebuild preview
+> An isolated GSPlay v2 rebuild is in progress on the `rebuild/v2` branch. It does **not** replace the legacy server or production deployment yet. See [the v2 local preview guide](docs/V2-Preview.md) for startup, testing, known limitations, and quality checks.
+
 ![GSPlay Logo](gsplay-frontend/public/gslogo.png)
 
 ## ✨ Features

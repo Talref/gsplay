@@ -1,95 +1,19 @@
-// src/services/api.js
 import axios from 'axios';
 
-const api = axios.create({
-  baseURL: '/api',
-  withCredentials: true,
+const api = axios.create({ baseURL: '/api/v2', withCredentials: true });
+let refreshPromise;
+api.interceptors.response.use((response) => response, async (error) => {
+  const original = error.config;
+  const authMutation = ['/auth/login', '/auth/signup', '/auth/logout', '/auth/refresh'].includes(original?.url);
+  if (error.response?.status !== 401 || original?._retried || authMutation) throw error;
+  original._retried = true;
+  try { refreshPromise ||= api.post('/auth/refresh').finally(() => { refreshPromise = null; }); await refreshPromise; return api(original); } catch { throw error; }
 });
-
-// Auto-refresh logic
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-      try {
-        const refreshResponse = await api.post('/refresh-token', {});
-        // Update user state if refresh was successful
-        if (refreshResponse.data && refreshResponse.data.user) {
-          // Dispatch custom event to update AuthContext
-          window.dispatchEvent(new CustomEvent('tokenRefreshed', {
-            detail: refreshResponse.data
-          }));
-        }
-        return api(originalRequest);
-      } catch (refreshError) {
-        console.warn('Session expired. User is not logged in.');
-        // Clear user state on refresh failure
-        window.dispatchEvent(new CustomEvent('tokenRefreshFailed'));
-        return Promise.reject(refreshError);
-      }
-    }
-
-    return Promise.reject(error);
-  }
-);
-
-// Single request helper
-const request = async (method, url, data = null) => {
-  try {
-    const response = await api({ method, url, data });
-    return response.data;
-  } catch (error) {
-    const enhancedError = {
-      ...error.response?.data,
-      message: `${method} ${url} failed: ${
-        error.response?.data?.error || error.message || 'Unknown error'
-      }`,
-    };
-    throw enhancedError;
-  }
-};
-
-// API functions
-export const login = (credentials) => request('POST', '/login', credentials);
-export const signup = (userData) => request('POST', '/signup', userData);
-export const logout = () => request('POST', '/logout');
-export const setSteamId = (steamId) => request('POST', '/set-steam-id', { steamId });
-export const setRetroAchievementsUsername = (username) => request('POST', '/set-retroachievements-username', { username });
-export const fetchMe = () => request('GET', '/users/me');
-export const fetchAllUsers = () => request('GET', '/users');
-export const deleteUser = (userId) => request('DELETE', `/users/${userId}`);
-export const refreshGames = () => request('POST', '/refresh-games');
-export const fetchGames = () => request('GET', '/user/games').then((res) => res.games);
-export const fetchAllGames = () => request('GET', '/users/games/all');
-export const fetchUserGameCount = (userId) => request('GET', `/user/${userId}/game-count`);
-
-// Admin functions
-export const restoreFailedGames = () => request('POST', '/admin/restore-failed-games');
-export const forceGameEnrichment = () => request('POST', '/admin/force-enrichment');
-export const scanAllUsersGames = () => request('POST', '/admin/scan-all-users');
-export const dropGamesCollection = () => request('POST', '/admin/drop-games-collection');
-export const getGameStats = () => request('GET', '/admin/game-stats');
-export const setGameOfMonth = (gameId) => request('POST', '/admin/set-game-of-month', { gameId });
-
-// Game search functions
-export const searchGames = (params) => {
-  const queryString = new URLSearchParams(params).toString();
-  return request('GET', `/games/search?${queryString}`);
-};
-
-export const getGameDetails = (gameId) => request('GET', `/games/${gameId}/details`);
-export const getFilterOptions = () => request('GET', '/games/filters');
-
-// RetroAchievements functions
-export const getActiveGameOfMonth = () => request('GET', '/retro-games/active');
-export const updateActiveGameDescription = (description) => request('PUT', '/retro-games/active/description', { description });
-
-// Import game libraries
-export const importLibrary = (file) => {
-  const formData = new FormData();
-  formData.append('file', file);
-  return request('POST', '/import-library', formData);
-};
+async function request(method, url, data, config) {
+  try { return (await api({ method, url, data, ...config })).data; } catch (error) { const detail = error.response?.data?.error; throw Object.assign(new Error(detail?.message || 'Request failed.'), { status: error.response?.status, code: detail?.code }); }
+}
+export const authApi = { me: () => request('get', '/me'), login: (data) => request('post', '/auth/login', data), signup: (data) => request('post', '/auth/signup', data), logout: () => request('post', '/auth/logout') };
+export const libraryApi = { mine: () => request('get', '/me/library?pageSize=100'), users: () => request('get', '/users'), compare: (userIds) => request('post', '/library-comparisons', { userIds }), linkSteam: (steamId) => request('put', '/me/providers/steam', { steamId }), syncSteam: () => request('post', '/me/providers/steam/sync', {}), job: (jobId) => request('get', `/me/imports/${jobId}`), upload: (provider, file) => { const data = new FormData(); data.append('provider', provider); data.append('file', file); return request('post', '/me/imports', data); } };
+export const catalogueApi = { games: (query = '') => request('get', `/games?pageSize=100${query ? `&q=${encodeURIComponent(query)}` : ''}`) };
+export const retroApi = { link: (username) => request('put', '/me/retroachievements', { username }), profile: () => request('get', '/me/retroachievements/profile'), challenge: () => request('get', '/retroachievements/challenge') };
+export const adminApi = { jobs: () => request('get', '/admin/jobs'), reviews: () => request('get', '/admin/matches/review'), resolveMatch: (matchId, canonicalGameId) => request('put', `/admin/matches/${matchId}`, { canonicalGameId }), activateRetroChallenge: (retroGameId, description) => request('put', '/admin/retroachievements/challenge', { retroGameId: Number(retroGameId), description }) };
