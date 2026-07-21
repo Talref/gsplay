@@ -67,6 +67,7 @@ Open <http://localhost:5173>.
 3. Queue a small CSV or JSON import for GOG, Epic, or Amazon; the Library screen polls the job and displays its terminal counts/diagnostics.
 4. Create a second account and compare the two libraries.
 5. Link a RetroAchievements username and load its profile if credentials are configured. An admin can activate one RetroAchievements game ID from **Admin**; linked members then see their own progress for the active challenge.
+   Admins can also queue an on-demand, durable IGDB refresh for a canonical game with `POST /api/v2/admin/games/:gameId/metadata-refresh`. The request is coalesced if that game already has a queued or running refresh; it never calls IGDB synchronously.
 6. Promote a test user only in the disposable development database to inspect admin APIs:
 
    ```javascript

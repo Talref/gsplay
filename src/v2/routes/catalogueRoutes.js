@@ -4,6 +4,7 @@ const CanonicalGame = require('../models/CanonicalGame');
 const LibraryItem = require('../models/LibraryItem');
 const GameAlias = require('../models/GameAlias');
 const SyncJob = require('../models/SyncJob');
+const { enqueueJob } = require('../jobs/jobService');
 const { requireAuth, requireRole } = require('../http/auth');
 const { AppError } = require('../http/errors');
 
@@ -19,6 +20,15 @@ function createCatalogueRouter(config) {
   router.get('/game-filters', requireAuth(config), async (req, res, next) => { try { const [genres, platforms] = await Promise.all([CanonicalGame.distinct('genres'), CanonicalGame.distinct('platforms')]); res.json({ genres: genres.sort(), platforms: platforms.sort() }); } catch (error) { next(error); } });
   router.get('/admin/jobs', requireAuth(config), requireRole('admin'), async (req, res, next) => { try { const jobs = await SyncJob.find({}).sort({ createdAt: -1 }).limit(pageOf(req.query.limit, 50, 100)); res.json({ jobs }); } catch (error) { next(error); } });
   router.get('/admin/matches/review', requireAuth(config), requireRole('admin'), async (req, res, next) => { try { const items = await LibraryItem.find({ matchStatus: 'ambiguous', removedAt: null }).populate('userId', 'usernameDisplay').limit(pageOf(req.query.limit, 50, 100)); res.json({ matches: items.map((item) => ({ id: item._id.toString(), provider: item.provider, providerTitle: item.providerTitle, user: { id: item.userId._id.toString(), username: item.userId.usernameDisplay } })) }); } catch (error) { next(error); } });
+  router.post('/admin/games/:gameId/metadata-refresh', requireAuth(config), requireRole('admin'), async (req, res, next) => { try {
+    if (!mongoose.isObjectIdOrHexString(req.params.gameId)) throw new AppError(400, 'invalid_request', 'gameId must be valid');
+    const game = await CanonicalGame.findById(req.params.gameId).select('_id');
+    if (!game) throw new AppError(404, 'not_found', 'Game was not found');
+    const existing = await SyncJob.findOne({ provider: 'igdb', kind: 'metadata_enrichment', 'payload.canonicalGameId': game._id.toString(), status: { $in: ['queued', 'running'] } }).select('+payload');
+    if (existing) return res.status(202).json({ job: existing, coalesced: true });
+    const job = await enqueueJob({ userId: req.user._id, provider: 'igdb', kind: 'metadata_enrichment', payload: { canonicalGameId: game._id.toString(), requestedBy: req.user._id.toString(), requestedAt: new Date().toISOString() }, idempotencyKey: `igdb:metadata_enrichment:${game._id}:${Date.now()}` });
+    res.status(202).json({ job, coalesced: false });
+  } catch (error) { next(error); } });
   router.put('/admin/matches/:id', requireAuth(config), requireRole('admin'), async (req, res, next) => { try { const { canonicalGameId } = req.body || {}; if (!mongoose.isObjectIdOrHexString(req.params.id) || !mongoose.isObjectIdOrHexString(canonicalGameId)) throw new AppError(400, 'invalid_request', 'A valid match and canonical game ID are required'); if (!await CanonicalGame.exists({ _id: canonicalGameId })) throw new AppError(404, 'not_found', 'Canonical game was not found'); const item = await LibraryItem.findOneAndUpdate({ _id: req.params.id, matchStatus: 'ambiguous' }, { $set: { canonicalGameId, matchStatus: 'manually_matched', matchConfidence: 1, matchMethod: 'admin_review' } }, { new: true }); if (!item) throw new AppError(404, 'not_found', 'Ambiguous match was not found'); await GameAlias.updateOne({ provider: item.provider, providerGameId: item.providerGameId }, { $set: { normalizedProviderTitle: item.normalizedTitle, canonicalGameId, matchType: 'manual', confidence: 1, reviewedBy: req.user._id, reviewedAt: new Date() } }, { upsert: true }); res.json({ match: { id: item._id.toString(), matchStatus: item.matchStatus } }); } catch (error) { next(error); } });
   return router;
 }
