@@ -13,21 +13,35 @@ async function enqueueJob({ userId, provider, kind, payload, idempotencyKey }) {
   );
 }
 
+async function ensureMetadataJob(canonicalGame, { userId, reason = 'discovered' } = {}) {
+  if (!canonicalGame || !['pending', 'retryable_error'].includes(canonicalGame.metadata?.status)) return null;
+  const canonicalGameId = canonicalGame._id.toString();
+  const active = await SyncJob.exists({ provider: 'igdb', kind: 'metadata_enrichment', 'payload.canonicalGameId': canonicalGameId, status: { $in: ['queued', 'running'] } });
+  if (active) return null;
+  const attempt = Number(canonicalGame.metadata?.attempts || 0);
+  return enqueueJob({ userId, provider: 'igdb', kind: 'metadata_enrichment', payload: { canonicalGameId, reason }, idempotencyKey: `igdb-enrich:${canonicalGameId}:${attempt}` });
+}
+
 async function claimNextJob(workerId, leaseMs = 60_000) {
   const now = new Date();
-  return SyncJob.findOneAndUpdate(
-    {
-      $or: [
-        { status: 'queued', runAfter: { $lte: now } },
-        { status: 'running', leaseExpiresAt: { $lte: now } }
-      ]
-    },
+  const readyFilter = {
+    $or: [
+      { status: 'queued', runAfter: { $lte: now } },
+      { status: 'running', leaseExpiresAt: { $lte: now } }
+    ]
+  };
+  const claim = (filter) => SyncJob.findOneAndUpdate(
+    filter,
     {
       $set: { status: 'running', workerId, leaseExpiresAt: new Date(now.getTime() + leaseMs), startedAt: now },
       $inc: { attempts: 1 }
     },
     { sort: { runAfter: 1, createdAt: 1 }, new: true }
   ).select('+payload');
+
+  // Keep member-triggered imports and provider syncs responsive when
+  // background metadata work has accumulated.
+  return (await claim({ ...readyFilter, kind: { $ne: 'metadata_enrichment' } })) || claim(readyFilter);
 }
 
 async function completeJob(job, { diagnostics = [], counts = {}, failed = false } = {}) {
@@ -63,4 +77,4 @@ async function retryJob(job, { diagnostics = [], counts = {} } = {}) {
   );
 }
 
-module.exports = { claimNextJob, completeJob, createWorkerId, enqueueJob, retryDelayMs, retryJob };
+module.exports = { claimNextJob, completeJob, createWorkerId, enqueueJob, ensureMetadataJob, retryDelayMs, retryJob };

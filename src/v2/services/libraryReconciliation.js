@@ -2,9 +2,9 @@ const LibraryItem = require('../models/LibraryItem');
 const GameAlias = require('../models/GameAlias');
 const CanonicalGame = require('../models/CanonicalGame');
 const { normalizeTitle } = require('./titleNormalization');
-const { enqueueJob } = require('../jobs/jobService');
+const { ensureMetadataJob } = require('../jobs/jobService');
 
-async function reconcileProviderLibrary({ userId, provider, games, sourceImportId, source = 'api', removeAbsent = true }) {
+async function reconcileProviderLibrary({ userId, provider, games, sourceImportId, source = 'api', removeAbsent = true, enqueueMetadata = false }) {
   const observedIds = new Set(); let created = 0; let updated = 0;
   for (const game of games) {
     const providerGameId = String(game.providerGameId); const providerTitle = String(game.providerTitle).trim(); const normalizedTitle = normalizeTitle(providerTitle);
@@ -19,9 +19,13 @@ async function reconcileProviderLibrary({ userId, provider, games, sourceImportI
       else if (candidates.length > 1) Object.assign(update, { canonicalGameId: null, matchStatus: 'ambiguous', matchConfidence: 0, matchMethod: 'multiple_exact_normalized_titles' });
       else {
         const canonical = await CanonicalGame.create({ canonicalTitle: providerTitle, normalizedTitle, metadata: { status: 'pending' } });
-        await enqueueJob({ provider: 'igdb', kind: 'metadata_enrichment', payload: { canonicalGameId: canonical._id.toString() }, idempotencyKey: `igdb-enrich:${canonical._id}` });
+        if (enqueueMetadata) await ensureMetadataJob(canonical, { userId, reason: 'library_discovery' });
         Object.assign(update, { canonicalGameId: canonical._id, matchStatus: 'auto_matched', matchConfidence: 0.75, matchMethod: 'provisional_exact_title' });
       }
+    }
+    if (enqueueMetadata && update.canonicalGameId) {
+      const canonical = await CanonicalGame.findById(update.canonicalGameId).select('_id metadata');
+      await ensureMetadataJob(canonical, { userId, reason: 'library_reconciliation' });
     }
     const existing = await LibraryItem.findOneAndUpdate({ userId, provider, providerGameId }, { $set: update, $setOnInsert: { userId, provider, providerGameId, firstSeenAt: new Date() } }, { new: true, upsert: true });
     if (existing.createdAt.getTime() === existing.updatedAt.getTime()) created += 1; else updated += 1;

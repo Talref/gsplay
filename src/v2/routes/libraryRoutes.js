@@ -46,7 +46,7 @@ function createLibraryRouter(config) {
       exactKeys(req.body, ['provider']);
       const provider = string(req.body.provider, 'provider', { max: 16 }).toLowerCase();
       if (!['gog', 'epic', 'amazon'].includes(provider)) throw new AppError(400, 'invalid_request', 'provider must be gog, epic, or amazon');
-      const games = parseLibraryUpload(req.file.buffer, req.file.mimetype);
+      const games = parseLibraryUpload(req.file.buffer, req.file.mimetype, provider);
       const job = await enqueueJob({ userId: req.user._id, provider, kind: 'upload', payload: { games }, idempotencyKey: `upload:${req.user._id}:${provider}:${Date.now()}` });
       res.status(202).json({ job: { id: job._id.toString(), status: job.status, gameCount: games.length } });
     } catch (error) { next(error); }
@@ -60,7 +60,7 @@ function createLibraryRouter(config) {
       object(req.body); exactKeys(req.body, ['userIds']); const ids = Array.isArray(req.body.userIds) ? req.body.userIds.map((id) => asId(id, 'userIds')) : [];
       const uniqueIds = [...new Map([...ids, req.user._id].map((id) => [id.toString(), id])).values()]; if (uniqueIds.length < 2 || uniqueIds.length > 10) throw new AppError(400, 'invalid_request', 'Select between two and ten users');
       const users = await User.find({ _id: { $in: uniqueIds } }, 'usernameDisplay').lean(); if (users.length !== uniqueIds.length) throw new AppError(404, 'not_found', 'One or more selected users were not found');
-      const rows = await LibraryItem.aggregate([{ $match: { userId: { $in: uniqueIds }, removedAt: null, canonicalGameId: { $ne: null } } }, { $group: { _id: '$canonicalGameId', owners: { $addToSet: '$userId' } } }, { $match: { $expr: { $gt: [{ $size: '$owners' }, 1] } } }, { $lookup: { from: 'canonical_games_v2', localField: '_id', foreignField: '_id', as: 'game' } }, { $unwind: '$game' }, { $sort: { 'game.canonicalTitle': 1 } }]);
+      const rows = await LibraryItem.aggregate([{ $match: { userId: { $in: uniqueIds }, removedAt: null, canonicalGameId: { $ne: null } } }, { $group: { _id: '$canonicalGameId', owners: { $addToSet: '$userId' } } }, { $match: { $expr: { $eq: [{ $size: '$owners' }, uniqueIds.length] } } }, { $lookup: { from: 'canonical_games_v2', localField: '_id', foreignField: '_id', as: 'game' } }, { $unwind: '$game' }, { $sort: { 'game.canonicalTitle': 1 } }]);
       res.json({ users: users.map((user) => ({ id: user._id.toString(), username: user.usernameDisplay })), games: rows.map((row) => ({ id: row._id.toString(), title: row.game.canonicalTitle, artwork: row.game.artwork, ownerIds: row.owners.map(String) })) });
     } catch (error) { next(error); }
   });

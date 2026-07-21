@@ -59,4 +59,12 @@ describe('v2 authoritative library APIs', () => {
     const response = await (await authenticate('First User')).post('/api/v2/library-comparisons').send({ userIds: [second._id.toString()] }).expect(200);
     expect(response.body.users).toHaveLength(2); expect(response.body.games).toEqual([expect.objectContaining({ title: 'Shared', ownerIds: expect.arrayContaining([first._id.toString(), second._id.toString()]) })]);
   });
+
+  test('returns only games owned by every selected comparison member', async () => {
+    const first = await createMember('Intersection One'); const second = await createMember('Intersection Two'); const third = await createMember('Intersection Three');
+    const all = await CanonicalGame.create({ canonicalTitle: 'All Three', normalizedTitle: 'all three' }); const partial = await CanonicalGame.create({ canonicalTitle: 'Only Two', normalizedTitle: 'only two' });
+    await LibraryItem.create([{ userId: first._id, provider: 'steam', providerGameId: 'a1', providerTitle: 'All Three', normalizedTitle: 'all three', canonicalGameId: all._id, matchStatus: 'auto_matched', source: 'api' }, { userId: second._id, provider: 'steam', providerGameId: 'a2', providerTitle: 'All Three', normalizedTitle: 'all three', canonicalGameId: all._id, matchStatus: 'auto_matched', source: 'api' }, { userId: third._id, provider: 'steam', providerGameId: 'a3', providerTitle: 'All Three', normalizedTitle: 'all three', canonicalGameId: all._id, matchStatus: 'auto_matched', source: 'api' }, { userId: first._id, provider: 'gog', providerGameId: 'p1', providerTitle: 'Only Two', normalizedTitle: 'only two', canonicalGameId: partial._id, matchStatus: 'auto_matched', source: 'api' }, { userId: second._id, provider: 'gog', providerGameId: 'p2', providerTitle: 'Only Two', normalizedTitle: 'only two', canonicalGameId: partial._id, matchStatus: 'auto_matched', source: 'api' }]);
+    const response = await (await authenticate('Intersection One')).post('/api/v2/library-comparisons').send({ userIds: [second._id.toString(), third._id.toString()] }).expect(200);
+    expect(response.body.games).toEqual([expect.objectContaining({ title: 'All Three' })]);
+  });
 });

@@ -27,6 +27,17 @@ describe('v2 catalogue and administrative APIs', () => {
     expect((await (await login('Admin User')).get('/api/v2/admin/jobs').expect(200)).body.jobs).toEqual([]);
     expect(admin.role).toBe('admin');
   });
+  test('returns public community top games and admin enrichment status', async () => {
+    const first = await createUser('First'); const second = await createUser('Second'); await createUser('Operations Admin', 'admin');
+    const game = await CanonicalGame.create({ canonicalTitle: 'Popular Game', normalizedTitle: 'popular game', metadata: { status: 'complete' } });
+    await CanonicalGame.create({ canonicalTitle: 'Waiting Game', normalizedTitle: 'waiting game', metadata: { status: 'pending' } });
+    await LibraryItem.create([{ userId: first._id, provider: 'steam', providerGameId: '1', providerTitle: 'Popular Game', normalizedTitle: 'popular game', canonicalGameId: game._id, matchStatus: 'auto_matched', source: 'api' }, { userId: first._id, provider: 'gog', providerGameId: '2', providerTitle: 'Popular Game', normalizedTitle: 'popular game', canonicalGameId: game._id, matchStatus: 'auto_matched', source: 'api' }, { userId: second._id, provider: 'epic', providerGameId: '3', providerTitle: 'Popular Game', normalizedTitle: 'popular game', canonicalGameId: game._id, matchStatus: 'auto_matched', source: 'api' }]);
+    const top = await request(app).get('/api/v2/community/games/top').expect(200);
+    expect(top.body.games).toEqual([expect.objectContaining({ title: 'Popular Game', ownerCount: 2, owners: expect.arrayContaining([expect.objectContaining({ username: 'First', providers: expect.arrayContaining(['steam', 'gog']) })]) })]);
+    const admin = await login('Operations Admin'); const status = await admin.get('/api/v2/admin/enrichment-status').expect(200);
+    expect(status.body.metadata).toMatchObject({ total: 2, complete: 1, pending: 1, enrichedPercent: 50 });
+    await admin.post('/api/v2/admin/enrichment-repair').expect(202);
+  });
   test('lets an admin resolve ambiguous matches and persists a reusable alias', async () => {
     const member = await createUser('Match Member'); await createUser('Match Admin', 'admin');
     const game = await CanonicalGame.create({ canonicalTitle: 'Aqua Quest', normalizedTitle: 'aqua quest' });

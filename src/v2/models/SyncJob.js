@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const syncJobSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'UserV2', index: true },
   provider: { type: String, enum: ['steam', 'gog', 'epic', 'amazon', 'igdb', 'retroachievements'], required: true, index: true },
-  kind: { type: String, enum: ['upload', 'provider_sync', 'metadata_enrichment', 'reconciliation'], required: true, index: true },
+  kind: { type: String, enum: ['upload', 'provider_sync', 'metadata_enrichment', 'metadata_repair', 'reconciliation'], required: true, index: true },
   status: { type: String, enum: ['queued', 'running', 'completed', 'completed_with_errors', 'failed'], default: 'queued', required: true, index: true },
   idempotencyKey: { type: String, required: true, unique: true, maxlength: 256 },
   payload: { type: mongoose.Schema.Types.Mixed, default: undefined, select: false },
