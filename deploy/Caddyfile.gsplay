@@ -1,0 +1,13 @@
+gsplay.daje.cc {
+    encode zstd gzip
+
+    handle /api/v2/* {
+        reverse_proxy 127.0.0.1:3000
+    }
+
+    handle {
+        root * /srv/gsplay/gsplay-frontend/dist
+        try_files {path} /index.html
+        file_server
+    }
+}

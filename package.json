@@ -15,6 +15,7 @@
     "start:v2": "node src/v2/server.js",
     "worker:v2": "node src/v2/worker.js",
     "bootstrap:v2": "node scripts/bootstrap-v2-schema.js",
+    "migrate:v1-to-v2": "node scripts/migrate-v1-to-v2.js",
     "test:v2": "npm test -- --runInBand tests/v2",
     "docs": "jsdoc -c jsdoc.conf.json"
   },

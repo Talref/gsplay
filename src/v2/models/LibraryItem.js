@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const PROVIDERS = ['steam', 'gog', 'epic', 'amazon'];
+const PROVIDERS = ['steam', 'gog', 'epic', 'amazon', 'manual'];
 const MATCH_STATUSES = ['unmatched', 'auto_matched', 'manually_matched', 'ambiguous', 'ignored'];
 
 const libraryItemSchema = new mongoose.Schema({
@@ -13,7 +13,7 @@ const libraryItemSchema = new mongoose.Schema({
   matchStatus: { type: String, enum: MATCH_STATUSES, default: 'unmatched', required: true, index: true },
   matchConfidence: { type: Number, min: 0, max: 1 },
   matchMethod: { type: String, maxlength: 64 },
-  source: { type: String, enum: ['api', 'upload', 'migration'], required: true },
+  source: { type: String, enum: ['api', 'upload', 'migration', 'manual'], required: true },
   sourceImportId: { type: mongoose.Schema.Types.ObjectId, ref: 'SyncJobV2', default: null },
   firstSeenAt: { type: Date, default: Date.now, required: true },
   lastSeenAt: { type: Date, default: Date.now, required: true },

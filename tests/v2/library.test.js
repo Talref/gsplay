@@ -23,13 +23,28 @@ async function authenticate(username) {
 describe('v2 authoritative library APIs', () => {
   beforeEach(async () => global.testUtils.cleanupDatabase());
 
-  test('returns only the authenticated user active entitlement library', async () => {
+  test('returns only the authenticated user active library, grouped by canonical game and provider set', async () => {
     const member = await createMember('Library User'); const other = await createMember('Other User');
     const game = await CanonicalGame.create({ canonicalTitle: 'Shared Game', normalizedTitle: 'shared game' });
-    await LibraryItem.create([{ userId: member._id, provider: 'steam', providerGameId: '1', providerTitle: 'Shared Game', normalizedTitle: 'shared game', canonicalGameId: game._id, matchStatus: 'auto_matched', source: 'api' }, { userId: other._id, provider: 'steam', providerGameId: '1', providerTitle: 'Shared Game', normalizedTitle: 'shared game', canonicalGameId: game._id, matchStatus: 'auto_matched', source: 'api' }, { userId: member._id, provider: 'gog', providerGameId: 'gone', providerTitle: 'Removed', normalizedTitle: 'removed', source: 'api', removedAt: new Date() }]);
+    await LibraryItem.create([{ userId: member._id, provider: 'steam', providerGameId: '1', providerTitle: 'Shared Game', normalizedTitle: 'shared game', canonicalGameId: game._id, matchStatus: 'auto_matched', source: 'api' }, { userId: member._id, provider: 'gog', providerGameId: '2', providerTitle: 'Shared Game', normalizedTitle: 'shared game', canonicalGameId: game._id, matchStatus: 'auto_matched', source: 'api' }, { userId: other._id, provider: 'steam', providerGameId: '1', providerTitle: 'Shared Game', normalizedTitle: 'shared game', canonicalGameId: game._id, matchStatus: 'auto_matched', source: 'api' }, { userId: member._id, provider: 'gog', providerGameId: 'gone', providerTitle: 'Removed', normalizedTitle: 'removed', source: 'api', removedAt: new Date() }]);
     const response = await (await authenticate('Library User')).get('/api/v2/me/library').expect(200);
     expect(response.body.page.total).toBe(1);
-    expect(response.body.items[0]).toMatchObject({ providerTitle: 'Shared Game', canonicalGame: { title: 'Shared Game' } });
+    expect(response.body.items[0]).toMatchObject({ providerTitle: 'Shared Game', canonicalGame: { title: 'Shared Game' }, providers: expect.arrayContaining(['steam', 'gog']), entitlementCount: 2 });
+  });
+
+  test('lets a user add, remove, and restore a manual catalogue entitlement without touching imported ownership', async () => {
+    const user = await createMember('Manual Owner'); const agent = await authenticate('Manual Owner');
+    const game = await CanonicalGame.create({ canonicalTitle: 'Manual Quest', normalizedTitle: 'manualquest' });
+    await agent.put(`/api/v2/me/library/games/${game._id}`).expect(201).expect(({ body }) => expect(body).toMatchObject({ created: true, ownership: { owned: true, manual: true, providers: ['manual'] } }));
+    expect(await LibraryItem.countDocuments({ userId: user._id, provider: 'manual', removedAt: null })).toBe(1);
+    await agent.put(`/api/v2/me/library/games/${game._id}`).expect(200).expect(({ body }) => expect(body.created).toBe(false));
+    await agent.delete(`/api/v2/me/library/games/${game._id}`).send({}).expect(400);
+    await agent.delete(`/api/v2/me/library/games/${game._id}`).send({ confirmation: 'REMOVE FROM LIBRARY' }).expect(200).expect(({ body }) => expect(body.ownership.owned).toBe(false));
+    expect(await LibraryItem.findOne({ userId: user._id, provider: 'manual', providerGameId: game._id.toString(), removedAt: { $ne: null } })).toBeTruthy();
+    await agent.put(`/api/v2/me/library/games/${game._id}`).expect(200).expect(({ body }) => expect(body).toMatchObject({ created: false, ownership: { manual: true } }));
+    await LibraryItem.create({ userId: user._id, provider: 'steam', providerGameId: '123', providerTitle: game.canonicalTitle, normalizedTitle: game.normalizedTitle, canonicalGameId: game._id, matchStatus: 'auto_matched', source: 'api' });
+    await agent.delete(`/api/v2/me/library/games/${game._id}`).send({ confirmation: 'REMOVE FROM LIBRARY' }).expect(200).expect(({ body }) => expect(body.ownership).toMatchObject({ owned: true, providers: ['steam'] }));
+    await agent.delete(`/api/v2/me/library/games/${game._id}`).send({ confirmation: 'REMOVE FROM LIBRARY' }).expect(409);
   });
 
   test('links only a strict SteamID64 to the authenticated account', async () => {
@@ -42,6 +57,12 @@ describe('v2 authoritative library APIs', () => {
     expect(user.steamAccount.steamId).toBe('76561198000000000');
   });
 
+  test('offers all users, including the caller, as comparison choices', async () => {
+    const caller = await createMember('Comparison Caller'); const other = await createMember('Comparison Other');
+    const response = await (await authenticate('Comparison Caller')).get('/api/v2/users').expect(200);
+    expect(response.body.users.map((user) => user.id)).toEqual(expect.arrayContaining([caller._id.toString(), other._id.toString()]));
+  });
+
   test('validates a bounded CSV import and processes it as an upload job', async () => {
     await createMember('Import User'); const agent = await authenticate('Import User');
     const response = await agent.post('/api/v2/me/imports').field('provider', 'gog').attach('file', Buffer.from('providerGameId,providerTitle\ngog-1,Aqua Quest\n'), { filename: 'library.csv', contentType: 'text/csv' }).expect(202);
@@ -52,11 +73,11 @@ describe('v2 authoritative library APIs', () => {
     await agent.post('/api/v2/me/imports').field('provider', 'gog').attach('file', Buffer.from('wrong,header\n1,Aqua\n'), { filename: 'bad.csv', contentType: 'text/csv' }).expect(400);
   });
 
-  test('compares canonical ownership server-side and always includes the caller', async () => {
+  test('compares canonical ownership server-side for exactly the selected members', async () => {
     const first = await createMember('First User'); const second = await createMember('Second User'); const third = await createMember('Third User');
     const shared = await CanonicalGame.create({ canonicalTitle: 'Shared', normalizedTitle: 'shared' }); const solo = await CanonicalGame.create({ canonicalTitle: 'Solo', normalizedTitle: 'solo' });
     await LibraryItem.create([{ userId: first._id, provider: 'steam', providerGameId: '1', providerTitle: 'Shared', normalizedTitle: 'shared', canonicalGameId: shared._id, matchStatus: 'auto_matched', source: 'api' }, { userId: second._id, provider: 'steam', providerGameId: '2', providerTitle: 'Shared', normalizedTitle: 'shared', canonicalGameId: shared._id, matchStatus: 'auto_matched', source: 'api' }, { userId: third._id, provider: 'steam', providerGameId: '3', providerTitle: 'Solo', normalizedTitle: 'solo', canonicalGameId: solo._id, matchStatus: 'auto_matched', source: 'api' }]);
-    const response = await (await authenticate('First User')).post('/api/v2/library-comparisons').send({ userIds: [second._id.toString()] }).expect(200);
+    const response = await (await authenticate('First User')).post('/api/v2/library-comparisons').send({ userIds: [first._id.toString(), second._id.toString()] }).expect(200);
     expect(response.body.users).toHaveLength(2); expect(response.body.games).toEqual([expect.objectContaining({ title: 'Shared', ownerIds: expect.arrayContaining([first._id.toString(), second._id.toString()]) })]);
   });
 

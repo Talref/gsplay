@@ -1,0 +1,22 @@
+[Unit]
+Description=GSPlay v2 durable job worker
+After=network-online.target mongod.service gsplay-v2-api.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gsplay
+Group=gsplay
+WorkingDirectory=/srv/gsplay
+EnvironmentFile=/etc/gsplay/v2.env
+ExecStart=/usr/bin/node /srv/gsplay/src/v2/worker.js
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/gsplay
+
+[Install]
+WantedBy=multi-user.target

@@ -14,14 +14,14 @@ function createApp(config, dependencies = {}) {
   const app = express();
   app.set('trust proxy', 1);
   app.disable('x-powered-by');
-  app.use(helmet()); app.use(requestContext);
+  app.use(helmet({ contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], baseUri: ["'self'"], fontSrc: ["'self'", 'data:'], frameAncestors: ["'self'"], frameSrc: ["'self'", 'https://www.youtube.com', 'https://www.youtube-nocookie.com'], imgSrc: ["'self'", 'data:', 'https:', 'blob:'], objectSrc: ["'none'"], scriptSrc: ["'self'"], styleSrc: ["'self'", "'unsafe-inline'"], upgradeInsecureRequests: [] } } })); app.use(requestContext);
   app.use(cors({ origin: config.corsOrigins, credentials: true, methods: ['GET', 'POST', 'PUT', 'DELETE'], allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'] }));
   app.use(express.json({ limit: config.uploadMaxBytes })); app.use(cookieParser());
   app.get('/health/live', (req, res) => res.json({ status: 'ok' }));
   app.get('/health/ready', (req, res) => res.status(isDatabaseReady() ? 200 : 503).json({ status: isDatabaseReady() ? 'ready' : 'unavailable' }));
   app.use('/api/v2/auth', createAuthRouter(config));
   app.use('/api/v2', createLibraryRouter(config));
-  app.use('/api/v2', createCatalogueRouter(config));
+  app.use('/api/v2', createCatalogueRouter(config, dependencies));
   app.use('/api/v2', createRetroRouter(config, dependencies));
   app.use('/api/v2/me', require('./http/auth').requireAuth(config), (req, res) => res.json({ user: req.user.toPublic() }));
   app.use(notFoundHandler); app.use(errorHandler);

@@ -12,4 +12,8 @@ describe('v2 Steam provider client', () => {
     await expect(createSteamClient({ apiKey: 'test-key', http: { get: jest.fn() } }).listOwnedGames('bad')).rejects.toBeInstanceOf(SteamProviderError);
     await expect(createSteamClient({ apiKey: 'test-key', http: { get: jest.fn().mockRejectedValue({ response: { status: 503 } }) } }).listOwnedGames('76561198000000000')).rejects.toMatchObject({ retryable: true });
   });
+  test('gives actionable diagnostics for Steam access and configuration failures', async () => {
+    expect(() => createSteamClient({ apiKey: null })).toThrow('STEAM_API_KEY is not configured');
+    await expect(createSteamClient({ apiKey: 'test-key', http: { get: jest.fn().mockRejectedValue({ response: { status: 403 } }) } }).listOwnedGames('76561198000000000')).rejects.toMatchObject({ code: 'steam_access_denied', retryable: false });
+  });
 });

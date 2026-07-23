@@ -1,61 +1,118 @@
-# GSPlay v2 cutover rehearsal and rollback runbook
+# GSPlay v2 home-server cutover runbook
 
-> **Status: rehearsal document only.** Do not replace the legacy v1 entry point, routes, database, or deployment process until every precondition below is signed off. v2 is currently an isolated preview.
+This is the production procedure for the Arch Linux host: checkout at `~/s/gsplay`, staged runtime at `/srv/gsplay`, Caddy at `gsplay.daje.cc`, systemd, and bare-metal MongoDB.
 
-## Safety boundaries
+> **Safety boundary:** v1 collections (`users`, `games`, and related legacy collections) are never renamed, altered, or deleted. v2 uses `*_v2` collections, so rollback is a traffic/service decision rather than a reverse migration.
 
-- v2 stores only in `*_v2` MongoDB collections and the bootstrap script creates indexes only.
-- `npm run bootstrap:v2` must never migrate, rename, drop, or update v1 collections.
-- `server.js`, legacy routes, and `deploy.sh` stay untouched through rehearsal.
-- Use an environment-specific least-privilege MongoDB credential. Do not use a production root credential in local or staging `.env` files.
-- Keep v1 and v2 behind separate process names, ports, health checks, and logs until final approval.
+## Recorded automated evidence
 
-## Required evidence before a staging rehearsal
+- `npm run test:v2`: 15 suites / 83 tests passed after adding migration coverage.
+- `cd gsplay-frontend && npm run lint && npm run build`: passed.
+- `cd gsplay-frontend && npm run test:e2e`: 30 Playwright checks passed at 360, 390, 768, 900, 1280, and 1440 px.
 
-- [ ] A reviewed configuration file exists using production-strength, independent access/refresh JWT secrets and explicit `CORS_ORIGINS`.
-- [ ] The v2 database user can access only the v2 target database/collections required for the preview.
-- [ ] A tested, encrypted backup/snapshot of the target MongoDB environment exists, with restore ownership and retention documented.
-- [ ] v2 quality checks pass from a clean checkout:
+These checks do not replace the backup, real-provider smoke test, or live health check below.
 
-  ```bash
-  npm ci
-  npm run test:v2
-  cd gsplay-frontend && npm ci && npm run build && npm run lint
-  ```
+## One-time server preparation
 
-- [ ] Provider keys are configured only in the process secret store. They never appear in browser builds, git, logs, screenshots, or tickets.
-- [ ] Representative sanitized GOG/Epic/Amazon export fixtures have passed the finalized parsers. Until then, use only the documented neutral import format.
-- [ ] Browser verification has covered anonymous, member, and admin flows at 360, 390, 768, 900, 1280, and 1440 px widths.
+```bash
+sudo useradd --system --home /srv/gsplay --shell /usr/bin/nologin gsplay
+sudo install -d -o gsplay -g gsplay /srv/gsplay
+sudo install -d -m 0750 /etc/gsplay
+sudoedit /etc/gsplay/v2.env
+sudo chmod 640 /etc/gsplay/v2.env
+```
 
-## Staging rehearsal
+The root-owned environment file must include at minimum:
 
-1. **Provision isolated v2 services.** Deploy the v2 API, worker, and static frontend with distinct service names and a staging-only hostname/path. Do not proxy `/api/v2` through production v1 yet.
-2. **Configure and index.** Inject staging secrets, then run once:
+```env
+NODE_ENV=production
+HOST=127.0.0.1
+PORT=3000
+PUBLIC_APP_URL=https://gsplay.daje.cc
+CORS_ORIGINS=https://gsplay.daje.cc
+MONGO_URI=mongodb://127.0.0.1:27017/gsplay
+JWT_ACCESS_SECRET=<openssl rand -hex 48>
+JWT_REFRESH_SECRET=<different openssl rand -hex 48>
+COOKIE_SECURE=true
+COOKIE_SAME_SITE=lax
+AUTH_RATE_LIMIT_WINDOW_MS=900000
+AUTH_RATE_LIMIT_MAX=20
+ENABLE_WORKER=true
+IGDB_RECOVER_LEGACY_PERMANENT=false
+```
 
-   ```bash
-   npm run bootstrap:v2
-   ```
+Add provider keys only where desired; never commit this file. Install the checked-in templates after pulling `master`:
 
-   Record the command output and verify it names only v2 collections.
-3. **Start order.** Start API, wait for `/health/live` and database-backed `/health/ready` to return success, then start the worker. Confirm structured request logs include request IDs without secrets.
-4. **Identity/session smoke test.** Create two disposable accounts; verify signup, login, refresh, logout, invalid credential rejection, and member-only route rejection while anonymous.
-5. **Library/job smoke test.** Link a test SteamID64 only where permitted, queue one import in the neutral format, verify the job transitions visibly, and verify canonical/library comparison DTOs never include other users’ complete libraries.
-6. **Admin smoke test.** Promote only a disposable staging user to `admin`; review/resolve an ambiguous title and activate a Retro challenge. Confirm a member sees only their own Retro progress.
-7. **Failure drill.** Temporarily stop the worker and verify queued jobs remain durable; restart it and observe recovery. Simulate an unavailable provider credential and verify a safe diagnostic rather than an API crash.
-8. **Record results.** Capture exact image/artifact identifiers, deployed commit, timestamps, health output, test accounts, failures, and rollback decision owner.
+```bash
+cd ~/s/gsplay
+sudo cp deploy/systemd/gsplay-v2-*.service /etc/systemd/system/
+sudo cp deploy/Caddyfile.gsplay /etc/caddy/conf.d/gsplay.caddy
+sudo systemctl daemon-reload
+sudo systemctl enable gsplay-v2-api.service gsplay-v2-worker.service
+sudo caddy validate --config /etc/caddy/Caddyfile
+```
 
-## Go/no-go criteria
+Ensure the main Caddyfile imports `/etc/caddy/conf.d/*.caddy` if it does not already.
 
-Proceed only when all required evidence and rehearsal steps are checked, product owners approve the v2 functional scope, monitoring/alert ownership is assigned, and a rollback owner is on call. The known missing items—IGDB enrichment, true vendor-export adapters, broad E2E coverage, and final responsive matrix—are currently **no-go** items for production cutover.
+## Backup before migration
+
+```bash
+stamp=$(date +%Y%m%d-%H%M%S)
+mkdir -p ~/gsplay-backups
+set -a; source /etc/gsplay/v2.env; set +a
+mongodump --uri "$MONGO_URI" --archive="$HOME/gsplay-backups/gsplay-$stamp.archive.gz" --gzip
+gzip -t "$HOME/gsplay-backups/gsplay-$stamp.archive.gz"
+```
+
+## v1 → v2 migration
+
+The migration is dry-run-first and idempotent. It preserves user IDs and bcrypt password hashes, maps admins/Steam/Retro fields, seeds canonical games from legacy games, and turns embedded legacy user games into authoritative v2 entitlements.
+
+```bash
+cd ~/s/gsplay
+git pull --ff-only origin master
+set -a; source /etc/gsplay/v2.env; set +a
+npm ci
+npm run migrate:v1-to-v2
+```
+
+The JSON report must contain `"ready": true` and no blockers. If it does not, stop and preserve the report. Do not edit v2 collections to bypass it.
+
+```bash
+npm run migrate:v1-to-v2 -- --apply --confirm-migrate-v1-to-v2
+npm run bootstrap:v2
+npm run migrate:v1-to-v2 -- --verify
+```
+
+Invalid title/platform entries are warnings and are skipped; normalized duplicate usernames and duplicate IGDB IDs are blockers.
+
+## Deploy and cut over
+
+The deployment script runs in the checkout, installs/builds there, stages runtime-only files, then publishes to `/srv/gsplay`. It never syncs `.env` or `.git`.
+
+```bash
+cd ~/s/gsplay
+./scripts/deploy-v2.sh
+sudo systemctl --no-pager --full status gsplay-v2-api gsplay-v2-worker
+curl --fail http://127.0.0.1:3000/health/live
+curl --fail http://127.0.0.1:3000/health/ready
+```
+
+Before public Caddy cutover, directly smoke-test a migrated login, admin login, library, catalogue, comparison, manual ownership, and one provider/upload job where credentials exist. Then validate/reload Caddy and test `https://gsplay.daje.cc` in a private browser window:
+
+```bash
+sudo caddy validate --config /etc/caddy/Caddyfile
+sudo systemctl reload caddy
+sudo journalctl -fu gsplay-v2-api -u gsplay-v2-worker
+```
 
 ## Rollback procedure
 
-1. Announce rollback and freeze v2 admin mutations/import submissions.
-2. Remove the v2 frontend route or reverse-proxy target; direct traffic back to unchanged v1 only if v1 is still the approved production system.
-3. Stop the v2 worker first, then the v2 API. Preserve v2 logs and job records for incident analysis; do not delete collections as part of rollback.
-4. Validate v1 health checks and essential user paths. Declare recovery only after monitoring confirms stable traffic and error rates.
-5. Open an incident/rehearsal record with request IDs, job IDs, provider diagnostics, timestamps, and the exact deployed revision. Remediate in a new v2 rehearsal—never patch legacy internals as a shortcut.
+1. Freeze v2 admin mutations/import submissions and preserve the reported request/job IDs.
+2. Stop the v2 worker, then the API: `sudo systemctl stop gsplay-v2-worker gsplay-v2-api`.
+3. Restore the prior Caddy site/runtime target and reload Caddy. Restart legacy only if it was the last approved public runtime.
+4. Do not delete v2 collections or logs. The untouched MongoDB archive and `v1-final` tag remain recovery evidence.
 
 ## Final cutover follow-up
 
-After a successful approved cutover, retain read-only v1 backups according to policy, monitor v2 authentication/job/provider failure rates, and schedule a separately approved legacy retirement plan. Data deletion or legacy schema changes require their own reviewed runbook.
+After cutover, retain the MongoDB archive, watch `journalctl` for API/worker failures, and keep the `v1-final` tag as source reference. Retroclub is intentionally a frontend holding page; its existing APIs/routes remain deferred work.

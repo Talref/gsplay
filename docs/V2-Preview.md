@@ -34,6 +34,8 @@ openssl rand -hex 32
 
 Set `STEAM_API_KEY` only when testing a Steam sync. Set `IGDB_CLIENT_ID` and `IGDB_CLIENT_SECRET` only when testing worker-based canonical-game enrichment. Set the RetroAchievements variables only when testing that integration. Never commit `.env`.
 
+IGDB enrichment is queued durably and runs only in the worker. On each worker start (and every `IGDB_MAINTENANCE_MS`, 15 minutes by default), a recovery scan reclaims expired leases and queues a bounded number of eligible pending/retryable records. The worker defaults to one IGDB request every 500ms, emits `🧠 IGDB` lifecycle/progress logs, and cools down for 60 seconds after a rate limit. Do not run more than one v2 enrichment worker against the same free IGDB credentials until a distributed provider rate gate is introduced.
+
 ## Start v2
 
 In the repository root, prepare non-destructive v2 indexes and start the API:
@@ -68,6 +70,7 @@ Open <http://localhost:5173>.
 4. Create a second account and compare the two libraries.
 5. Link a RetroAchievements username and load its profile if credentials are configured. An admin can activate one RetroAchievements game ID from **Admin**; linked members then see their own progress for the active challenge.
    Admins can also queue an on-demand, durable IGDB refresh for a canonical game with `POST /api/v2/admin/games/:gameId/metadata-refresh`. The request is coalesced if that game already has a queued or running refresh; it never calls IGDB synchronously.
+   If an early development worker left records as terminal `permanent_error`, an admin may make them eligible for the safe recovery scan with `POST /api/v2/admin/enrichment-recover-permanent`. This is a deliberate development recovery operation, not an automatic infinite retry loop.
 6. Promote a test user only in the disposable development database to inspect admin APIs:
 
    ```javascript
@@ -97,11 +100,21 @@ JSON must be either a game array or an object with a `games` array:
 
 Each record must contain non-empty string values for `providerGameId` and `providerTitle`. Files must be UTF-8 text, cannot contain NUL/binary data, and are limited to 5,000 records and the configured upload byte limit.
 
+When the matching provider is selected in the upload form, the v2 preview also accepts the repository-supported legacy-shaped JSON contracts below. They are normalized and fully validated by the v2 parser; unsupported shapes are rejected rather than guessed:
+
+```json
+// GOG
+{ "games": [{ "title": "Aqua Quest", "app_name": "gog-42" }] }
+
+// Epic or Amazon
+{ "library": [{ "title": "Aqua Quest", "app_name": "store-42" }] }
+```
+
 ## Known preview limitations
 
 - Imported/provider titles create provisional canonical records when no exact normalized match exists, so a fresh library can participate in Compare and Catalogue. The worker queues IGDB enrichment for each new provisional game, but applies metadata only when the search produces exactly one normalized-title match; broader matching and scheduled metadata refresh are not complete.
 - The admin screen resolves ambiguous titles against the currently loaded canonical catalogue. Large catalogues need a dedicated paginated search picker in a later UX pass.
-- Real GOG/Epic/Amazon export adapters still need representative, sanitized export fixtures. The neutral upload contract above is the supported preview format today.
+- The preview supports the documented neutral format plus the repository-supported GOG/Epic/Amazon JSON shapes above. Representative sanitized fixtures are still required before claiming compatibility with arbitrary current vendor-export variants.
 - This is not a production cutover. A staged rehearsal/rollback runbook now exists, but its required evidence and no-go items remain open.
 
 ## Quality checks
@@ -112,6 +125,9 @@ npm run test:v2
 cd gsplay-frontend
 npm run build
 npm run lint
+npm run test:e2e
 ```
 
 The current frontend lint configuration deliberately ignores obsolete, unimported v1 component/hook files. v2 entry files must pass without warnings or errors.
+
+`npm run test:e2e` launches an entirely disposable in-memory MongoDB, an isolated v2 API on `127.0.0.1:3100`, and a Vite server on `127.0.0.1:5174`. It never reads the development database or `.env`, and tears down the test services when it finishes. The Playwright matrix covers 360, 390, 768, 900, 1280, and 1440 pixel widths for protected-route handling, signup/logout, library feedback, catalogue search, and server-side shared-library comparison. It intentionally does not make live Steam, IGDB, or RetroAchievements calls; those belong to the staged rehearsal in the cutover runbook.

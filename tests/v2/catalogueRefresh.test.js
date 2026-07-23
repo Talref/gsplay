@@ -41,4 +41,16 @@ describe('v2 admin metadata refresh', () => {
     expect(second.body).toMatchObject({ coalesced: true, job: { _id: first.body.job._id } });
     expect(await SyncJob.countDocuments({ provider: 'igdb', kind: 'metadata_enrichment' })).toBe(1);
   });
+
+  test('queues and coalesces a confirmed full catalogue metadata refresh', async () => {
+    await createUser('Refresh All Member'); await createUser('Refresh All Admin', 'admin');
+    const member = await login('Refresh All Member'); const admin = await login('Refresh All Admin');
+    await member.post('/api/v2/admin/enrichment-refresh-all').send({ confirmation: 'REFRESH ALL IGDB METADATA' }).expect(403);
+    await admin.post('/api/v2/admin/enrichment-refresh-all').send({ confirmation: 'nope' }).expect(400);
+    const first = await admin.post('/api/v2/admin/enrichment-refresh-all').send({ confirmation: 'REFRESH ALL IGDB METADATA' }).expect(202);
+    expect(first.body.coalesced).toBe(false);
+    expect(await SyncJob.findById(first.body.job._id).select('+payload')).toMatchObject({ provider: 'igdb', kind: 'metadata_repair', payload: { mode: 'refresh_all' } });
+    const second = await admin.post('/api/v2/admin/enrichment-refresh-all').send({ confirmation: 'REFRESH ALL IGDB METADATA' }).expect(202);
+    expect(second.body).toMatchObject({ coalesced: true, job: { _id: first.body.job._id } });
+  });
 });

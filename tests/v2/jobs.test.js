@@ -1,4 +1,4 @@
-const { claimNextJob, completeJob, enqueueJob, retryJob } = require('../../src/v2/jobs/jobService');
+const { claimNextJob, completeJob, deferJob, enqueueJob, retryJob } = require('../../src/v2/jobs/jobService');
 
 describe('v2 durable job service', () => {
   beforeEach(async () => global.testUtils.cleanupDatabase());
@@ -32,5 +32,23 @@ describe('v2 durable job service', () => {
     second.attempts = second.maxAttempts; await second.save();
     const terminal = await retryJob(second, { diagnostics: [{ code: 'temporary_failure', message: 'Still unavailable' }] });
     expect(terminal.status).toBe('failed');
+  });
+
+  test('claims a user-visible sync ahead of ready metadata enrichment work', async () => {
+    const metadata = await enqueueJob({ provider: 'igdb', kind: 'metadata_enrichment', idempotencyKey: 'metadata:1' });
+    const sync = await enqueueJob({ provider: 'steam', kind: 'provider_sync', idempotencyKey: 'sync:1' });
+    const claimed = await claimNextJob('worker-a');
+    expect(claimed.id).toEqual(sync.id);
+    const SyncJob = require('../../src/v2/models/SyncJob');
+    expect((await SyncJob.findById(metadata.id)).status).toBe('queued');
+  });
+
+  test('defers a provider-paused job without consuming an attempt and can exclude metadata claims', async () => {
+    const metadata = await enqueueJob({ provider: 'igdb', kind: 'metadata_enrichment', idempotencyKey: 'metadata:paused' });
+    const claimed = await claimNextJob('worker-a');
+    const deferred = await deferJob(claimed, { diagnostics: [{ code: 'igdb_request_failed', message: 'Too Many Requests' }] });
+    expect(deferred).toMatchObject({ status: 'queued', attempts: 0, workerId: null });
+    expect(await claimNextJob('worker-a', 60_000, { excludeMetadata: true })).toBeNull();
+    expect((await claimNextJob('worker-a')).id).toEqual(metadata.id);
   });
 });

@@ -3,6 +3,7 @@ const User = require('../../src/v2/models/User');
 const GameAlias = require('../../src/v2/models/GameAlias');
 const LibraryItem = require('../../src/v2/models/LibraryItem');
 const CanonicalGame = require('../../src/v2/models/CanonicalGame');
+const SyncJob = require('../../src/v2/models/SyncJob');
 const { reconcileProviderLibrary } = require('../../src/v2/services/libraryReconciliation');
 
 describe('v2 entitlement reconciliation', () => {
@@ -34,5 +35,14 @@ describe('v2 entitlement reconciliation', () => {
     expect(canonical.canonicalTitle).toBe('Brand New Game');
     expect(canonical.metadata.status).toBe('pending');
     expect(await LibraryItem.findOne({ providerGameId: 'fresh-1' })).toMatchObject({ canonicalGameId: canonical._id, matchStatus: 'auto_matched', matchConfidence: 0.75, matchMethod: 'provisional_exact_title' });
+    expect(await SyncJob.countDocuments({ kind: 'metadata_enrichment' })).toBe(0);
+  });
+
+  test('does not report re-observed unchanged entitlements as updates', async () => {
+    const user = await User.create({ usernameNormalized: 'unchanged', usernameDisplay: 'Unchanged', passwordHash: await User.hashPassword('correct-horse-battery-staple') });
+    const game = { providerGameId: 'same-game', providerTitle: 'Same Game' };
+
+    expect(await reconcileProviderLibrary({ userId: user._id, provider: 'steam', games: [game] })).toMatchObject({ created: 1, updated: 0 });
+    expect(await reconcileProviderLibrary({ userId: user._id, provider: 'steam', games: [game] })).toMatchObject({ created: 0, updated: 0, removed: 0 });
   });
 });

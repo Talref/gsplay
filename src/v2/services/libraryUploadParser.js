@@ -36,7 +36,23 @@ function validateGames(games) {
   });
 }
 
-function parseLibraryUpload(buffer, mimeType) {
+function legacyProviderGames(parsed, provider) {
+  const records = provider === 'gog' ? parsed.games : parsed.library;
+  if (!Array.isArray(records)) {
+    const expected = provider === 'gog' ? '{ "games": [...] }' : '{ "library": [...] }';
+    invalidFile(`${provider.toUpperCase()} JSON must use ${expected} or the neutral games format`);
+  }
+  return records.map((game) => ({
+    providerGameId: game?.app_name === undefined || game?.app_name === null ? '' : String(game.app_name),
+    providerTitle: game?.title
+  }));
+}
+
+function isNeutralGameArray(games) {
+  return Array.isArray(games) && games.every((game) => game && typeof game === 'object' && !Array.isArray(game) && Object.prototype.hasOwnProperty.call(game, 'providerGameId') && Object.prototype.hasOwnProperty.call(game, 'providerTitle'));
+}
+
+function parseLibraryUpload(buffer, mimeType, provider) {
   if (!Buffer.isBuffer(buffer) || !buffer.length) invalidFile('Upload file must not be empty');
   if (buffer.includes(0)) invalidFile('Upload file contains binary data');
   let text;
@@ -46,7 +62,10 @@ function parseLibraryUpload(buffer, mimeType) {
   if (mimeType === 'application/json' || mimeType === 'text/json') {
     let parsed;
     try { parsed = JSON.parse(content); } catch { invalidFile('Upload JSON is malformed'); }
-    return validateGames(Array.isArray(parsed) ? parsed : parsed.games);
+    if (Array.isArray(parsed)) return validateGames(parsed);
+    if (isNeutralGameArray(parsed.games)) return validateGames(parsed.games);
+    if (['gog', 'epic', 'amazon'].includes(provider)) return validateGames(legacyProviderGames(parsed, provider));
+    invalidFile('JSON must be a game array or an object with a games array');
   }
   const rows = parseCsv(content);
   const [header, ...data] = rows;

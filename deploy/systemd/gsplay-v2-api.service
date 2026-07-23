@@ -1,0 +1,22 @@
+[Unit]
+Description=GSPlay v2 API
+After=network-online.target mongod.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gsplay
+Group=gsplay
+WorkingDirectory=/srv/gsplay
+EnvironmentFile=/etc/gsplay/v2.env
+ExecStart=/usr/bin/node /srv/gsplay/src/v2/server.js
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/gsplay
+
+[Install]
+WantedBy=multi-user.target

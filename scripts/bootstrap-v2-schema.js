@@ -8,7 +8,8 @@ const models = [
   require('../src/v2/models/GameAlias'),
   require('../src/v2/models/SyncJob'),
   require('../src/v2/models/RefreshSession'),
-  require('../src/v2/models/RetroChallenge')
+  require('../src/v2/models/RetroChallenge'),
+  require('../src/v2/models/CanonicalGameMerge')
 ];
 
 async function bootstrap() {

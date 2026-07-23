@@ -4,6 +4,7 @@ const { createSessionService } = require('../auth/sessionService');
 const { clearSessionCookies, requireAuth, setSessionCookies } = require('../http/auth');
 const { AppError } = require('../http/errors');
 const { exactKeys, object, string } = require('../http/validate');
+const { authRateLimit } = require('../http/rateLimit');
 
 function credentials(body, signup = false) {
   object(body); exactKeys(body, ['username', 'password']);
@@ -12,7 +13,8 @@ function credentials(body, signup = false) {
 function createAuthRouter(config) {
   const router = express.Router();
   const sessions = createSessionService(config);
-  router.post('/signup', async (req, res, next) => {
+  const mutationLimit = authRateLimit(config);
+  router.post('/signup', mutationLimit, async (req, res, next) => {
     try {
       const { username, password } = credentials(req.body, true);
       const usernameNormalized = User.normalizeUsername(username);
@@ -22,7 +24,7 @@ function createAuthRouter(config) {
       res.status(201).json({ user: user.toPublic() });
     } catch (error) { next(error); }
   });
-  router.post('/login', async (req, res, next) => {
+  router.post('/login', mutationLimit, async (req, res, next) => {
     try {
       const { username, password } = credentials(req.body);
       const user = await User.findOne({ usernameNormalized: User.normalizeUsername(username) }).select('+passwordHash');
@@ -31,7 +33,7 @@ function createAuthRouter(config) {
       res.json({ user: user.toPublic() });
     } catch (error) { next(error); }
   });
-  router.post('/refresh', async (req, res, next) => {
+  router.post('/refresh', mutationLimit, async (req, res, next) => {
     try { const result = await sessions.rotate(req.cookies.gsplay_refresh, req, User); setSessionCookies(res, result, config); res.json({ user: result.user.toPublic() }); } catch (error) { clearSessionCookies(res, config); next(error); }
   });
   router.post('/logout', async (req, res, next) => { try { await sessions.revoke(req.cookies.gsplay_refresh); clearSessionCookies(res, config); res.status(204).end(); } catch (error) { next(error); } });
