@@ -15,6 +15,8 @@ const models = [
 async function bootstrap() {
   const config = loadEnvironment();
   await connectDatabase(config);
+  const aliasIndex = { provider: 1, normalizedProviderTitle: 1, canonicalGameId: 1 };
+  await models.find((model) => model.collection.name === 'game_aliases_v2').collection.dropIndex(aliasIndex).catch((error) => { if (error.codeName !== 'IndexNotFound') throw error; });
   await Promise.all(models.map((model) => model.createIndexes()));
   console.info(`Created or verified v2 indexes for: ${models.map((model) => model.collection.name).join(', ')}`);
   await disconnectDatabase();

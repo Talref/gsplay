@@ -12,6 +12,6 @@ const aliasSchema = new mongoose.Schema({
 }, { timestamps: true, collection: 'game_aliases_v2' });
 
 aliasSchema.index({ provider: 1, providerGameId: 1 }, { unique: true, sparse: true });
-aliasSchema.index({ provider: 1, normalizedProviderTitle: 1, canonicalGameId: 1 }, { unique: true });
+aliasSchema.index({ provider: 1, normalizedProviderTitle: 1, canonicalGameId: 1 });
 
 module.exports = mongoose.models.GameAliasV2 || mongoose.model('GameAliasV2', aliasSchema);
