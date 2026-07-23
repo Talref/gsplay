@@ -7,10 +7,33 @@ function displayName(value) { return String(value || '').trim(); }
 function usernameKey(value) { return displayName(value).toLocaleLowerCase('en-US'); }
 function providerOf(value) { const provider = String(value || '').trim().toLowerCase(); return PROVIDERS.has(provider) ? provider : null; }
 function asDate(value, fallback) { const date = value ? new Date(value) : fallback; return Number.isNaN(date?.getTime()) ? fallback : date; }
+function gameQuality(game) { return ['description', 'artwork', 'releaseDate', 'igdbUrl'].filter((field) => Boolean(game[field])).length + (game.genres?.length || 0) + (game.availablePlatforms?.length || 0) + (game.publishers?.length || 0); }
+function stableGameOrder(left, right) { const created = asDate(left.createdAt, new Date(0)).getTime() - asDate(right.createdAt, new Date(0)).getTime(); return created || String(left._id).localeCompare(String(right._id)); }
+
+function collapseLegacyGames(games) {
+  const byIgdbId = new Map(); const withoutIgdb = [];
+  for (const game of games) {
+    if (Number.isInteger(game.igdbId)) byIgdbId.set(game.igdbId, [...(byIgdbId.get(game.igdbId) || []), game]);
+    else withoutIgdb.push(game);
+  }
+  const collapsed = []; const titleTargets = new Map(); let duplicateGroups = 0; let duplicateRecords = 0;
+  for (const group of byIgdbId.values()) {
+    const ordered = [...group].sort(stableGameOrder);
+    const survivor = [...ordered].sort((left, right) => gameQuality(right) - gameQuality(left) || stableGameOrder(left, right))[0];
+    if (group.length > 1) {
+      duplicateGroups += 1; duplicateRecords += group.length - 1;
+      survivor.alternativeTitles = [...new Set([...group.map((game) => displayName(game.name)), ...(survivor.alternativeTitles || [])].filter((title) => title && title !== displayName(survivor.name)))];
+    }
+    for (const game of group) titleTargets.set(normalizeTitle(displayName(game.name)), survivor._id);
+    collapsed.push(survivor);
+  }
+  for (const game of withoutIgdb) { titleTargets.set(normalizeTitle(displayName(game.name)), game._id); collapsed.push(game); }
+  return { games: collapsed, titleTargets, duplicateGroups, duplicateRecords };
+}
 
 function analyzeLegacy({ users = [], games = [] }) {
   const blockers = []; const warnings = [];
-  const usernameGroups = new Map(); const igdbGroups = new Map();
+  const usernameGroups = new Map();
   for (const user of users) {
     const key = usernameKey(user.name);
     if (!key || displayName(user.name).length < 3 || displayName(user.name).length > 32) blockers.push({ code: 'invalid_legacy_username', userId: String(user._id), message: 'Legacy user name cannot satisfy v2 username rules' });
@@ -21,9 +44,9 @@ function analyzeLegacy({ users = [], games = [] }) {
     });
   }
   for (const [key, group] of usernameGroups) if (group.length > 1) blockers.push({ code: 'duplicate_username_normalized', username: key, userIds: group.map((user) => String(user._id)), message: 'Two legacy users collide after v2 username normalization' });
-  for (const game of games) if (Number.isInteger(game.igdbId)) igdbGroups.set(game.igdbId, [...(igdbGroups.get(game.igdbId) || []), game]);
-  for (const [igdbId, group] of igdbGroups) if (group.length > 1) blockers.push({ code: 'duplicate_igdb_id', igdbId, gameIds: group.map((game) => String(game._id)), message: 'Legacy games share an IGDB identifier' });
-  return { blockers, warnings, source: { users: users.length, games: games.length, entitlements: users.reduce((count, user) => count + (user.games || []).length, 0) } };
+  const collapsed = collapseLegacyGames(games);
+  if (collapsed.duplicateGroups) warnings.push({ code: 'duplicate_igdb_id_collapsed', groups: collapsed.duplicateGroups, records: collapsed.duplicateRecords, message: 'Duplicate legacy IGDB records will be collapsed into deterministic canonical survivors' });
+  return { blockers, warnings, source: { users: users.length, games: games.length, canonicalGames: collapsed.games.length, entitlements: users.reduce((count, user) => count + (user.games || []).length, 0) } };
 }
 
 function legacyCanonical(game, now) {
@@ -33,6 +56,7 @@ function legacyCanonical(game, now) {
     igdbId: Number.isInteger(game.igdbId) ? game.igdbId : undefined,
     canonicalTitle: title,
     normalizedTitle,
+    alternativeTitles: Array.isArray(game.alternativeTitles) ? game.alternativeTitles : [],
     summary: game.description || undefined,
     genres: Array.isArray(game.genres) ? game.genres.filter((item) => typeof item === 'string') : [],
     platforms: Array.isArray(game.availablePlatforms) ? game.availablePlatforms.filter((item) => typeof item === 'string') : [],
@@ -61,7 +85,8 @@ async function migrateLegacy({ db, mode = 'dry-run', now = new Date() }) {
   if (report.blockers.length) { const error = new Error('Legacy migration has blocking data conflicts; run dry-run and resolve them first'); error.report = report; throw error; }
 
   const canonical = db.collection('canonical_games_v2'); const v2Users = db.collection('users_v2'); const items = db.collection('library_items_v2'); const aliases = db.collection('game_aliases_v2');
-  for (const game of games) {
+  const collapsedLegacy = collapseLegacyGames(games); const collapsedGames = collapsedLegacy.games;
+  for (const game of collapsedGames) {
     const record = legacyCanonical(game, now);
     await canonical.updateOne({ _id: record._id }, { $setOnInsert: record }, { upsert: true });
   }
@@ -71,7 +96,7 @@ async function migrateLegacy({ db, mode = 'dry-run', now = new Date() }) {
     for (const [index, game] of (user.games || []).entries()) {
       const provider = providerOf(game.platform); const title = displayName(game.name); const normalizedTitle = normalizeTitle(title);
       if (!provider || !title || !normalizedTitle) continue;
-      let target = await canonical.findOne({ normalizedTitle, archivedAt: null, hiddenAt: null, mergedIntoId: null }, { projection: { _id: 1 } });
+      let target = collapsedLegacy.titleTargets.has(normalizedTitle) ? { _id: collapsedLegacy.titleTargets.get(normalizedTitle) } : await canonical.findOne({ normalizedTitle, archivedAt: null, hiddenAt: null, mergedIntoId: null }, { projection: { _id: 1 } });
       if (!target) { const record = { _id: new mongoose.Types.ObjectId(), canonicalTitle: title, normalizedTitle, alternativeTitles: [], genres: [], platforms: [], gameModes: [], videos: [], companies: [], origin: 'provider_discovery', storeAvailability: 'store', metadata: { status: 'pending', attempts: 0 }, createdAt: now, updatedAt: now }; await canonical.insertOne(record); target = record; }
       const providerGameId = game.platformId ? String(game.platformId) : `legacy:${user._id}:${index}`;
       const entitlement = { userId: user._id, provider, providerGameId, providerTitle: title, normalizedTitle, canonicalGameId: target._id, matchStatus: 'auto_matched', matchConfidence: 1, matchMethod: 'legacy_title_migration', source: 'migration', firstSeenAt: asDate(user.createdAt, now), lastSeenAt: now, removedAt: null, createdAt: now, updatedAt: now };

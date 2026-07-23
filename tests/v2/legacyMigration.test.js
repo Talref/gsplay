@@ -20,4 +20,16 @@ describe('v1 to v2 migration', () => {
     expect(await db.collection('library_items_v2').countDocuments({ userId, removedAt: null })).toBe(2);
     expect((await migrateLegacy({ db, mode: 'verify' })).valid).toBe(true);
   });
+  test('collapses duplicate legacy IGDB records into one canonical survivor', async () => {
+    const db = mongoose.connection.db; const first = new mongoose.Types.ObjectId(); const second = new mongoose.Types.ObjectId();
+    const userId = new mongoose.Types.ObjectId();
+    await db.collection('users').insertOne({ _id: userId, name: 'Player One', password: 'hash', games: [{ name: 'Aqua Quest', platform: 'steam', platformId: '42' }] });
+    await db.collection('games').insertMany([{ _id: first, name: 'Aqua Quest', igdbId: 999, createdAt: new Date('2020-01-01') }, { _id: second, name: 'Aqua Quest Deluxe', igdbId: 999, description: 'Best metadata', createdAt: new Date('2021-01-01') }]);
+    const report = await migrateLegacy({ db, mode: 'dry-run' });
+    expect(report.ready).toBe(true); expect(report.warnings).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'duplicate_igdb_id_collapsed', groups: 1, records: 1 })]));
+    await migrateLegacy({ db, mode: 'apply' });
+    expect(await db.collection('canonical_games_v2').countDocuments({ igdbId: 999 })).toBe(1);
+    expect(await db.collection('canonical_games_v2').findOne({ igdbId: 999 })).toMatchObject({ canonicalTitle: 'Aqua Quest Deluxe', alternativeTitles: ['Aqua Quest'] });
+    expect(await db.collection('library_items_v2').findOne({ userId, providerGameId: '42' })).toMatchObject({ canonicalGameId: second });
+  });
 });
