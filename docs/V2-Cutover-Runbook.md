@@ -80,15 +80,15 @@ The JSON report must contain `"ready": true` and no blockers. If it does not, st
 
 ```bash
 npm run migrate:v1-to-v2 -- --apply --confirm-migrate-v1-to-v2
-npm run bootstrap:v2
+npm run bootstrap
 npm run migrate:v1-to-v2 -- --verify
 ```
 
-Invalid title/platform entries are warnings and are skipped; normalized duplicate usernames and duplicate IGDB IDs are blockers.
+Invalid title/platform entries are warnings and are skipped. Normalized duplicate usernames and missing password hashes are blockers. Legacy records sharing an IGDB ID are collapsed deterministically into one canonical game and reported as a compact warning.
 
 ## Deploy and cut over
 
-The deployment script runs in the checkout, installs/builds there, stages runtime-only files, then publishes to `/srv/gsplay`. It never syncs `.env` or `.git`.
+The deployment script runs in the checkout, installs/builds there, stages runtime-only files, then publishes to `/srv/gsplay`. It never syncs `.env`, `.git`, or production secrets: systemd and index bootstrap load `/etc/gsplay/v2.env` directly.
 
 ```bash
 cd ~/s/gsplay

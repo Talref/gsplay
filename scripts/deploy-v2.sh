@@ -34,10 +34,9 @@ rsync -a --delete "$SOURCE_ROOT/gsplay-frontend/dist/" "$STAGE/gsplay-frontend/d
 echo "▶ Publishing prepared release to $DESTINATION"
 sudo install -d -m 0755 "$DESTINATION"
 sudo rsync -a --delete --exclude '.env' "$STAGE/" "$DESTINATION/"
-sudo install -m 0640 -o root -g root "$ENV_FILE" "$DESTINATION/.env"
 sudo npm --prefix "$DESTINATION" ci --omit=dev
 echo '▶ Verifying v2 indexes and restarting services'
-sudo npm --prefix "$DESTINATION" run bootstrap:v2
+sudo bash -c 'set -a; source "$1"; set +a; exec npm --prefix "$2" run bootstrap' bash "$ENV_FILE" "$DESTINATION"
 sudo systemctl restart "$API_SERVICE" "$WORKER_SERVICE"
 
 for attempt in {1..20}; do
