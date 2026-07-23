@@ -61,7 +61,7 @@ git pull --ff-only origin master
 ./scripts/deploy.sh
 ```
 
-`deploy.sh` refuses dirty or out-of-sync source, runs backend tests and frontend lint/build, prepares dependencies and index checks before publication, installs current systemd unit definitions, publishes to `/srv/gsplay`, restarts both services, and waits for local liveness/readiness.
+`deploy.sh` refuses dirty or out-of-sync source, runs backend tests in an isolated MongoMemoryServer preflight environment and frontend lint/build, prepares dependencies and index checks before publication, installs current systemd unit definitions, publishes to `/srv/gsplay`, restarts both services, and waits for local liveness/readiness.
 
 Check the running release and services:
 

@@ -27,7 +27,7 @@ fi
 revision="$(git rev-parse HEAD)"
 echo '▶ Validating backend'
 npm ci
-npm test
+MONGO_URI='mongodb://127.0.0.1:27017/gsplay-test-preflight' npm test
 echo '▶ Building frontend release'
 (cd gsplay-frontend && npm ci --include=dev && npm run lint && npm run build)
 echo '▶ Preparing and validating runtime release'
