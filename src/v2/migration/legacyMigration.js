@@ -6,6 +6,7 @@ const PROVIDERS = new Set(['steam', 'gog', 'epic', 'amazon']);
 function displayName(value) { return String(value || '').trim(); }
 function usernameKey(value) { return displayName(value).toLocaleLowerCase('en-US'); }
 function providerOf(value) { const provider = String(value || '').trim().toLowerCase(); return PROVIDERS.has(provider) ? provider : null; }
+function validIgdbId(value) { return Number.isInteger(value) && value > 0; }
 function asDate(value, fallback) { const date = value ? new Date(value) : fallback; return Number.isNaN(date?.getTime()) ? fallback : date; }
 function gameQuality(game) { return ['description', 'artwork', 'releaseDate', 'igdbUrl'].filter((field) => Boolean(game[field])).length + (game.genres?.length || 0) + (game.availablePlatforms?.length || 0) + (game.publishers?.length || 0); }
 function stableGameOrder(left, right) { const created = asDate(left.createdAt, new Date(0)).getTime() - asDate(right.createdAt, new Date(0)).getTime(); return created || String(left._id).localeCompare(String(right._id)); }
@@ -13,7 +14,7 @@ function stableGameOrder(left, right) { const created = asDate(left.createdAt, n
 function collapseLegacyGames(games) {
   const byIgdbId = new Map(); const withoutIgdb = [];
   for (const game of games) {
-    if (Number.isInteger(game.igdbId)) byIgdbId.set(game.igdbId, [...(byIgdbId.get(game.igdbId) || []), game]);
+    if (validIgdbId(game.igdbId)) byIgdbId.set(game.igdbId, [...(byIgdbId.get(game.igdbId) || []), game]);
     else withoutIgdb.push(game);
   }
   const collapsed = []; const titleTargets = new Map(); let duplicateGroups = 0; let duplicateRecords = 0;
@@ -53,7 +54,7 @@ function legacyCanonical(game, now) {
   const title = displayName(game.name); const normalizedTitle = normalizeTitle(title);
   return {
     _id: game._id,
-    igdbId: Number.isInteger(game.igdbId) ? game.igdbId : undefined,
+    ...(validIgdbId(game.igdbId) ? { igdbId: game.igdbId } : {}),
     canonicalTitle: title,
     normalizedTitle,
     alternativeTitles: Array.isArray(game.alternativeTitles) ? game.alternativeTitles : [],
@@ -68,7 +69,7 @@ function legacyCanonical(game, now) {
     companies: Array.isArray(game.publishers) ? game.publishers.filter((item) => typeof item === 'string') : [],
     igdbUrl: game.igdbUrl || undefined,
     origin: 'provider_discovery', storeAvailability: 'store',
-    metadata: { status: Number.isInteger(game.igdbId) ? 'complete' : 'pending', attempts: Number.isInteger(game.igdbId) ? 1 : 0, lastSyncAt: asDate(game.lastUpdated, now) },
+    metadata: { status: validIgdbId(game.igdbId) ? 'complete' : 'pending', attempts: validIgdbId(game.igdbId) ? 1 : 0, lastSyncAt: asDate(game.lastUpdated, now) },
     createdAt: asDate(game.createdAt, now), updatedAt: asDate(game.lastUpdated, now)
   };
 }
@@ -79,8 +80,10 @@ async function migrateLegacy({ db, mode = 'dry-run', now = new Date() }) {
   const report = analyzeLegacy({ users, games });
   if (mode === 'dry-run') return { mode, ...report, ready: report.blockers.length === 0 };
   if (mode === 'verify') {
-    const [v2Users, v2Games, v2Items] = await Promise.all([db.collection('users_v2').countDocuments(), db.collection('canonical_games_v2').countDocuments(), db.collection('library_items_v2').countDocuments({ removedAt: null })]);
-    return { mode, ...report, target: { users: v2Users, games: v2Games, activeEntitlements: v2Items }, valid: !report.blockers.length && v2Users >= report.source.users && v2Items >= report.source.entitlements - report.warnings.filter((warning) => warning.code === 'skipped_legacy_entitlement').length };
+    const [v2Users, v2Games, v2Items, invalidCanonicalIds, mismatchedMigrationEntitlements] = await Promise.all([db.collection('users_v2').countDocuments(), db.collection('canonical_games_v2').countDocuments(), db.collection('library_items_v2').countDocuments({ removedAt: null }), db.collection('canonical_games_v2').countDocuments({ igdbId: { $type: 'number', $lte: 0 } }), db.collection('library_items_v2').aggregate([{ $match: { source: 'migration', removedAt: null } }, { $lookup: { from: 'canonical_games_v2', localField: 'canonicalGameId', foreignField: '_id', as: 'canonical' } }, { $unwind: '$canonical' }, { $match: { $expr: { $and: [{ $ne: ['$normalizedTitle', '$canonical.normalizedTitle'] }, { $not: [{ $in: ['$providerTitle', '$canonical.alternativeTitles'] }] }] } } }, { $count: 'value' }]).toArray()]);
+    const expectedEntitlements = report.source.entitlements - report.warnings.filter((warning) => warning.code === 'skipped_legacy_entitlement').length;
+    const migrationTitleMismatches = mismatchedMigrationEntitlements[0]?.value || 0;
+    return { mode, ...report, target: { users: v2Users, games: v2Games, activeEntitlements: v2Items, invalidCanonicalIds, migrationTitleMismatches }, valid: !report.blockers.length && v2Users === report.source.users && v2Games >= report.source.canonicalGames && v2Items === expectedEntitlements && invalidCanonicalIds === 0 && migrationTitleMismatches === 0 };
   }
   if (report.blockers.length) { const error = new Error('Legacy migration has blocking data conflicts; run dry-run and resolve them first'); error.report = report; throw error; }
 

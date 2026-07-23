@@ -2,7 +2,10 @@ const mongoose = require('mongoose');
 const { migrateLegacy } = require('../../src/v2/migration/legacyMigration');
 
 describe('v1 to v2 migration', () => {
-  beforeEach(async () => { await global.testUtils.cleanupDatabase(); await mongoose.connection.db.collection('users').deleteMany({}); await mongoose.connection.db.collection('games').deleteMany({}); });
+  beforeEach(async () => {
+    await global.testUtils.cleanupDatabase();
+    await Promise.all(['users', 'games', 'users_v2', 'canonical_games_v2', 'library_items_v2', 'game_aliases_v2'].map((name) => mongoose.connection.db.collection(name).deleteMany({})));
+  });
   test('reports normalized username collisions before writing', async () => {
     const db = mongoose.connection.db; await db.collection('users').insertMany([{ _id: new mongoose.Types.ObjectId(), name: 'Player One', password: 'hash' }, { _id: new mongoose.Types.ObjectId(), name: 'player one', password: 'hash' }]);
     const report = await migrateLegacy({ db, mode: 'dry-run' });
@@ -31,5 +34,17 @@ describe('v1 to v2 migration', () => {
     expect(await db.collection('canonical_games_v2').countDocuments({ igdbId: 999 })).toBe(1);
     expect(await db.collection('canonical_games_v2').findOne({ igdbId: 999 })).toMatchObject({ canonicalTitle: 'Aqua Quest Deluxe', alternativeTitles: ['Aqua Quest'] });
     expect(await db.collection('library_items_v2').findOne({ userId, providerGameId: '42' })).toMatchObject({ canonicalGameId: second });
+  });
+  test('treats non-positive legacy IGDB IDs as unmatched, never as a shared canonical identity', async () => {
+    const db = mongoose.connection.db; const userOne = new mongoose.Types.ObjectId(); const userTwo = new mongoose.Types.ObjectId(); const first = new mongoose.Types.ObjectId(); const second = new mongoose.Types.ObjectId();
+    await db.collection('users').insertMany([{ _id: userOne, name: 'Player One', password: 'hash', games: [{ name: 'First Unmatched', platform: 'steam', platformId: 'one' }] }, { _id: userTwo, name: 'Player Two', password: 'hash', games: [{ name: 'Second Unmatched', platform: 'gog', platformId: 'two' }] }]);
+    await db.collection('games').insertMany([{ _id: first, name: 'First Unmatched', igdbId: -1 }, { _id: second, name: 'Second Unmatched', igdbId: -1 }]);
+    const dry = await migrateLegacy({ db, mode: 'dry-run' }); expect(dry.source.canonicalGames).toBe(2);
+    await migrateLegacy({ db, mode: 'apply' });
+    expect(await db.collection('canonical_games_v2').countDocuments()).toBe(2);
+    expect(await db.collection('canonical_games_v2').countDocuments({ igdbId: { $type: 'number' } })).toBe(0);
+    expect(await db.collection('library_items_v2').findOne({ userId: userOne, providerGameId: 'one' })).toMatchObject({ canonicalGameId: first, providerTitle: 'First Unmatched' });
+    expect(await db.collection('library_items_v2').findOne({ userId: userTwo, providerGameId: 'two' })).toMatchObject({ canonicalGameId: second, providerTitle: 'Second Unmatched' });
+    expect((await migrateLegacy({ db, mode: 'verify' })).valid).toBe(true);
   });
 });
