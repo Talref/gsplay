@@ -25,7 +25,7 @@ cd "$SOURCE_ROOT"
 echo '▶ Installing locked backend dependencies in the checkout'
 npm ci --omit=dev
 echo '▶ Building locked frontend release in the checkout'
-(cd gsplay-frontend && npm ci && npm run lint && npm run build)
+(cd gsplay-frontend && npm ci --include=dev && npm run lint && npm run build)
 echo '▶ Preparing runtime-only staged release'
 mkdir -p "$STAGE/gsplay-frontend"
 rsync -a --delete --exclude '.env' --exclude '.git' --exclude 'node_modules' --exclude 'tests' --exclude 'docs' --exclude 'coverage' --exclude 'gsplay-frontend' "$SOURCE_ROOT/" "$STAGE/"

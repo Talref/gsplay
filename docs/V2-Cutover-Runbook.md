@@ -92,7 +92,7 @@ The deployment script runs in the checkout, installs/builds there, stages runtim
 
 ```bash
 cd ~/s/gsplay
-./scripts/deploy-v2.sh
+bash ./scripts/deploy-v2.sh
 sudo systemctl --no-pager --full status gsplay-v2-api gsplay-v2-worker
 curl --fail http://127.0.0.1:3000/health/live
 curl --fail http://127.0.0.1:3000/health/ready
