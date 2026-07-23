@@ -56,17 +56,17 @@ test('catalogue search and member Steam validation expose safe UI feedback', asy
   await expectNoHorizontalOverflow(page);
 });
 
-test('comparison validates a selection and renders server-side shared games', async ({ page }) => {
-  await page.goto('/login');
-  await page.getByLabel('Nome utente').fill('E2E Admin');
-  await page.getByLabel('Password').fill('correct-horse-battery-staple');
-  await page.getByRole('button', { name: 'Entra' }).click();
-  await expect(page.getByRole('button', { name: 'Esci' })).toBeVisible();
+test('guests can view one public library and compare an explicit multi-user selection', async ({ page }) => {
   await page.goto('/compare');
   await expect(page.getByRole('heading', { name: 'Confronta le libbrerie' })).toBeVisible();
   const picker = page.getByLabel('Cerca compari');
   await picker.click();
   await page.getByRole('option', { name: 'E2E Friend' }).click();
+  await page.keyboard.press('Escape');
+  await expect(page.getByText('1 giochi nella libbreria di E2E Friend.')).toBeVisible();
+  await expect(page.getByText('Aqua Quest')).toBeVisible();
+  await picker.click();
+  await page.getByRole('option', { name: 'E2E Admin' }).click();
   await page.keyboard.press('Escape');
   await expect(page.getByText('1 giochi in comune. Annamo a vede’.')).toBeVisible();
   await expect(page.getByText('Aqua Quest')).toBeVisible();

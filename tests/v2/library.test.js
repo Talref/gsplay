@@ -57,10 +57,11 @@ describe('v2 authoritative library APIs', () => {
     expect(user.steamAccount.steamId).toBe('76561198000000000');
   });
 
-  test('offers all users, including the caller, as comparison choices', async () => {
+  test('offers public comparison choices without exposing roles', async () => {
     const caller = await createMember('Comparison Caller'); const other = await createMember('Comparison Other');
-    const response = await (await authenticate('Comparison Caller')).get('/api/v2/users').expect(200);
+    const response = await request(app).get('/api/v2/users').expect(200);
     expect(response.body.users.map((user) => user.id)).toEqual(expect.arrayContaining([caller._id.toString(), other._id.toString()]));
+    expect(response.body.users[0]).not.toHaveProperty('role');
   });
 
   test('validates a bounded CSV import and processes it as an upload job', async () => {
@@ -73,11 +74,20 @@ describe('v2 authoritative library APIs', () => {
     await agent.post('/api/v2/me/imports').field('provider', 'gog').attach('file', Buffer.from('wrong,header\n1,Aqua\n'), { filename: 'bad.csv', contentType: 'text/csv' }).expect(400);
   });
 
+  test('returns one selected member library publicly without including an authenticated caller', async () => {
+    const caller = await createMember('Logged In Caller'); const selected = await createMember('Selected Library');
+    const callerOnly = await CanonicalGame.create({ canonicalTitle: 'Caller Only', normalizedTitle: 'caller only' }); const selectedOnly = await CanonicalGame.create({ canonicalTitle: 'Selected Only', normalizedTitle: 'selected only' });
+    await LibraryItem.create([{ userId: caller._id, provider: 'steam', providerGameId: 'caller', providerTitle: 'Caller Only', normalizedTitle: 'caller only', canonicalGameId: callerOnly._id, matchStatus: 'auto_matched', source: 'api' }, { userId: selected._id, provider: 'steam', providerGameId: 'selected', providerTitle: 'Selected Only', normalizedTitle: 'selected only', canonicalGameId: selectedOnly._id, matchStatus: 'auto_matched', source: 'api' }]);
+    const response = await (await authenticate('Logged In Caller')).post('/api/v2/library-comparisons').send({ userIds: [selected._id.toString()] }).expect(200);
+    expect(response.body.users).toEqual([expect.objectContaining({ id: selected._id.toString(), username: 'Selected Library' })]);
+    expect(response.body.games).toEqual([expect.objectContaining({ title: 'Selected Only', ownerIds: [selected._id.toString()] })]);
+  });
+
   test('compares canonical ownership server-side for exactly the selected members', async () => {
     const first = await createMember('First User'); const second = await createMember('Second User'); const third = await createMember('Third User');
     const shared = await CanonicalGame.create({ canonicalTitle: 'Shared', normalizedTitle: 'shared' }); const solo = await CanonicalGame.create({ canonicalTitle: 'Solo', normalizedTitle: 'solo' });
     await LibraryItem.create([{ userId: first._id, provider: 'steam', providerGameId: '1', providerTitle: 'Shared', normalizedTitle: 'shared', canonicalGameId: shared._id, matchStatus: 'auto_matched', source: 'api' }, { userId: second._id, provider: 'steam', providerGameId: '2', providerTitle: 'Shared', normalizedTitle: 'shared', canonicalGameId: shared._id, matchStatus: 'auto_matched', source: 'api' }, { userId: third._id, provider: 'steam', providerGameId: '3', providerTitle: 'Solo', normalizedTitle: 'solo', canonicalGameId: solo._id, matchStatus: 'auto_matched', source: 'api' }]);
-    const response = await (await authenticate('First User')).post('/api/v2/library-comparisons').send({ userIds: [first._id.toString(), second._id.toString()] }).expect(200);
+    const response = await request(app).post('/api/v2/library-comparisons').send({ userIds: [first._id.toString(), second._id.toString()] }).expect(200);
     expect(response.body.users).toHaveLength(2); expect(response.body.games).toEqual([expect.objectContaining({ title: 'Shared', ownerIds: expect.arrayContaining([first._id.toString(), second._id.toString()]) })]);
   });
 
@@ -85,7 +95,7 @@ describe('v2 authoritative library APIs', () => {
     const first = await createMember('Intersection One'); const second = await createMember('Intersection Two'); const third = await createMember('Intersection Three');
     const all = await CanonicalGame.create({ canonicalTitle: 'All Three', normalizedTitle: 'all three' }); const partial = await CanonicalGame.create({ canonicalTitle: 'Only Two', normalizedTitle: 'only two' });
     await LibraryItem.create([{ userId: first._id, provider: 'steam', providerGameId: 'a1', providerTitle: 'All Three', normalizedTitle: 'all three', canonicalGameId: all._id, matchStatus: 'auto_matched', source: 'api' }, { userId: second._id, provider: 'steam', providerGameId: 'a2', providerTitle: 'All Three', normalizedTitle: 'all three', canonicalGameId: all._id, matchStatus: 'auto_matched', source: 'api' }, { userId: third._id, provider: 'steam', providerGameId: 'a3', providerTitle: 'All Three', normalizedTitle: 'all three', canonicalGameId: all._id, matchStatus: 'auto_matched', source: 'api' }, { userId: first._id, provider: 'gog', providerGameId: 'p1', providerTitle: 'Only Two', normalizedTitle: 'only two', canonicalGameId: partial._id, matchStatus: 'auto_matched', source: 'api' }, { userId: second._id, provider: 'gog', providerGameId: 'p2', providerTitle: 'Only Two', normalizedTitle: 'only two', canonicalGameId: partial._id, matchStatus: 'auto_matched', source: 'api' }]);
-    const response = await (await authenticate('Intersection One')).post('/api/v2/library-comparisons').send({ userIds: [second._id.toString(), third._id.toString()] }).expect(200);
+    const response = await request(app).post('/api/v2/library-comparisons').send({ userIds: [second._id.toString(), third._id.toString()] }).expect(200);
     expect(response.body.games).toEqual([expect.objectContaining({ title: 'All Three' })]);
   });
 });
