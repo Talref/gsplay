@@ -123,16 +123,22 @@ function createCatalogueRouter(config, { igdbClient } = {}) {
     const game = await CanonicalGame.findOne({ _id: req.params.gameId, mergedIntoId: null }); if (!game) throw new AppError(404, 'not_found', 'Game was not found');
     const metadata = await igdb().getGameById(body.igdbId); if (!metadata) throw new AppError(404, 'not_found', 'IGDB game was not found');
     const applied = await applyIgdbMetadata({ game, metadata, reviewedBy: req.user._id });
-    if (applied.duplicate) return res.status(409).json({ error: { code: 'igdb_duplicate', message: 'That IGDB game belongs to another canonical entry', details: { gameId: applied.duplicate._id.toString(), title: applied.duplicate.canonicalTitle } } });
-    res.json({ game: gameDto(applied.game) });
+    if (applied.duplicate) {
+      const merged = await mergeCanonicalGames({ sourceGameId: game._id, targetGameId: applied.duplicate._id, mergedBy: req.user._id, reason: `Verified IGDB identity ${metadata.igdbId} selected during admin metadata review` });
+      return res.json({ game: gameDto(merged.target), merged: true, sourceGameId: game._id.toString() });
+    }
+    res.json({ game: gameDto(applied.game), merged: false });
   } catch (error) { next(error); } });
   router.put('/admin/games/:gameId/igdb-url', requireAuth(config), requireRole('admin'), async (req, res, next) => { try {
     if (!mongoose.isObjectIdOrHexString(req.params.gameId)) throw new AppError(400, 'invalid_request', 'gameId must be valid');
     const body = object(req.body); exactKeys(body, ['url']); const game = await CanonicalGame.findOne({ _id: req.params.gameId, mergedIntoId: null }); if (!game) throw new AppError(404, 'not_found', 'Game was not found');
     const metadata = await igdb().getGameBySlug(igdbSlugFromUrl(body.url)); if (!metadata) throw new AppError(404, 'not_found', 'IGDB game was not found');
     const applied = await applyIgdbMetadata({ game, metadata, reviewedBy: req.user._id });
-    if (applied.duplicate) return res.status(409).json({ error: { code: 'igdb_duplicate', message: 'That IGDB game belongs to another canonical entry', details: { gameId: applied.duplicate._id.toString(), title: applied.duplicate.canonicalTitle } } });
-    res.json({ game: gameDto(applied.game) });
+    if (applied.duplicate) {
+      const merged = await mergeCanonicalGames({ sourceGameId: game._id, targetGameId: applied.duplicate._id, mergedBy: req.user._id, reason: `Verified IGDB identity ${metadata.igdbId} selected during admin metadata review` });
+      return res.json({ game: gameDto(merged.target), merged: true, sourceGameId: game._id.toString() });
+    }
+    res.json({ game: gameDto(applied.game), merged: false });
   } catch (error) { next(error); } });
   router.put('/admin/games/:gameId/manual-metadata', requireAuth(config), requireRole('admin'), async (req, res, next) => { try {
     if (!mongoose.isObjectIdOrHexString(req.params.gameId)) throw new AppError(400, 'invalid_request', 'gameId must be valid');

@@ -45,13 +45,17 @@ describe('v2 catalogue stewardship', () => {
     await agent.delete(`/api/v2/admin/games/${referenced._id}`).send({}).expect(409);
   });
 
-  test('uses only verified IGDB metadata and offers an existing canonical record for merge', async () => {
+  test('merges into the existing canonical record when a verified IGDB candidate is already assigned', async () => {
     const { agent } = await login();
     const old = await CanonicalGame.create({ canonicalTitle: 'Batman Arkam Asykum GOTY Edition', normalizedTitle: 'batmanarkamasylumgotyedition', metadata: { status: 'failed' } });
     const real = await CanonicalGame.create({ canonicalTitle: 'Batman: Arkham Asylum - Game of the Year Edition', normalizedTitle: 'batmanarkhamasylumgameoftheyearedition', igdbId: 42, metadata: { status: 'complete' } });
     igdbClient.getGameById.mockResolvedValue({ igdbId: 42, canonicalTitle: real.canonicalTitle, normalizedTitle: real.normalizedTitle, platforms: ['PC'], igdbUrl: 'https://www.igdb.com/games/batman-arkham-asylum-game-of-the-year-edition' });
-    const conflict = await agent.put(`/api/v2/admin/games/${old._id}/igdb`).send({ igdbId: 42 }).expect(409);
-    expect(conflict.body.error.details).toMatchObject({ gameId: real._id.toString(), title: real.canonicalTitle });
+    await LibraryItem.create({ userId: (await User.findOne({ usernameNormalized: 'steward' }))._id, provider: 'steam', providerGameId: 'batman', providerTitle: old.canonicalTitle, normalizedTitle: old.normalizedTitle, canonicalGameId: old._id, matchStatus: 'auto_matched', source: 'api' });
+    const resolved = await agent.put(`/api/v2/admin/games/${old._id}/igdb`).send({ igdbId: 42 }).expect(200);
+    expect(resolved.body).toMatchObject({ merged: true, sourceGameId: old._id.toString(), game: { id: real._id.toString(), title: real.canonicalTitle } });
+    expect(await LibraryItem.findOne({ providerGameId: 'batman' })).toMatchObject({ canonicalGameId: real._id });
+    expect(await CanonicalGame.findById(old._id)).toMatchObject({ mergedIntoId: real._id });
+    expect(await CanonicalGameMerge.findOne({ sourceGameId: old._id, targetGameId: real._id })).toBeTruthy();
   });
 
   test('attaches verified IGDB metadata from a strict URL to an existing game without changing ownership', async () => {
@@ -65,13 +69,14 @@ describe('v2 catalogue stewardship', () => {
     await agent.put(`/api/v2/admin/games/${game._id}/igdb-url`).send({ url: 'https://evil.example/games/control' }).expect(400);
   });
 
-  test('returns a merge-safe conflict when an IGDB URL belongs to another game', async () => {
+  test('merges into the existing canonical record when a verified IGDB URL is already assigned', async () => {
     const { agent } = await login();
     const existing = await CanonicalGame.create({ canonicalTitle: 'Control: Ultimate Edition', normalizedTitle: 'controlultimateedition', igdbId: 2020 });
     const selected = await CanonicalGame.create({ canonicalTitle: 'Control', normalizedTitle: 'control' });
     igdbClient.getGameBySlug.mockResolvedValue({ igdbId: 2020, canonicalTitle: existing.canonicalTitle, normalizedTitle: existing.normalizedTitle, igdbUrl: 'https://www.igdb.com/games/control-ultimate-edition' });
-    const response = await agent.put(`/api/v2/admin/games/${selected._id}/igdb-url`).send({ url: 'https://www.igdb.com/games/control-ultimate-edition' }).expect(409);
-    expect(response.body.error.details).toMatchObject({ gameId: existing._id.toString(), title: existing.canonicalTitle });
+    const response = await agent.put(`/api/v2/admin/games/${selected._id}/igdb-url`).send({ url: 'https://www.igdb.com/games/control-ultimate-edition' }).expect(200);
+    expect(response.body).toMatchObject({ merged: true, sourceGameId: selected._id.toString(), game: { id: existing._id.toString(), title: existing.canonicalTitle } });
+    expect(await CanonicalGame.findById(selected._id)).toMatchObject({ mergedIntoId: existing._id });
   });
 
   test('reviews every visible failed game in pages, caps suggestions, and resolves manually', async () => {
