@@ -1,6 +1,6 @@
-# GSPlay v2 local preview
+# GSPlay v2 development preview
 
-> **Status: development preview.** v2 is isolated from the legacy v1 server and has not replaced the production entry point or deployment workflow.
+> **Status: v2 is the current application.** Legacy v1 remains preserved in the `v1-final` tag and optional `legacy-v1` branch; it is not part of this runtime tree.
 
 For staging rehearsal, cutover gates, and rollback boundaries, see [V2-Cutover-Runbook.md](./V2-Cutover-Runbook.md). This is not authorization to cut over production.
 
@@ -41,14 +41,14 @@ IGDB enrichment is queued durably and runs only in the worker. On each worker st
 In the repository root, prepare non-destructive v2 indexes and start the API:
 
 ```bash
-npm run bootstrap:v2
-npm run start:v2
+npm run bootstrap
+npm start
 ```
 
 In a second terminal, start the durable job worker:
 
 ```bash
-npm run worker:v2
+npm run worker
 ```
 
 In a third terminal, start the frontend:
@@ -60,7 +60,7 @@ npm run dev -- --host 0.0.0.0
 
 Open <http://localhost:5173>.
 
-`npm start`, `npm run dev`, `server.js`, and `deploy.sh` are legacy v1 entry points and intentionally remain unchanged.
+`npm start` / `npm run dev` start the v2 API. `npm run worker` starts the durable worker.
 
 ## Manual smoke test
 
@@ -128,6 +128,6 @@ npm run lint
 npm run test:e2e
 ```
 
-The current frontend lint configuration deliberately ignores obsolete, unimported v1 component/hook files. v2 entry files must pass without warnings or errors.
+The current frontend lint configuration covers the active v2 application and must pass without warnings or errors.
 
 `npm run test:e2e` launches an entirely disposable in-memory MongoDB, an isolated v2 API on `127.0.0.1:3100`, and a Vite server on `127.0.0.1:5174`. It never reads the development database or `.env`, and tears down the test services when it finishes. The Playwright matrix covers 360, 390, 768, 900, 1280, and 1440 pixel widths for protected-route handling, signup/logout, library feedback, catalogue search, and server-side shared-library comparison. It intentionally does not make live Steam, IGDB, or RetroAchievements calls; those belong to the staged rehearsal in the cutover runbook.

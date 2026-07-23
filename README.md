@@ -1,383 +1,79 @@
-# 🎮 GSPlay - Game Library Management System
+# GSPlay v2
 
-A comprehensive game library management application built with Node.js, Express, MongoDB, and React. GSPlay integrates with the Internet Game Database (IGDB) to provide detailed game information and user library management.
+GSPlay is a self-hosted shared PC-game library: members can sync Steam ownership, import supported library exports, discover a canonical catalogue, compare shared games server-side, and maintain catalogue metadata through controlled admin workflows.
 
-> ## v2 rebuild preview
-> An isolated GSPlay v2 rebuild is in progress on the `rebuild/v2` branch. It does **not** replace the legacy server or production deployment yet. See [the v2 local preview guide](docs/V2-Preview.md) for startup, testing, known limitations, and quality checks.
+The legacy v1 codebase is intentionally absent from this branch. It is preserved for source reference at the annotated `v1-final` tag and local/remote `legacy-v1` branch.
 
-![GSPlay Logo](gsplay-frontend/public/gslogo.png)
+## What is included
 
-## ✨ Features
+- Cookie-based access/refresh sessions, role-based admin access, and narrow auth rate limiting.
+- Authoritative `LibraryItem` entitlements, Steam sync, strict CSV/JSON imports, and durable retryable jobs.
+- Server-side library comparison; complete user libraries are never aggregated in the browser.
+- Canonical catalogue, official IGDB enrichment jobs, ambiguity review, merge stewardship, and manual ownership.
+- Responsive React/MUI interface with Home, Library, Compare, Catalogue, Game Detail, and Admin workflows.
+- Isolated MongoMemoryServer backend tests and responsive Playwright release smoke checks.
 
-### Core Functionality
-- 🔍 **Advanced Game Search** - Search and filter games by name, genre, platform, and game mode
-- 📚 **Personal Game Library** - Manage your personal game collection
-- 👥 **Social Features** - See what games your friends own
-- 🎯 **IGDB Integration** - Rich game data from Internet Game Database
-- 📱 **Responsive Design** - Works on desktop and mobile devices
+## Local development
 
-### Technical Features
-- 🛡️ **Secure Authentication** - JWT-based user authentication
-- 🚀 **High Performance** - Optimized queries and caching
-- 📊 **Comprehensive Logging** - Request/response tracking and error logging
-- 🧪 **Thorough Testing** - Unit, integration, and API tests
-- 📖 **Complete Documentation** - API docs and setup guides
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Node.js (v18+)
-- MongoDB (v5+)
-- Git
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/Talref/gsplay.git
-   cd gsplay
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Set up environment**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
-
-4. **Start MongoDB**
-   ```bash
-   sudo systemctl start mongodb
-   ```
-
-5. **Start the application**
-   ```bash
-   npm run dev
-   ```
-
-6. **Open your browser**
-   ```
-   http://localhost:3000
-   ```
-
-For detailed setup instructions, see [Setup Guide](docs/Setup-Guide.md).
-
-## 📁 Project Structure
-
-```
-gsplay/
-├── 📁 src/                    # Backend source code
-│   ├── 📁 controllers/        # Route controllers
-│   ├── 📁 middleware/         # Express middleware
-│   ├── 📁 models/            # MongoDB models
-│   ├── 📁 routes/            # API routes
-│   ├── 📁 services/          # Business logic services
-│   ├── 📁 utils/             # Utility functions
-│   └── 📁 validators/         # Input validation
-├── 📁 gsplay-frontend/       # React frontend
-├── 📁 tests/                 # Test files
-│   ├── 📁 unit/              # Unit tests
-│   ├── 📁 integration/       # Integration tests
-│   └── 📁 api/               # API tests
-├── 📁 docs/                  # Documentation
-├── 📁 config/                # Configuration files
-└── 📄 server.js              # Main server file
-```
-
-## 🛠️ Technology Stack
-
-### Backend
-- **Runtime**: Node.js
-- **Framework**: Express.js
-- **Database**: MongoDB with Mongoose ODM
-- **Authentication**: JWT (JSON Web Tokens)
-- **Validation**: Custom validation with sanitization
-- **Testing**: Jest with Supertest
-- **Documentation**: JSDoc
-
-### Frontend
-- **Framework**: React
-- **Build Tool**: Vite
-- **Styling**: CSS Modules
-- **State Management**: React Context
-- **HTTP Client**: Axios
-
-### External Services
-- **IGDB API**: Game data and metadata
-- **Steam API**: Game ownership data (optional)
-
-## 🧪 Testing
-
-GSPlay includes comprehensive testing coverage:
+Prerequisites: Node.js, npm, and MongoDB. Copy `.env.example` to `.env`, create two independent 32+-character JWT secrets, and keep `.env` untracked.
 
 ```bash
-# Run all tests
+npm ci
+npm run bootstrap
+npm run dev
+
+# second terminal
+npm run worker
+
+# third terminal
+cd gsplay-frontend
+npm ci
+npm run dev
+```
+
+The frontend opens on `http://localhost:5173` and proxies `/api` to the v2 API at `http://localhost:3000`.
+
+## Quality checks
+
+```bash
 npm test
 
-# Run with coverage report
-npm run test:coverage
-
-# Run specific test types
-npm run test:unit        # Unit tests only
-npm run test:integration # Integration tests only
-npm run test:api         # API tests only
-
-# Run tests in watch mode
-npm run test:watch
+cd gsplay-frontend
+npm run lint
+npm run build
+npm run test:e2e
 ```
 
-### Test Structure
-- **Unit Tests**: Test individual functions and utilities
-- **Integration Tests**: Test service interactions
-- **API Tests**: Test complete request/response cycles
-- **Coverage Reports**: HTML and LCOV coverage reports
+The end-to-end suite runs an isolated in-memory MongoDB, v2 API, and Vite server. It does not access your `.env`, local database, or provider credentials.
 
-## 📚 Documentation
+## Migration and production deployment
 
-### API Documentation
-Complete API reference with examples:
-- [API Documentation](docs/API-Documentation.md)
-
-### Setup Guide
-Detailed installation and configuration:
-- [Setup Guide](docs/Setup-Guide.md)
-
-### Code Documentation
-Generate technical documentation:
-```bash
-npm run docs
-```
-
-## 🔧 Development
-
-### Available Scripts
+The v1→v2 migration is dry-run-first and does **not** modify v1 collections:
 
 ```bash
-# Development
-npm run dev          # Start development server with nodemon
-npm start           # Start production server
-
-# Testing
-npm test            # Run all tests
-npm run test:watch  # Run tests in watch mode
-npm run test:coverage # Run tests with coverage
-
-# Documentation
-npm run docs        # Generate JSDoc documentation
-
-# Database
-npm run db:seed     # Seed database with sample data
-npm run db:migrate  # Run database migrations
+npm run migrate:v1-to-v2
+npm run migrate:v1-to-v2 -- --apply --confirm-migrate-v1-to-v2
+npm run migrate:v1-to-v2 -- --verify
 ```
 
-### Development Workflow
+For Arch Linux, Caddy, systemd, MongoDB backup, migration, deployment, health-check, and rollback commands, follow the [v2 cutover runbook](docs/V2-Cutover-Runbook.md). The staged deploy script is `scripts/deploy-v2.sh`: it builds in `~/s/gsplay` and publishes the prepared release to `/srv/gsplay` only after successful checks.
 
-1. **Create Feature Branch**
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
+For preview-only workflow and supported import contracts, see [V2-Preview.md](docs/V2-Preview.md).
 
-2. **Write Tests First** (TDD approach)
-   ```bash
-   # Create test file
-   touch tests/unit/path/to/your-test.test.js
-   ```
+## Useful scripts
 
-3. **Implement Feature**
-   ```javascript
-   // Write clean, well-commented code
-   function yourFeature() {
-     // Implementation here
-   }
-   ```
+| Command | Purpose |
+| --- | --- |
+| `npm start` | Start the v2 API |
+| `npm run dev` | Start the v2 API with nodemon |
+| `npm run worker` | Start the durable v2 worker |
+| `npm run bootstrap` | Create/verify v2 indexes only |
+| `npm run migrate:v1-to-v2` | Read-only migration report by default |
+| `npm test` | Run v2 backend tests |
 
-4. **Run Tests**
-   ```bash
-   npm test
-   ```
+## Security notes
 
-5. **Update Documentation**
-   ```bash
-   # Update API docs if needed
-   # Update code comments
-   ```
-
-6. **Commit Changes**
-   ```bash
-   git add .
-   git commit -m "Add: your feature description"
-   ```
-
-## 🚀 Deployment
-
-### Production Setup
-
-1. **Environment Configuration**
-   ```env
-   NODE_ENV=production
-   MONGO_URI=mongodb://user:pass@host:port/db
-   JWT_SECRET=your-production-secret
-   ```
-
-2. **Process Management**
-   ```bash
-   npm install -g pm2
-   pm2 start server.js --name gsplay
-   pm2 save
-   pm2 startup
-   ```
-
-3. **Reverse Proxy (Nginx)**
-   ```nginx
-   server {
-       listen 80;
-       server_name yourdomain.com;
-       location / {
-           proxy_pass http://localhost:3000;
-           proxy_set_header Host $host;
-       }
-   }
-   ```
-
-4. **SSL Certificate**
-   ```bash
-   sudo certbot --nginx -d yourdomain.com
-   ```
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-### Development Guidelines
-- Follow existing code style and patterns
-- Write comprehensive tests for new features
-- Update documentation for API changes
-- Use meaningful commit messages
-- Test in both development and production environments
-
-### Code Style
-- Use ESLint configuration
-- Follow JavaScript Standard Style
-- Write clear, concise comments
-- Use meaningful variable and function names
-
-## 📊 Performance
-
-GSPlay is optimized for performance:
-
-- **Database Indexing**: Optimized MongoDB indexes
-- **Query Optimization**: Efficient database queries
-- **Caching**: Response caching for frequently accessed data
-- **Rate Limiting**: Prevents abuse and ensures fair usage
-- **Compression**: Gzip compression for responses
-
-## 🔒 Security
-
-Security features include:
-
-- **Input Sanitization**: Prevents XSS and injection attacks
-- **Authentication**: Secure JWT-based authentication
-- **Authorization**: Role-based access control
-- **Rate Limiting**: Prevents brute force and DoS attacks
-- **HTTPS**: SSL/TLS encryption in production
-- **Security Headers**: Helmet.js security middleware
-
-## 📈 Monitoring
-
-Built-in monitoring features:
-
-- **Request Logging**: Complete request/response logging
-- **Error Tracking**: Comprehensive error logging with context
-- **Performance Metrics**: Response times and throughput
-- **Health Checks**: Application health monitoring
-- **Database Monitoring**: Connection and query monitoring
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**MongoDB Connection Error**
-```bash
-# Check MongoDB status
-sudo systemctl status mongodb
-
-# Restart MongoDB
-sudo systemctl restart mongodb
-```
-
-**Port Already in Use**
-```bash
-# Find process using port
-lsof -i :3000
-
-# Kill process or change port in .env
-PORT=3001
-```
-
-**Test Failures**
-```bash
-# Clear test cache
-npm test -- --clearCache
-
-# Run specific test
-npm test -- tests/unit/specific-test.test.js
-```
-
-**Verbose Logging**
-```bash
-# Enable detailed request logging and slow request warnings
-LOG_LEVEL=verbose npm run dev
-```
-
-For more troubleshooting, see [Setup Guide](docs/Setup-Guide.md).
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-```
-MIT License
-
-Copyright (c) 2025 GSPlay
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-## 🙏 Acknowledgments
-
-- **IGDB** for providing comprehensive game data
-- **MongoDB** for the robust database solution
-- **Express.js** for the flexible web framework
-- **React** for the powerful frontend library
-
-## 📞 Support
-
-- **Documentation**: [API Docs](docs/API-Documentation.md) | [Setup Guide](docs/Setup-Guide.md)
-- **Issues**: [GitHub Issues](https://github.com/Talref/gsplay/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/Talref/gsplay/discussions)
-
----
-
-**Built with ❤️ for game enthusiasts by developers who love gaming**
-
-🎮 Happy gaming! 🎮
+- Keep MongoDB and Node bound to loopback; Caddy is the public TLS endpoint.
+- Store production secrets in `/etc/gsplay/v2.env`, never in Git or frontend environment variables.
+- Use independent high-entropy access and refresh JWT secrets.
+- Preserve a `mongodump` archive before migration or any production schema operation.
