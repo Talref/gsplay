@@ -11,8 +11,6 @@
     "dev": "nodemon src/v2/server.js",
     "worker": "node src/v2/worker.js",
     "bootstrap": "node scripts/bootstrap-v2-schema.js",
-    "migrate:v1-to-v2": "node scripts/migrate-v1-to-v2.js",
-    "reset:v2": "node scripts/reset-v2-schema.js",
     "test:v2": "npm test",
     "docs": "jsdoc -c jsdoc.conf.json"
   },

@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# Run on the home server from ~/s/gsplay after `git pull --ff-only origin master`.
-# Build in the checkout; publish only a prepared runtime tree to /srv/gsplay.
+# Run from the checked-out production branch after: git pull --ff-only origin master
 SOURCE_ROOT="${SOURCE_ROOT:-$PWD}"
 DESTINATION="${DESTINATION:-/srv/gsplay}"
 ENV_FILE="${ENV_FILE:-/etc/gsplay/v2.env}"
@@ -20,31 +19,40 @@ require() { command -v "$1" >/dev/null || fail "Missing required command: $1"; }
 require npm; require rsync; require curl; require sudo; require systemctl
 cd "$SOURCE_ROOT"
 [[ -z "$(git status --porcelain)" ]] || fail "Checkout is not clean; commit/stash changes before deployment"
-[[ "$(git branch --show-current)" == "master" ]] || fail "Deployment requires the master branch"
+if [[ "${ALLOW_DETACHED_RELEASE:-false}" != 'true' ]]; then
+  [[ "$(git branch --show-current)" == "master" ]] || fail "Deployment requires master; use ALLOW_DETACHED_RELEASE=true only for a known-good release tag rollback"
+  [[ "$(git rev-parse HEAD)" == "$(git rev-parse @{u})" ]] || fail "Checkout is not synchronized with its upstream; pull or push before deployment"
+fi
 
-echo '▶ Installing locked backend dependencies in the checkout'
-npm ci --omit=dev
-echo '▶ Building locked frontend release in the checkout'
+revision="$(git rev-parse HEAD)"
+echo '▶ Validating backend'
+npm ci
+npm test
+echo '▶ Building frontend release'
 (cd gsplay-frontend && npm ci --include=dev && npm run lint && npm run build)
-echo '▶ Preparing runtime-only staged release'
+echo '▶ Preparing and validating runtime release'
 mkdir -p "$STAGE/gsplay-frontend"
 rsync -a --delete --exclude '.env' --exclude '.git' --exclude 'node_modules' --exclude 'tests' --exclude 'docs' --exclude 'coverage' --exclude 'gsplay-frontend' "$SOURCE_ROOT/" "$STAGE/"
 rsync -a --delete "$SOURCE_ROOT/gsplay-frontend/dist/" "$STAGE/gsplay-frontend/dist/"
+npm --prefix "$STAGE" ci --omit=dev
+node -e "require('$STAGE/node_modules/bcrypt'); console.log('bcrypt runtime module OK')"
+printf '%s\n' "$revision" > "$STAGE/REVISION"
+sudo bash -c 'set -a; source "$1"; set +a; exec npm --prefix "$2" run bootstrap' bash "$ENV_FILE" "$STAGE"
 
-echo "▶ Publishing prepared release to $DESTINATION"
+echo '▶ Updating service definitions and publishing release'
+sudo install -m 0644 "$SOURCE_ROOT/deploy/systemd/gsplay-v2-api.service" "/etc/systemd/system/$API_SERVICE"
+sudo install -m 0644 "$SOURCE_ROOT/deploy/systemd/gsplay-v2-worker.service" "/etc/systemd/system/$WORKER_SERVICE"
+sudo systemctl daemon-reload
 sudo install -d -m 0755 "$DESTINATION"
 sudo rsync -a --delete --exclude '.env' "$STAGE/" "$DESTINATION/"
-sudo npm --prefix "$DESTINATION" ci --omit=dev
-echo '▶ Verifying v2 indexes and restarting services'
-sudo bash -c 'set -a; source "$1"; set +a; exec npm --prefix "$2" run bootstrap' bash "$ENV_FILE" "$DESTINATION"
 sudo systemctl restart "$API_SERVICE" "$WORKER_SERVICE"
 
 for attempt in {1..20}; do
   if curl --fail --silent --show-error http://127.0.0.1:3000/health/live >/dev/null && curl --fail --silent --show-error http://127.0.0.1:3000/health/ready >/dev/null; then
-    echo "✅ GSPlay v2 deployed and ready from $(git rev-parse --short HEAD)"
+    echo "✅ GSPlay deployed and ready from $revision"
     exit 0
   fi
   sleep 1
 done
-sudo systemctl --no-pager --full status "$API_SERVICE" || true
-fail 'v2 readiness did not recover; inspect journalctl and roll back Caddy/service target if necessary'
+sudo systemctl --no-pager --full status "$API_SERVICE" "$WORKER_SERVICE" || true
+fail 'Readiness did not recover; inspect journalctl before deploying another revision'

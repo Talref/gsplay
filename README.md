@@ -1,8 +1,6 @@
-# GSPlay v2
+# GSPlay
 
 GSPlay is a self-hosted shared PC-game library: members can sync Steam ownership, import supported library exports, discover a canonical catalogue, compare shared games server-side, and maintain catalogue metadata through controlled admin workflows.
-
-The legacy v1 codebase is intentionally absent from this branch. It is preserved for source reference at the annotated `v1-final` tag and local/remote `legacy-v1` branch.
 
 ## What is included
 
@@ -46,29 +44,29 @@ npm run test:e2e
 
 The end-to-end suite runs an isolated in-memory MongoDB, v2 API, and Vite server. It does not access your `.env`, local database, or provider credentials.
 
-## Migration and production deployment
+## Production deployment
 
-The v1→v2 migration is dry-run-first and does **not** modify v1 collections:
+Production uses a root-owned `/etc/gsplay/v2.env`, systemd API and worker services bound to loopback, and Caddy as the TLS frontend. After merging a tested change to `master`, deploy from the server checkout:
 
 ```bash
-npm run migrate:v1-to-v2
-npm run migrate:v1-to-v2 -- --apply --confirm-migrate-v1-to-v2
-npm run migrate:v1-to-v2 -- --verify
+cd ~/s/gsplay
+git pull --ff-only origin master
+./scripts/deploy.sh
 ```
 
-For Arch Linux, Caddy, systemd, MongoDB backup, migration, deployment, health-check, and rollback commands, follow the [v2 cutover runbook](docs/V2-Cutover-Runbook.md). The staged deploy script is `scripts/deploy-v2.sh`: it builds in `~/s/gsplay` and publishes the prepared release to `/srv/gsplay` only after successful checks.
+The deploy script requires a clean checkout synchronized with `origin/master`, runs backend tests plus frontend lint/build, prepares and validates a runtime release, verifies indexes, publishes to `/srv/gsplay`, restarts API/worker, and waits for local liveness/readiness checks.
 
-For preview-only workflow and supported import contracts, see [V2-Preview.md](docs/V2-Preview.md).
+See [Operations Runbook](docs/Operations-Runbook.md) for setup, backup, deployment, rollback, and incident procedures.
 
 ## Useful scripts
 
 | Command | Purpose |
 | --- | --- |
-| `npm start` | Start the v2 API |
-| `npm run dev` | Start the v2 API with nodemon |
-| `npm run worker` | Start the durable v2 worker |
-| `npm run bootstrap` | Create/verify v2 indexes only |
-| `npm run migrate:v1-to-v2` | Read-only migration report by default |
+| `npm start` | Start the API |
+| `npm run dev` | Start the API with nodemon |
+| `npm run worker` | Start the durable worker |
+| `npm run bootstrap` | Create/verify indexes |
+| `./scripts/deploy.sh` | Build, validate, publish, restart, and health-check production |
 | `npm test` | Run v2 backend tests |
 
 ## Security notes
@@ -76,4 +74,8 @@ For preview-only workflow and supported import contracts, see [V2-Preview.md](do
 - Keep MongoDB and Node bound to loopback; Caddy is the public TLS endpoint.
 - Store production secrets in `/etc/gsplay/v2.env`, never in Git or frontend environment variables.
 - Use independent high-entropy access and refresh JWT secrets.
-- Preserve a `mongodump` archive before migration or any production schema operation.
+- Preserve a `mongodump` archive before any production data/schema operation.
+
+## Historical source
+
+GSPlay now runs solely on the current architecture. The former implementation and one-time migration tooling are retained only in Git history: `v1-final`, `legacy-v1`, and `migration-v1-to-v2-final`.

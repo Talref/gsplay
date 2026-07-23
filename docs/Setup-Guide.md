@@ -1,6 +1,4 @@
-# GSPlay v2 setup guide
-
-The active branch contains only the v2 runtime. The former implementation is preserved at the `v1-final` tag and `legacy-v1` branch for reference; do not use its instructions for a current deployment.
+# GSPlay setup guide
 
 ## Local environment
 
@@ -47,6 +45,4 @@ Backend tests and the E2E suite use isolated in-memory MongoDB instances. They d
 
 ## Production
 
-The complete Arch Linux/Caddy/systemd deployment, MongoDB backup, v1 migration, cutover, health-check, and rollback procedure is in [V2-Cutover-Runbook.md](./V2-Cutover-Runbook.md).
-
-In short, production uses a root-owned `/etc/gsplay/v2.env`, an API and worker bound to loopback, Caddy as the TLS frontend, and the staged `scripts/deploy-v2.sh` deployment script.
+For initial host preparation and routine maintenance, use [Operations Runbook](./Operations-Runbook.md). Production uses a root-owned `/etc/gsplay/v2.env`, loopback-bound API and worker systemd services, Caddy TLS termination, and `scripts/deploy.sh` for updates.
