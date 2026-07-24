@@ -6,6 +6,7 @@ const CanonicalGame = require('../../src/v2/models/CanonicalGame');
 const CanonicalGameMerge = require('../../src/v2/models/CanonicalGameMerge');
 const LibraryItem = require('../../src/v2/models/LibraryItem');
 const GameAlias = require('../../src/v2/models/GameAlias');
+const { IgdbProviderError } = require('../../src/v2/providers/igdbClient');
 
 const config = loadEnvironment({ NODE_ENV: 'test', MONGO_URI: 'mongodb://127.0.0.1:27017/gsplay_test', JWT_ACCESS_SECRET: 'a'.repeat(32), JWT_REFRESH_SECRET: 'b'.repeat(32) });
 const igdbClient = { searchTitle: jest.fn(), getGameById: jest.fn(), getGameBySlug: jest.fn() };
@@ -67,6 +68,16 @@ describe('v2 catalogue stewardship', () => {
     expect(response.body.game).toMatchObject({ title: 'Control', igdbId: 2019, metadataStatus: 'complete', summary: 'Paranormal action' });
     expect(await LibraryItem.findOne({ providerGameId: 'control' })).toMatchObject({ canonicalGameId: game._id });
     await agent.put(`/api/v2/admin/games/${game._id}/igdb-url`).send({ url: 'https://evil.example/games/control' }).expect(400);
+  });
+
+  test('returns a safe retryable IGDB failure without changing catalogue metadata', async () => {
+    const { agent } = await login();
+    const game = await CanonicalGame.create({ canonicalTitle: 'Alone in the Dark 2?', normalizedTitle: 'aloneinthedark2', summary: 'Keep this metadata', metadata: { status: 'failed' } });
+    igdbClient.getGameBySlug.mockRejectedValue(new IgdbProviderError('timeout of 10000ms exceeded', true, undefined, 'ECONNABORTED', false, 'oauth_token'));
+    const response = await agent.put(`/api/v2/admin/games/${game._id}/igdb-url`).send({ url: 'https://www.igdb.com/games/alone-in-the-dark-2' }).expect(503);
+    expect(response.headers['retry-after']).toBe('5');
+    expect(response.body.error).toMatchObject({ code: 'igdb_temporarily_unavailable', message: 'IGDB did not respond in time. Try again shortly.', requestId: expect.any(String) });
+    expect(await CanonicalGame.findById(game._id)).toMatchObject({ canonicalTitle: 'Alone in the Dark 2?', summary: 'Keep this metadata', metadata: { status: 'failed' } });
   });
 
   test('merges into the existing canonical record when a verified IGDB URL is already assigned', async () => {

@@ -2,15 +2,17 @@ const axios = require('axios');
 const { normalizeTitle } = require('../services/titleNormalization');
 
 class IgdbProviderError extends Error {
-  constructor(message, retryable = false, status, code, authenticationFailed = false) { super(message); this.name = 'IgdbProviderError'; this.retryable = retryable; this.status = status; this.code = code; this.authenticationFailed = authenticationFailed; }
+  constructor(message, retryable = false, status, code, authenticationFailed = false, operation) { super(message); this.name = 'IgdbProviderError'; this.provider = 'igdb'; this.operation = operation; this.retryable = retryable; this.status = status; this.code = code; this.authenticationFailed = authenticationFailed; }
 }
 
-function providerError(error, { tokenRequest = false } = {}) {
+function providerError(error, { tokenRequest = false, operation } = {}) {
   const status = error.response?.status;
   const authenticationFailed = status === 401 || status === 403 || (tokenRequest && status === 400);
   const retryable = !authenticationFailed && (!status || status === 429 || status >= 500);
-  return new IgdbProviderError(error.message || 'IGDB request failed', retryable, status, error.code, authenticationFailed);
+  return new IgdbProviderError(error.message || 'IGDB request failed', retryable, status, error.code, authenticationFailed, operation);
 }
+
+const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 function escapeApicalypse(value) {
   return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
@@ -54,16 +56,28 @@ function isDesktopGame(game) {
 }
 
 function createIgdbClient({ clientId, clientSecret, http = axios.create({ timeout: 10_000 }) }) {
-  let token; let tokenExpiresAt = 0;
+  let token; let tokenExpiresAt = 0; let tokenRequest;
+  async function requestAccessToken() {
+    let lastError;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const response = await http.post('https://id.twitch.tv/oauth2/token', null, { params: { client_id: clientId, client_secret: clientSecret, grant_type: 'client_credentials' } });
+        if (!response.data?.access_token) throw new Error('No access token returned');
+        token = response.data.access_token; tokenExpiresAt = Date.now() + Math.max(60, Number(response.data.expires_in || 3600) - 60) * 1000;
+        return token;
+      } catch (error) {
+        lastError = providerError(error, { tokenRequest: true, operation: 'oauth_token' });
+        if (!lastError.retryable || attempt === 1) throw lastError;
+        await wait(250);
+      }
+    }
+    throw lastError;
+  }
   async function accessToken() {
     if (token && Date.now() < tokenExpiresAt) return token;
-    if (!clientId || !clientSecret) throw new IgdbProviderError('IGDB service credentials are not configured');
-    try {
-      const response = await http.post('https://id.twitch.tv/oauth2/token', null, { params: { client_id: clientId, client_secret: clientSecret, grant_type: 'client_credentials' } });
-      if (!response.data?.access_token) throw new Error('No access token returned');
-      token = response.data.access_token; tokenExpiresAt = Date.now() + Math.max(60, Number(response.data.expires_in || 3600) - 60) * 1000;
-      return token;
-    } catch (error) { throw providerError(error, { tokenRequest: true }); }
+    if (!clientId || !clientSecret) throw new IgdbProviderError('IGDB service credentials are not configured', false, undefined, undefined, false, 'oauth_token');
+    tokenRequest ||= requestAccessToken().finally(() => { tokenRequest = null; });
+    return tokenRequest;
   }
   return {
     async searchTitle(title) {
@@ -81,7 +95,7 @@ function createIgdbClient({ clientId, clientSecret, http = axios.create({ timeou
         return { outcome: candidates.length ? 'ambiguous' : 'not_found', candidates: (candidates.length ? candidates : games).map(candidateOf).slice(0, 10) };
       } catch (error) {
         if (error instanceof IgdbProviderError) throw error;
-        throw providerError(error);
+        throw providerError(error, { operation: 'search_title' });
       }
     },
     async findExactTitle(title) {
@@ -97,7 +111,7 @@ function createIgdbClient({ clientId, clientSecret, http = axios.create({ timeou
         return game ? mapGame(game) : null;
       } catch (error) {
         if (error instanceof IgdbProviderError) throw error;
-        throw providerError(error);
+        throw providerError(error, { operation: 'get_game_by_id' });
       }
     }
     ,
@@ -109,7 +123,7 @@ function createIgdbClient({ clientId, clientSecret, http = axios.create({ timeou
         return response.data?.[0] ? mapGame(response.data[0]) : null;
       } catch (error) {
         if (error instanceof IgdbProviderError) throw error;
-        throw providerError(error);
+        throw providerError(error, { operation: 'get_game_by_slug' });
       }
     }
   };

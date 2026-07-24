@@ -68,6 +68,26 @@ describe('v2 IGDB client', () => {
     await expect(client.findExactTitle('Aqua')).rejects.toEqual(expect.objectContaining({ authenticationFailed: true, retryable: false, status: 400 }));
   });
 
+  test('retries one transient OAuth timeout and shares that token request across concurrent lookups', async () => {
+    const timeout = Object.assign(new Error('timeout of 10000ms exceeded'), { code: 'ECONNABORTED' });
+    const http = { post: jest.fn()
+      .mockRejectedValueOnce(timeout)
+      .mockResolvedValueOnce({ data: { access_token: 'token', expires_in: 3600 } })
+      .mockResolvedValue({ data: [] }) };
+    const client = createIgdbClient({ clientId: 'client', clientSecret: 'secret', http });
+    await expect(Promise.all([client.getGameBySlug('first-game'), client.getGameBySlug('second-game')])).resolves.toEqual([null, null]);
+    expect(http.post).toHaveBeenCalledTimes(4);
+    expect(http.post.mock.calls.filter(([url]) => url.includes('oauth2/token'))).toHaveLength(2);
+  });
+
+  test('retains safe retryable OAuth timeout context after the bounded retry is exhausted', async () => {
+    const timeout = Object.assign(new Error('timeout of 10000ms exceeded'), { code: 'ECONNABORTED' });
+    const http = { post: jest.fn().mockRejectedValue(timeout) };
+    const client = createIgdbClient({ clientId: 'client', clientSecret: 'secret', http });
+    await expect(client.getGameBySlug('vintage-story')).rejects.toEqual(expect.objectContaining({ provider: 'igdb', operation: 'oauth_token', retryable: true, code: 'ECONNABORTED' }));
+    expect(http.post).toHaveBeenCalledTimes(2);
+  });
+
   test('matches titles that differ only by trademark-style marks', async () => {
     const http = { post: jest.fn()
       .mockResolvedValueOnce({ data: { access_token: 'token', expires_in: 3600 } })
