@@ -9,7 +9,8 @@ const models = [
   require('../src/v2/models/SyncJob'),
   require('../src/v2/models/RefreshSession'),
   require('../src/v2/models/RetroChallenge'),
-  require('../src/v2/models/CanonicalGameMerge')
+  require('../src/v2/models/CanonicalGameMerge'),
+  require('../src/v2/models/CatalogueReassignment')
 ];
 
 async function bootstrap() {

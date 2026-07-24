@@ -6,6 +6,7 @@ const CanonicalGame = require('../../src/v2/models/CanonicalGame');
 const CanonicalGameMerge = require('../../src/v2/models/CanonicalGameMerge');
 const LibraryItem = require('../../src/v2/models/LibraryItem');
 const GameAlias = require('../../src/v2/models/GameAlias');
+const CatalogueReassignment = require('../../src/v2/models/CatalogueReassignment');
 const { IgdbProviderError } = require('../../src/v2/providers/igdbClient');
 
 const config = loadEnvironment({ NODE_ENV: 'test', MONGO_URI: 'mongodb://127.0.0.1:27017/gsplay_test', JWT_ACCESS_SECRET: 'a'.repeat(32), JWT_REFRESH_SECRET: 'b'.repeat(32) });
@@ -88,6 +89,27 @@ describe('v2 catalogue stewardship', () => {
     const response = await agent.put(`/api/v2/admin/games/${selected._id}/igdb-url`).send({ url: 'https://www.igdb.com/games/control-ultimate-edition' }).expect(200);
     expect(response.body).toMatchObject({ merged: true, sourceGameId: selected._id.toString(), game: { id: existing._id.toString(), title: existing.canonicalTitle } });
     expect(await CanonicalGame.findById(selected._id)).toMatchObject({ mergedIntoId: existing._id });
+  });
+
+  test('repairs one stable provider identity for every owner, preserves other games, and makes future syncs safe', async () => {
+    const { agent, admin } = await login();
+    const member = await User.create({ usernameNormalized: 'portal-owner', usernameDisplay: 'Portal Owner', passwordHash: await User.hashPassword(password) });
+    const collapsed = await CanonicalGame.create({ canonicalTitle: 'Portal - Portal 2', normalizedTitle: 'portalportal2' });
+    const portalTwo = await CanonicalGame.create({ canonicalTitle: 'Portal 2', normalizedTitle: 'portal2', igdbId: 428 });
+    await LibraryItem.create([
+      { userId: admin._id, provider: 'steam', providerGameId: '400', providerTitle: 'Portal', normalizedTitle: 'portal', canonicalGameId: collapsed._id, matchStatus: 'auto_matched', source: 'migration' },
+      { userId: admin._id, provider: 'steam', providerGameId: '620', providerTitle: 'Portal 2', normalizedTitle: 'portal2', canonicalGameId: collapsed._id, matchStatus: 'auto_matched', source: 'migration' },
+      { userId: member._id, provider: 'steam', providerGameId: '620', providerTitle: 'Portal 2', normalizedTitle: 'portal2', canonicalGameId: collapsed._id, matchStatus: 'auto_matched', source: 'migration' }
+    ]);
+    await GameAlias.create([{ provider: 'steam', providerGameId: '400', normalizedProviderTitle: 'portal', canonicalGameId: collapsed._id, matchType: 'provider_id', confidence: 1 }, { provider: 'steam', providerGameId: '620', normalizedProviderTitle: 'portal2', canonicalGameId: collapsed._id, matchType: 'provider_id', confidence: 1 }]);
+    const identities = await agent.get(`/api/v2/admin/games/${collapsed._id}/provider-identities`).expect(200);
+    expect(identities.body.identities).toEqual(expect.arrayContaining([expect.objectContaining({ provider: 'steam', providerGameId: '620', providerTitles: ['Portal 2'], activeEntitlementCount: 2, affectedUserCount: 2 })]));
+    await agent.post(`/api/v2/admin/games/${collapsed._id}/reassign-provider-game`).send({ provider: 'steam', providerGameId: '620', targetGameId: portalTwo._id.toString(), confirmation: 'REASSIGN PROVIDER GAME', reason: 'Split Portal 2 from a combined legacy record' }).expect(200).expect((response) => expect(response.body).toMatchObject({ targetGame: { id: portalTwo._id.toString(), title: 'Portal 2' }, activeEntitlementCount: 2, affectedUserCount: 2 }));
+    expect(await LibraryItem.countDocuments({ canonicalGameId: portalTwo._id, providerGameId: '620', removedAt: null })).toBe(2);
+    expect(await LibraryItem.findOne({ canonicalGameId: collapsed._id, providerGameId: '400' })).toBeTruthy();
+    expect(await GameAlias.findOne({ provider: 'steam', providerGameId: '620' })).toMatchObject({ canonicalGameId: portalTwo._id, matchType: 'manual' });
+    expect(await CatalogueReassignment.findOne({ sourceGameId: collapsed._id, targetGameId: portalTwo._id, providerGameId: '620', reassignedBy: admin._id })).toBeTruthy();
+    await agent.post(`/api/v2/admin/games/${collapsed._id}/reassign-provider-game`).send({ provider: 'steam', providerGameId: '620', targetGameId: portalTwo._id.toString(), confirmation: 'WRONG', reason: 'must fail' }).expect(400);
   });
 
   test('reviews every visible failed game in pages, caps suggestions, and resolves manually', async () => {

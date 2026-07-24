@@ -7,7 +7,7 @@ const SyncJob = require('../models/SyncJob');
 const { enqueueJob } = require('../jobs/jobService');
 const { reconcileIgdbMetadata } = require('../jobs/igdbScheduler');
 const { createIgdbClient } = require('../providers/igdbClient');
-const { applyIgdbMetadata, archiveCanonicalGame, createManualGame, mergeCanonicalGames, resetFailedMetadata } = require('../services/catalogueStewardship');
+const { applyIgdbMetadata, archiveCanonicalGame, createManualGame, mergeCanonicalGames, providerIdentitiesForGame, reassignProviderGame, resetFailedMetadata } = require('../services/catalogueStewardship');
 const { requireAuth, requireRole } = require('../http/auth');
 const { AppError } = require('../http/errors');
 const { exactKeys, object, string } = require('../http/validate');
@@ -166,6 +166,20 @@ function createCatalogueRouter(config, { igdbClient } = {}) {
     if (!mongoose.isObjectIdOrHexString(body.targetGameId)) throw new AppError(400, 'invalid_request', 'targetGameId must be valid');
     const result = await mergeCanonicalGames({ sourceGameId: req.params.gameId, targetGameId: body.targetGameId, mergedBy: req.user._id, reason: body.reason === undefined ? undefined : string(body.reason, 'reason', { max: 1000 }) });
     res.json({ sourceGameId: result.source._id.toString(), targetGame: gameDto(result.target), alreadyMerged: result.alreadyMerged });
+  } catch (error) { next(error); } });
+  router.get('/admin/games/:gameId/provider-identities', requireAuth(config), requireRole('admin'), async (req, res, next) => { try {
+    if (!mongoose.isObjectIdOrHexString(req.params.gameId)) throw new AppError(400, 'invalid_request', 'gameId must be valid');
+    if (!await CanonicalGame.exists({ _id: req.params.gameId, mergedIntoId: null, archivedAt: null })) throw new AppError(404, 'not_found', 'Game was not found');
+    res.json({ identities: await providerIdentitiesForGame(new mongoose.Types.ObjectId(req.params.gameId)) });
+  } catch (error) { next(error); } });
+  router.post('/admin/games/:gameId/reassign-provider-game', requireAuth(config), requireRole('admin'), async (req, res, next) => { try {
+    if (!mongoose.isObjectIdOrHexString(req.params.gameId)) throw new AppError(400, 'invalid_request', 'gameId must be valid');
+    const body = object(req.body); exactKeys(body, ['provider', 'providerGameId', 'targetGameId', 'confirmation', 'reason']);
+    if (!['steam', 'gog', 'epic', 'amazon'].includes(body.provider)) throw new AppError(400, 'invalid_request', 'provider must be steam, gog, epic, or amazon');
+    if (!mongoose.isObjectIdOrHexString(body.targetGameId)) throw new AppError(400, 'invalid_request', 'targetGameId must be valid');
+    if (string(body.confirmation, 'confirmation') !== 'REASSIGN PROVIDER GAME') throw new AppError(400, 'invalid_request', 'REASSIGN PROVIDER GAME confirmation is required');
+    const result = await reassignProviderGame({ sourceGameId: req.params.gameId, targetGameId: body.targetGameId, provider: body.provider, providerGameId: string(body.providerGameId, 'providerGameId', { max: 256 }), reassignedBy: req.user._id, reason: string(body.reason, 'reason', { max: 1000 }) });
+    res.json({ sourceGameId: result.source._id.toString(), targetGame: gameDto(result.target), provider: body.provider, providerGameId: body.providerGameId, providerTitles: result.providerTitles, activeEntitlementCount: result.activeEntitlementCount, affectedUserCount: result.affectedUserCount, auditId: result.audit._id.toString() });
   } catch (error) { next(error); } });
   router.delete('/admin/games/:gameId', requireAuth(config), requireRole('admin'), async (req, res, next) => { try {
     if (!mongoose.isObjectIdOrHexString(req.params.gameId)) throw new AppError(400, 'invalid_request', 'gameId must be valid'); const body = object(req.body || {}); exactKeys(body, ['reason']);

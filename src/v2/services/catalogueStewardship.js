@@ -3,6 +3,7 @@ const CanonicalGameMerge = require('../models/CanonicalGameMerge');
 const LibraryItem = require('../models/LibraryItem');
 const GameAlias = require('../models/GameAlias');
 const SyncJob = require('../models/SyncJob');
+const CatalogueReassignment = require('../models/CatalogueReassignment');
 const { normalizeTitle } = require('./titleNormalization');
 const { AppError } = require('../http/errors');
 
@@ -65,6 +66,32 @@ async function mergeCanonicalGames({ sourceGameId, targetGameId, mergedBy, reaso
   return { source, target, alreadyMerged: false };
 }
 
+async function providerIdentitiesForGame(gameId) {
+  const rows = await LibraryItem.aggregate([
+    { $match: { canonicalGameId: gameId, provider: { $in: ['steam', 'gog', 'epic', 'amazon'] } } },
+    { $group: { _id: { provider: '$provider', providerGameId: '$providerGameId' }, titles: { $addToSet: '$providerTitle' }, activeEntitlementCount: { $sum: { $cond: [{ $eq: ['$removedAt', null] }, 1, 0] } }, activeUsers: { $addToSet: { $cond: [{ $eq: ['$removedAt', null] }, '$userId', '$$REMOVE'] } } } },
+    { $lookup: { from: 'game_aliases_v2', let: { provider: '$_id.provider', providerGameId: '$_id.providerGameId' }, pipeline: [{ $match: { $expr: { $and: [{ $eq: ['$provider', '$$provider'] }, { $eq: ['$providerGameId', '$$providerGameId'] }] } } }, { $project: { canonicalGameId: 1, matchType: 1 } }], as: 'alias' } },
+    { $sort: { '_id.provider': 1, '_id.providerGameId': 1 } }
+  ]);
+  return rows.map((row) => ({ provider: row._id.provider, providerGameId: row._id.providerGameId, providerTitles: row.titles.sort(), activeEntitlementCount: row.activeEntitlementCount, affectedUserCount: row.activeUsers.length, alias: row.alias[0] ? { canonicalGameId: row.alias[0].canonicalGameId.toString(), matchType: row.alias[0].matchType } : null }));
+}
+
+async function reassignProviderGame({ sourceGameId, targetGameId, provider, providerGameId, reassignedBy, reason }) {
+  if (String(sourceGameId) === String(targetGameId)) throw new AppError(400, 'invalid_request', 'A provider game cannot be reassigned to the same canonical game');
+  const [source, target] = await Promise.all([CanonicalGame.findOne({ _id: sourceGameId, mergedIntoId: null, archivedAt: null }), CanonicalGame.findOne({ _id: targetGameId, mergedIntoId: null, archivedAt: null })]);
+  if (!source || !target) throw new AppError(404, 'not_found', 'An active canonical game was not found');
+  const filter = { canonicalGameId: source._id, provider, providerGameId };
+  const items = await LibraryItem.find(filter).select('providerTitle normalizedTitle removedAt userId');
+  if (!items.length) throw new AppError(404, 'not_found', 'No provider entitlements for this game were found');
+  const active = items.filter((item) => item.removedAt === null);
+  const providerTitles = [...new Set(items.map((item) => item.providerTitle))].sort();
+  const canonicalTitle = items[0].normalizedTitle;
+  await LibraryItem.updateMany(filter, { $set: { canonicalGameId: target._id, matchStatus: 'manually_matched', matchConfidence: 1, matchMethod: 'admin_provider_reassignment' } });
+  await GameAlias.updateOne({ provider, providerGameId }, { $set: { normalizedProviderTitle: canonicalTitle, canonicalGameId: target._id, matchType: 'manual', confidence: 1, reviewedBy: reassignedBy, reviewedAt: new Date() } }, { upsert: true });
+  const audit = await CatalogueReassignment.create({ sourceGameId: source._id, targetGameId: target._id, provider, providerGameId, providerTitles, activeEntitlementCount: active.length, affectedUserCount: new Set(active.map((item) => item.userId.toString())).size, reassignedBy, reason });
+  return { source, target, providerTitles, activeEntitlementCount: audit.activeEntitlementCount, affectedUserCount: audit.affectedUserCount, audit };
+}
+
 async function resetFailedMetadata() {
   const filter = { mergedIntoId: null, archivedAt: null, hiddenAt: null, 'metadata.status': 'failed' };
   const games = await CanonicalGame.find(filter).select('_id');
@@ -74,4 +101,4 @@ async function resetFailedMetadata() {
   return { matched: ids.length, reset: result.modifiedCount };
 }
 
-module.exports = { applyIgdbMetadata, archiveCanonicalGame, createManualGame, mergeCanonicalGames, resetFailedMetadata };
+module.exports = { applyIgdbMetadata, archiveCanonicalGame, createManualGame, mergeCanonicalGames, providerIdentitiesForGame, reassignProviderGame, resetFailedMetadata };
