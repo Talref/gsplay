@@ -19,15 +19,9 @@ Prerequisites: Node.js, npm, and MongoDB. Copy `.env.example` to `.env`, create 
 npm ci
 npm run bootstrap
 npm run dev
-
-# second terminal
-npm run worker
-
-# third terminal
-cd gsplay-frontend
-npm ci
-npm run dev
 ```
+
+`npm run dev` starts the v2 API, durable worker, and Vite frontend together. Output is prefixed with `[api]`, `[worker]`, or `[web]`; press `Ctrl+C` once to stop the entire stack cleanly. The API and worker restart when `src/v2` JavaScript changes, while Vite provides frontend HMR.
 
 The frontend opens on `http://localhost:5173` and proxies `/api` to the v2 API at `http://localhost:3000`.
 
@@ -63,7 +57,10 @@ See [Operations Runbook](docs/Operations-Runbook.md) for setup, backup, deployme
 | Command | Purpose |
 | --- | --- |
 | `npm start` | Start the API |
-| `npm run dev` | Start the API with nodemon |
+| `npm run dev` | Start API, worker, and frontend together with hot reload |
+| `npm run dev:api` | Start only the API with nodemon |
+| `npm run dev:worker` | Start only the worker with nodemon |
+| `npm run dev:frontend` | Start only the Vite frontend |
 | `npm run worker` | Start the durable worker |
 | `npm run bootstrap` | Create/verify indexes |
 | `./scripts/deploy.sh` | Build, validate, publish, restart, and health-check production |
