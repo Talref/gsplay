@@ -5,6 +5,7 @@ const { claimNextJob, completeJob, createWorkerId, deferJob, retryJob } = requir
 const { createJobHandlers } = require('./jobs/handlers');
 const { createIgdbGate, reconcileIgdbMetadata } = require('./jobs/igdbScheduler');
 const CanonicalGame = require('./models/CanonicalGame');
+const { completeElapsedPlaylists } = require('./services/casualFridayService');
 
 async function startWorker({ pollMs = 1_000 } = {}) {
   const config = loadEnvironment();
@@ -63,7 +64,8 @@ async function startWorker({ pollMs = 1_000 } = {}) {
   const startupReport = await reconcileIgdbMetadata({ config, log: console });
   metadataSettled = startupReport.queued === 0;
   const timer = setInterval(tick, pollMs);
-  const maintenanceTimer = setInterval(() => reconcileIgdbMetadata({ config, log: console }).catch((error) => console.error('🧠 IGDB recovery scan failed', error)), config.igdb.maintenanceMs);
+  const maintenance = () => Promise.all([reconcileIgdbMetadata({ config, log: console }), completeElapsedPlaylists().then((count) => count && console.info(`🎲 Casual Friday completed ${count} elapsed playlist${count === 1 ? '' : 's'}`))]).catch((error) => console.error('worker maintenance failed', error));
+  const maintenanceTimer = setInterval(maintenance, config.igdb.maintenanceMs);
   await tick();
   const shutdown = async () => { stopping = true; clearInterval(timer); clearInterval(maintenanceTimer); await disconnectDatabase(); };
   process.once('SIGINT', shutdown); process.once('SIGTERM', shutdown);

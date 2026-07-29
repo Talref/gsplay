@@ -1,0 +1,6 @@
+const mongoose = require('mongoose');
+const casualFridayPlaylistEntrySchema = new mongoose.Schema({
+  playlistId: { type: mongoose.Schema.Types.ObjectId, ref: 'CasualFridayPlaylistV2', required: true, index: true }, rotationGameId: { type: mongoose.Schema.Types.ObjectId, ref: 'CasualFridayRotationGameV2', required: true }, canonicalGameId: { type: mongoose.Schema.Types.ObjectId, ref: 'CanonicalGameV2', required: true }, position: { type: Number, required: true, min: 1, max: 5 }, selectedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'UserV2', required: true }, infoOverride: { type: String, trim: true, maxlength: 4000 }, snapshots: { type: mongoose.Schema.Types.Mixed, required: true }
+}, { timestamps: true, collection: 'casual_friday_playlist_entries_v2' });
+casualFridayPlaylistEntrySchema.index({ playlistId: 1, rotationGameId: 1 }, { unique: true }); casualFridayPlaylistEntrySchema.index({ playlistId: 1, position: 1 }, { unique: true });
+module.exports = mongoose.models.CasualFridayPlaylistEntryV2 || mongoose.model('CasualFridayPlaylistEntryV2', casualFridayPlaylistEntrySchema);

@@ -11,7 +11,11 @@ const models = [
   require('../src/v2/models/RetroChallenge'),
   require('../src/v2/models/CanonicalGameMerge'),
   require('../src/v2/models/CatalogueReassignment'),
-  require('../src/v2/models/AdminUserAction')
+  require('../src/v2/models/AdminUserAction'),
+  require('../src/v2/models/CasualFridayRotationGame'),
+  require('../src/v2/models/CasualFridayPlaylist'),
+  require('../src/v2/models/CasualFridayPlaylistEntry'),
+  require('../src/v2/models/CasualFridayAudit')
 ];
 
 async function bootstrap() {
