@@ -30,7 +30,15 @@ function createItadClient({ apiKey, http = axios.create({ baseURL: 'https://api.
         const { data } = await http.post('/games/prices/v3', [gameId], { params: { key: apiKey } });
         const prices = Array.isArray(data) ? data[0]?.deals || [] : [];
         const deal = prices.filter((item) => item?.shop?.name && item?.url).sort((a, b) => (a.price?.amount ?? Infinity) - (b.price?.amount ?? Infinity))[0];
-        return deal ? { shop: deal.shop.name, url: deal.url, price: deal.price?.amount, currency: deal.price?.currency, retrievedAt: new Date() } : null;
+        return deal ? {
+          shop: deal.shop.name,
+          url: deal.url,
+          price: deal.price?.amount,
+          currency: deal.price?.currency,
+          regularPrice: deal.regular?.amount,
+          discountPercent: Number.isFinite(deal.cut) ? deal.cut : undefined,
+          retrievedAt: new Date()
+        } : null;
       } catch (error) { if (error instanceof ItadProviderError) throw error; throw providerError(error); }
     }
   };

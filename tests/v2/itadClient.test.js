@@ -25,4 +25,13 @@ describe('ITAD client', () => {
     await expect(createItadClient({ apiKey: 'secret', http }).lookupTitle('Party Animals')).rejects.toMatchObject({ name: 'ItadProviderError', status: 503, retryable: true });
     await expect(createItadClient({ http }).lookupTitle('Party Animals')).rejects.toBeInstanceOf(ItadProviderError);
   });
+
+  test('returns the cheapest direct deal URL with regular price and discount metadata', async () => {
+    const http = { post: jest.fn().mockResolvedValue({ data: [{ deals: [
+      { shop: { name: 'Expensive Shop' }, url: 'https://isthereanydeal.com/game/party/deal-one', price: { amount: 19.99, currency: 'EUR' }, regular: { amount: 29.99, currency: 'EUR' }, cut: 33 },
+      { shop: { name: 'Best Shop' }, url: 'https://isthereanydeal.com/game/party/deal-two', price: { amount: 7.49, currency: 'EUR' }, regular: { amount: 24.99, currency: 'EUR' }, cut: 70 }
+    ] }] }) };
+    await expect(createItadClient({ apiKey: 'secret', http }).bestOffer('party')).resolves.toMatchObject({ shop: 'Best Shop', url: 'https://isthereanydeal.com/game/party/deal-two', price: 7.49, currency: 'EUR', regularPrice: 24.99, discountPercent: 70 });
+    expect(http.post).toHaveBeenCalledWith('/games/prices/v3', ['party'], { params: { key: 'secret' } });
+  });
 });

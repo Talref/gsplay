@@ -1,5 +1,5 @@
 const request = require('supertest'); const { loadEnvironment } = require('../../src/v2/config/environment'); const { createApp } = require('../../src/v2/app'); const User = require('../../src/v2/models/User'); const Game = require('../../src/v2/models/CanonicalGame'); const Playlist = require('../../src/v2/models/CasualFridayPlaylist'); const Audit = require('../../src/v2/models/CasualFridayAudit'); const { cleanDisplayTitle, completeElapsedPlaylists } = require('../../src/v2/services/casualFridayService');
-const config = loadEnvironment({ NODE_ENV: 'test', MONGO_URI: 'mongodb://127.0.0.1:27017/gsplay_test', JWT_ACCESS_SECRET: 'a'.repeat(32), JWT_REFRESH_SECRET: 'b'.repeat(32) }); const itadClient = { lookupTitle: jest.fn().mockResolvedValue({ outcome: 'matched', game: { id: 'itad-party', title: 'Party Game' } }), bestOffer: jest.fn().mockResolvedValue(null) }; const app = createApp(config, { itadClient }); const password = 'correct-horse-battery-staple';
+const config = loadEnvironment({ NODE_ENV: 'test', MONGO_URI: 'mongodb://127.0.0.1:27017/gsplay_test', JWT_ACCESS_SECRET: 'a'.repeat(32), JWT_REFRESH_SECRET: 'b'.repeat(32) }); const itadClient = { lookupTitle: jest.fn().mockResolvedValue({ outcome: 'matched', game: { id: 'itad-party', title: 'Party Game' } }), bestOffer: jest.fn().mockResolvedValue({ shop: 'Deal Shop', url: 'https://isthereanydeal.com/game/party/deal', price: 7.49, currency: 'EUR', regularPrice: 24.99, discountPercent: 70 }) }; const app = createApp(config, { itadClient }); const password = 'correct-horse-battery-staple';
 async function user(username, role = 'member') { return User.create({ usernameNormalized: username.toLowerCase(), usernameDisplay: username, role, passwordHash: await User.hashPassword(password) }); }
 async function agentFor(member) { const agent = request.agent(app); await agent.post('/api/v2/auth/login').send({ username: member.usernameDisplay, password }).expect(200); return agent; }
 function rotationPayload(canonicalGameId) { return { canonicalGameId, displayTitle: 'Party Game - PartyGame.exe', info: 'Join the lobby.', playerCountMin: 2, playerCountMax: 8, playerCountLabel: '2–8 pals', joinInstructions: 'Join the lobby.', hostMode: 'host_runs', acquisitionKind: 'owned_store', acquisitionUrl: '', availabilityNote: '' }; }
@@ -18,20 +18,26 @@ describe('Casual Friday core workflow', () => {
     expect(await Audit.countDocuments({ rotationGameId: created.body.rotation.id })).toBe(2);
   });
   test('enforces draft/publication lifecycle and optimistic playlist edits', async () => {
-    const helper = await user('PlaylistHelper', 'helper'); const agent = await agentFor(helper); const games = await Promise.all([...Array(5)].map((_, index) => Game.create({ canonicalTitle: `Game ${index}`, normalizedTitle: `game${index}` }))); const rotations = [];
+    const helper = await user('PlaylistHelper', 'helper'); const agent = await agentFor(helper); const games = await Promise.all([...Array(7)].map((_, index) => Game.create({ canonicalTitle: `Game ${index}`, normalizedTitle: `game${index}` }))); const rotations = [];
     for (const game of games) rotations.push((await agent.post('/api/v2/casual-friday/tools/rotation/from-catalogue').send({ ...rotationPayload(game._id.toString()), displayTitle: game.canonicalTitle }).expect(201)).body.rotation);
     const draft = (await agent.post(`/api/v2/casual-friday/tools/playlist/entries/${rotations[0].id}`).expect(200)).body.playlist;
     const second = (await agent.post(`/api/v2/casual-friday/tools/playlist/entries/${rotations[1].id}`).expect(200)).body.playlist;
     const third = (await agent.post(`/api/v2/casual-friday/tools/playlist/entries/${rotations[2].id}`).expect(200)).body.playlist;
     await agent.delete(`/api/v2/casual-friday/tools/playlist/${draft.id}/entries/${second.entries[0].id}`).send({ version: draft.version }).expect(409);
     const removed = (await agent.delete(`/api/v2/casual-friday/tools/playlist/${draft.id}/entries/${second.entries[1].id}`).send({ version: third.version }).expect(200)).body.playlist;
-    expect(removed.entries.map((entry) => entry.position)).toEqual([1, 2]); expect(removed.entries.map((entry) => entry.game.title)).toEqual(['Game 0', 'Game 2']);
+    expect(removed.entries.map((entry) => entry.position)).toEqual([1, 2]); expect(removed.entries.map((entry) => entry.game.title)).toEqual(['Game 0', 'Game 2']); expect(removed.entries[0].itad.offer).toMatchObject({ price: 7.49, regularPrice: 24.99, discountPercent: 70 });
     expect(await Audit.countDocuments({ playlistId: draft.id, kind: 'playlist_entry_removed' })).toBe(1);
     const restored = (await agent.post(`/api/v2/casual-friday/tools/playlist/entries/${rotations[1].id}`).expect(200)).body.playlist;
-    await agent.post(`/api/v2/casual-friday/tools/playlist/${draft.id}/confirm`).send({ version: restored.version }).expect(400);
-    let filled = restored; for (const rotation of rotations.slice(3, 4)) filled = (await agent.post(`/api/v2/casual-friday/tools/playlist/entries/${rotation.id}`).expect(200)).body.playlist;
+    let filled = restored; for (const rotation of rotations.slice(3)) filled = (await agent.post(`/api/v2/casual-friday/tools/playlist/entries/${rotation.id}`).expect(200)).body.playlist;
+    expect(filled.entries).toHaveLength(7);
+    const reversedIds = [...filled.entries].reverse().map((entry) => entry.id);
+    await agent.put(`/api/v2/casual-friday/tools/playlist/${draft.id}/order`).send({ version: restored.version, entryIds: reversedIds }).expect(409);
+    const reordered = (await agent.put(`/api/v2/casual-friday/tools/playlist/${draft.id}/order`).send({ version: filled.version, entryIds: reversedIds }).expect(200)).body.playlist;
+    expect(reordered.entries.map((entry) => entry.game.title)).toEqual(['Game 6', 'Game 5', 'Game 4', 'Game 3', 'Game 1', 'Game 2', 'Game 0']);
+    expect(reordered.entries.map((entry) => entry.position)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(await Audit.countDocuments({ playlistId: draft.id, kind: 'playlist_reordered' })).toBe(1);
     await agent.post(`/api/v2/casual-friday/tools/playlist/${draft.id}/confirm`).send({ version: draft.version }).expect(409);
-    const published = (await agent.post(`/api/v2/casual-friday/tools/playlist/${draft.id}/confirm`).send({ version: filled.version }).expect(200)).body.playlist;
+    const published = (await agent.post(`/api/v2/casual-friday/tools/playlist/${draft.id}/confirm`).send({ version: reordered.version }).expect(200)).body.playlist;
     expect(published).toMatchObject({ status: 'published', entries: expect.arrayContaining([expect.objectContaining({ game: expect.objectContaining({ title: 'Game 0' }) })]) });
     await agent.delete(`/api/v2/casual-friday/tools/playlist/${draft.id}/entries/${published.entries[0].id}`).send({ version: published.version }).expect(409).expect(({ body }) => expect(body.error.code).toBe('playlist_not_editable'));
     expect(await Audit.countDocuments({ playlistId: draft.id })).toBeGreaterThanOrEqual(5);
@@ -42,5 +48,12 @@ describe('Casual Friday core workflow', () => {
     await memberAgent.get('/api/v2/casual-friday').expect(200).expect((response) => expect(response.body.playlist).toBeNull());
     await Playlist.updateOne({ _id: draft.id }, { $set: { status: 'published', endsAt: new Date('2020-01-01') } });
     expect(await completeElapsedPlaylists(new Date('2021-01-01'))).toBe(1); expect(await Playlist.findById(draft.id)).toMatchObject({ status: 'completed' });
+  });
+  test('publishes any non-empty draft, including a one-game lineup', async () => {
+    const helper = await user('SoloPlaylistHelper', 'helper'); const agent = await agentFor(helper); const game = await Game.create({ canonicalTitle: 'One Round Wonder', normalizedTitle: 'one round wonder' });
+    const rotation = (await agent.post('/api/v2/casual-friday/tools/rotation/from-catalogue').send({ ...rotationPayload(game._id.toString()), displayTitle: game.canonicalTitle }).expect(201)).body.rotation;
+    const draft = (await agent.post(`/api/v2/casual-friday/tools/playlist/entries/${rotation.id}`).expect(200)).body.playlist;
+    const published = (await agent.post(`/api/v2/casual-friday/tools/playlist/${draft.id}/confirm`).send({ version: draft.version }).expect(200)).body.playlist;
+    expect(published).toMatchObject({ status: 'published', entries: [expect.objectContaining({ game: expect.objectContaining({ title: 'One Round Wonder' }) })] });
   });
 });

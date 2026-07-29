@@ -86,3 +86,26 @@ test('an admin can queue explicit IGDB catalogue maintenance actions', async ({ 
   await page.getByRole('button', { name: 'Queue missing or pending IGDB metadata' }).click();
   await expect(page.getByText('IGDB recovery scan queued.')).toBeVisible();
 });
+
+test('Casual Friday tools show responsive reorderable cards, ownership, and direct ITAD offers', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('Nome utente').fill('E2E Admin');
+  await page.getByLabel('Password').fill('correct-horse-battery-staple');
+  await page.getByRole('button', { name: 'Entra' }).click();
+  await expect(page.getByRole('button', { name: 'Esci' })).toBeVisible();
+  await page.goto('/casual-friday/tools');
+  await expect(page.getByRole('heading', { name: 'Weekly playlist' })).toBeVisible();
+  await expect(page.getByText('2 selected')).toBeVisible();
+  const aqua = page.getByRole('article').filter({ hasText: 'Aqua Quest' });
+  const budget = page.getByRole('article').filter({ hasText: 'Budget Brawlers' });
+  await expect(aqua.getByText(/Owned · steam/i)).toBeVisible();
+  await expect(budget.getByText('Not in your library')).toBeVisible();
+  await expect(budget.getByRole('link', { name: /Buy at E2E Games/i })).toHaveAttribute('href', 'https://isthereanydeal.com/game/budget-brawlers/deal');
+  await expect(budget.getByText('-70%')).toBeVisible();
+  const cards = page.getByRole('article');
+  const secondTitle = (await cards.nth(1).textContent()).includes('Budget Brawlers') ? 'Budget Brawlers' : 'Aqua Quest';
+  await cards.nth(1).getByRole('button', { name: `Move ${secondTitle} up` }).click();
+  await expect(page.getByText('Playlist order saved.')).toBeVisible();
+  await expect(cards.first()).toContainText(secondTitle);
+  await expectNoHorizontalOverflow(page);
+});
