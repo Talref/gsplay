@@ -12,7 +12,7 @@ describe('Casual Friday core workflow', () => {
     const created = await helperAgent.post('/api/v2/casual-friday/tools/rotation/from-catalogue').send(rotationPayload(game._id.toString())).expect(201);
     expect(created.body.rotation).toMatchObject({ displayTitle: 'Party Game', itad: { status: 'verified', gameId: 'itad-party' } }); expect(cleanDisplayTitle('Party Animals - PartyAnimals.exe')).toBe('Party Animals');
     await helperAgent.post('/api/v2/casual-friday/tools/rotation/from-catalogue').send(rotationPayload(game._id.toString())).expect(409);
-    await helperAgent.post(`/api/v2/casual-friday/tools/rotation/${created.body.rotation.id}/retire`).send({ reason: 'Needs patching' }).expect(204);
+    await Game.updateOne({ _id: game._id }, { $set: { canonicalTitle: 'Recovered title' } }); await helperAgent.post(`/api/v2/casual-friday/tools/rotation/${created.body.rotation.id}/retire`).send({ reason: 'Needs patching' }).expect(204);
     const rotation = await helperAgent.get('/api/v2/casual-friday/tools/rotation').expect(200); expect(rotation.body.rotation[0]).toMatchObject({ status: 'retired' });
     expect(await Audit.countDocuments({ rotationGameId: created.body.rotation.id })).toBe(2);
   });

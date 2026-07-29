@@ -11,7 +11,7 @@ import { adminApi } from './services/api';
 import { useAuth } from './context/useAuth';
 import { useLoad } from './hooks/useLoad';
 
-const links = [['Casa', '/', <HomeOutlinedIcon color="primary" />], ['Libbreria', '/library', <GamesOutlinedIcon color="primary" />], ['Confronta', '/compare', <CompareArrowsOutlinedIcon color="primary" />], ['Catalogo', '/catalogue', <TravelExploreOutlinedIcon color="primary" />], ['Retroclub', '/retro', <SportsEsportsOutlinedIcon color="primary" />]];
+const links = [['Home', '/', <HomeOutlinedIcon color="primary" />], ['Libreria', '/library', <GamesOutlinedIcon color="primary" />], ['Confronta', '/compare', <CompareArrowsOutlinedIcon color="primary" />], ['Catalogo', '/catalogue', <TravelExploreOutlinedIcon color="primary" />], ['Retroclub', '/retro', <SportsEsportsOutlinedIcon color="primary" />]];
 const Home = lazy(() => import('./pages/Home'));
 const Library = lazy(() => import('./pages/Library'));
 const Compare = lazy(() => import('./pages/Compare'));
