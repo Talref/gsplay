@@ -21,11 +21,19 @@ describe('Casual Friday core workflow', () => {
     const helper = await user('PlaylistHelper', 'helper'); const agent = await agentFor(helper); const games = await Promise.all([...Array(5)].map((_, index) => Game.create({ canonicalTitle: `Game ${index}`, normalizedTitle: `game${index}` }))); const rotations = [];
     for (const game of games) rotations.push((await agent.post('/api/v2/casual-friday/tools/rotation/from-catalogue').send({ ...rotationPayload(game._id.toString()), displayTitle: game.canonicalTitle }).expect(201)).body.rotation);
     const draft = (await agent.post(`/api/v2/casual-friday/tools/playlist/entries/${rotations[0].id}`).expect(200)).body.playlist;
-    await agent.post(`/api/v2/casual-friday/tools/playlist/${draft.id}/confirm`).send({ version: draft.version }).expect(400);
-    let filled = draft; for (const rotation of rotations.slice(1, 4)) filled = (await agent.post(`/api/v2/casual-friday/tools/playlist/entries/${rotation.id}`).expect(200)).body.playlist;
+    const second = (await agent.post(`/api/v2/casual-friday/tools/playlist/entries/${rotations[1].id}`).expect(200)).body.playlist;
+    const third = (await agent.post(`/api/v2/casual-friday/tools/playlist/entries/${rotations[2].id}`).expect(200)).body.playlist;
+    await agent.delete(`/api/v2/casual-friday/tools/playlist/${draft.id}/entries/${second.entries[0].id}`).send({ version: draft.version }).expect(409);
+    const removed = (await agent.delete(`/api/v2/casual-friday/tools/playlist/${draft.id}/entries/${second.entries[1].id}`).send({ version: third.version }).expect(200)).body.playlist;
+    expect(removed.entries.map((entry) => entry.position)).toEqual([1, 2]); expect(removed.entries.map((entry) => entry.game.title)).toEqual(['Game 0', 'Game 2']);
+    expect(await Audit.countDocuments({ playlistId: draft.id, kind: 'playlist_entry_removed' })).toBe(1);
+    const restored = (await agent.post(`/api/v2/casual-friday/tools/playlist/entries/${rotations[1].id}`).expect(200)).body.playlist;
+    await agent.post(`/api/v2/casual-friday/tools/playlist/${draft.id}/confirm`).send({ version: restored.version }).expect(400);
+    let filled = restored; for (const rotation of rotations.slice(3, 4)) filled = (await agent.post(`/api/v2/casual-friday/tools/playlist/entries/${rotation.id}`).expect(200)).body.playlist;
     await agent.post(`/api/v2/casual-friday/tools/playlist/${draft.id}/confirm`).send({ version: draft.version }).expect(409);
     const published = (await agent.post(`/api/v2/casual-friday/tools/playlist/${draft.id}/confirm`).send({ version: filled.version }).expect(200)).body.playlist;
     expect(published).toMatchObject({ status: 'published', entries: expect.arrayContaining([expect.objectContaining({ game: expect.objectContaining({ title: 'Game 0' }) })]) });
+    await agent.delete(`/api/v2/casual-friday/tools/playlist/${draft.id}/entries/${published.entries[0].id}`).send({ version: published.version }).expect(409).expect(({ body }) => expect(body.error.code).toBe('playlist_not_editable'));
     expect(await Audit.countDocuments({ playlistId: draft.id })).toBeGreaterThanOrEqual(5);
   });
   test('only exposes active playlist to members and automatically completes elapsed playlists', async () => {
