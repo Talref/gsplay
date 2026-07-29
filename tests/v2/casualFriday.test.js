@@ -14,6 +14,7 @@ describe('Casual Friday core workflow', () => {
     await helperAgent.post('/api/v2/casual-friday/tools/rotation/from-catalogue').send(rotationPayload(game._id.toString())).expect(409);
     await Game.updateOne({ _id: game._id }, { $set: { canonicalTitle: 'Recovered title' } }); await helperAgent.post(`/api/v2/casual-friday/tools/rotation/${created.body.rotation.id}/retire`).send({ reason: 'Needs patching' }).expect(204);
     const rotation = await helperAgent.get('/api/v2/casual-friday/tools/rotation').expect(200); expect(rotation.body.rotation[0]).toMatchObject({ status: 'retired' });
+    await helperAgent.post('/api/v2/casual-friday/tools/rotation/from-catalogue').send(rotationPayload(game._id.toString())).expect(201);
     expect(await Audit.countDocuments({ rotationGameId: created.body.rotation.id })).toBe(2);
   });
   test('enforces draft/publication lifecycle and optimistic playlist edits', async () => {

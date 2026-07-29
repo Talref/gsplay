@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const casualFridayRotationGameSchema = new mongoose.Schema({
-  canonicalGameId: { type: mongoose.Schema.Types.ObjectId, ref: 'CanonicalGameV2', required: true, unique: true, index: true },
+  canonicalGameId: { type: mongoose.Schema.Types.ObjectId, ref: 'CanonicalGameV2', required: true, index: true },
   displayTitle: { type: String, required: true, trim: true, maxlength: 512 }, artworkOverride: { type: String, trim: true, maxlength: 2048 }, info: { type: String, trim: true, maxlength: 4000 },
   status: { type: String, enum: ['active', 'retired'], default: 'active', required: true, index: true },
   playerCountMin: { type: Number, required: true, min: 1, max: 999 },
@@ -18,4 +18,5 @@ const casualFridayRotationGameSchema = new mongoose.Schema({
   retiredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'UserV2', default: null }, retiredAt: Date, retirementReason: { type: String, trim: true, maxlength: 1000 }
 }, { timestamps: true, collection: 'casual_friday_rotation_games_v2' });
 casualFridayRotationGameSchema.pre('validate', function validate(next) { if (this.playerCountMax < this.playerCountMin) this.invalidate('playerCountMax', 'must be at least playerCountMin'); if (['free', 'web', 'external_store'].includes(this.acquisitionKind) && !/^https:\/\//.test(this.acquisitionUrl || '')) this.invalidate('acquisitionUrl', 'is required for externally acquired games and must use HTTPS'); next(); });
+casualFridayRotationGameSchema.index({ canonicalGameId: 1 }, { unique: true, partialFilterExpression: { status: 'active' }, name: 'active_rotation_canonical_game_unique' });
 module.exports = mongoose.models.CasualFridayRotationGameV2 || mongoose.model('CasualFridayRotationGameV2', casualFridayRotationGameSchema);
