@@ -8,7 +8,7 @@ const catalogueReassignmentSchema = new mongoose.Schema({
   providerTitles: [{ type: String, trim: true, maxlength: 512 }],
   activeEntitlementCount: { type: Number, required: true, min: 0 },
   affectedUserCount: { type: Number, required: true, min: 0 },
-  reassignedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'UserV2', required: true },
+  reassignedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'UserV2', default: null },
   reason: { type: String, required: true, trim: true, maxlength: 1000 }
 }, { timestamps: true, collection: 'catalogue_reassignments_v2' });
 

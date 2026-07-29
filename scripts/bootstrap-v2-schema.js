@@ -10,7 +10,8 @@ const models = [
   require('../src/v2/models/RefreshSession'),
   require('../src/v2/models/RetroChallenge'),
   require('../src/v2/models/CanonicalGameMerge'),
-  require('../src/v2/models/CatalogueReassignment')
+  require('../src/v2/models/CatalogueReassignment'),
+  require('../src/v2/models/AdminUserAction')
 ];
 
 async function bootstrap() {

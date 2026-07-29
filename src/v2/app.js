@@ -7,6 +7,7 @@ const { createAuthRouter } = require('./routes/authRoutes');
 const { createLibraryRouter } = require('./routes/libraryRoutes');
 const { createCatalogueRouter } = require('./routes/catalogueRoutes');
 const { createRetroRouter } = require('./routes/retroRoutes');
+const { createAdminUserRouter } = require('./routes/adminUserRoutes');
 const { errorHandler, notFoundHandler } = require('./http/errors');
 const { requestContext } = require('./http/requestContext');
 
@@ -23,6 +24,7 @@ function createApp(config, dependencies = {}) {
   app.use('/api/v2', createLibraryRouter(config));
   app.use('/api/v2', createCatalogueRouter(config, dependencies));
   app.use('/api/v2', createRetroRouter(config, dependencies));
+  app.use('/api/v2', createAdminUserRouter(config));
   app.use('/api/v2/me', require('./http/auth').requireAuth(config), (req, res) => res.json({ user: req.user.toPublic() }));
   app.use(notFoundHandler); app.use(errorHandler);
   return app;

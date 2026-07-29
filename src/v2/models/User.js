@@ -17,7 +17,7 @@ const userSchema = new mongoose.Schema({
   usernameNormalized: { type: String, required: true, unique: true, index: true, trim: true, lowercase: true },
   usernameDisplay: { type: String, required: true, trim: true, minlength: 3, maxlength: 32 },
   passwordHash: { type: String, required: true, select: false },
-  role: { type: String, enum: ['member', 'admin'], default: 'member', required: true, index: true },
+  role: { type: String, enum: ['member', 'helper', 'admin'], default: 'member', required: true, index: true },
   steamAccount: providerAccountSchema,
   retroAchievements: retroAchievementsSchema
 }, { timestamps: true, collection: 'users_v2' });
