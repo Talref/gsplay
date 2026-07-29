@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { normalizeTitle } = require('../services/titleNormalization');
 
 class ItadProviderError extends Error {
   constructor(message, { retryable = false, status, code } = {}) { super(message); this.name = 'ItadProviderError'; this.provider = 'itad'; this.retryable = retryable; this.status = status; this.code = code; }
@@ -15,12 +16,12 @@ function createItadClient({ apiKey, http = axios.create({ baseURL: 'https://api.
     async lookupTitle(title) {
       configured();
       try {
-        // ITAD Service Lookup v1 returns stable ITAD game identities. We only
-        // accept an explicit found game; title fallback is deliberately never OK.
-        const { data } = await http.post('/service/lookup/v1', [{ title, type: 'game' }], { params: { key: apiKey } });
-        const row = Array.isArray(data) ? data[0] : data?.[0]; const game = row?.game || row?.found?.game;
-        if (!game?.id || !game?.title) return { outcome: 'not_found' };
-        return { outcome: 'matched', game: { id: String(game.id), title: String(game.title) } };
+        const { data } = await http.get('/games/search/v1', { params: { key: apiKey, title, results: 20 } });
+        const normalized = normalizeTitle(title);
+        const exact = (Array.isArray(data) ? data : []).filter((game) => game?.type === 'game' && game?.id && game?.title && normalizeTitle(game.title) === normalized);
+        if (!exact.length) return { outcome: 'not_found' };
+        if (new Set(exact.map((game) => String(game.id))).size > 1) return { outcome: 'ambiguous' };
+        return { outcome: 'matched', game: { id: String(exact[0].id), title: String(exact[0].title) } };
       } catch (error) { if (error instanceof ItadProviderError) throw error; throw providerError(error); }
     },
     async bestOffer(gameId) {
