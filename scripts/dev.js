@@ -11,6 +11,7 @@ const processes = [
 const reset = '\x1b[0m';
 const children = new Map();
 let stopping = false;
+let exitCode = 0;
 
 function writePrefixed(name, color, chunk, stream) {
   const prefix = `${color}[${name}]${reset} `;
@@ -18,23 +19,28 @@ function writePrefixed(name, color, chunk, stream) {
   stream.write(text.split(/(?<=\n)/).filter(Boolean).map((line) => `${prefix}${line}`).join(''));
 }
 
-function stopAll(exitCode = 0) {
+function terminate(child, signal) {
+  if (child.exitCode !== null || child.signalCode) return;
+  try {
+    if (process.platform === 'win32') child.kill(signal);
+    else process.kill(-child.pid, signal);
+  } catch (error) {
+    if (error.code !== 'ESRCH') console.error(`[dev] Could not send ${signal} to ${child.pid}: ${error.message}`);
+  }
+}
+
+function finishWhenStopped() {
+  if ([...children.values()].every((child) => child.exitCode !== null || child.signalCode)) process.exit(exitCode);
+}
+
+function stopAll(code = 0) {
   if (stopping) return;
   stopping = true;
-  for (const child of children.values()) {
-    if (!child.killed) {
-      if (process.platform === 'win32') child.kill('SIGTERM');
-      else process.kill(-child.pid, 'SIGTERM');
-    }
-  }
+  exitCode = code;
+  for (const child of children.values()) terminate(child, 'SIGTERM');
   setTimeout(() => {
-    for (const child of children.values()) {
-      if (!child.killed) {
-        if (process.platform === 'win32') child.kill('SIGKILL');
-        else process.kill(-child.pid, 'SIGKILL');
-      }
-    }
-    process.exit(exitCode);
+    for (const child of children.values()) terminate(child, 'SIGKILL');
+    setTimeout(() => process.exit(exitCode), 250).unref();
   }, 5_000).unref();
 }
 
@@ -49,6 +55,7 @@ for (const processDefinition of processes) {
       console.error(`[dev] ${processDefinition.name} exited unexpectedly (${signal || code}); stopping the development stack.`);
       stopAll(code || 1);
     }
+    finishWhenStopped();
   });
 }
 

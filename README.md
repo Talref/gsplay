@@ -21,7 +21,7 @@ npm run bootstrap
 npm run dev
 ```
 
-`npm run dev` starts the v2 API, durable worker, and Vite frontend together. Output is prefixed with `[api]`, `[worker]`, or `[web]`; press `Ctrl+C` once to stop the entire stack cleanly. The API and worker restart when `src/v2` JavaScript changes, while Vite provides frontend HMR.
+`npm run dev` starts the v2 API, durable worker, and Vite frontend together. Output is prefixed with `[api]`, `[worker]`, or `[web]`; press `Ctrl+C` once to stop the entire stack cleanly. The API and worker restart when `src/v2` JavaScript changes, while Vite provides frontend HMR. The runner uses the expected `http://localhost:5173`; if Vite reports another port, stop old development stacks before continuing.
 
 The frontend opens on `http://localhost:5173` and proxies `/api` to the v2 API at `http://localhost:3000`.
 

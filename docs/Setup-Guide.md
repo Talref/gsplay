@@ -20,7 +20,7 @@ npm run bootstrap
 npm run dev
 ```
 
-The single development command starts the API, durable worker, and frontend together. Use `Ctrl+C` to terminate all three processes. For an individual process, use `npm run dev:api`, `npm run dev:worker`, or `npm run dev:frontend`.
+The single development command starts the API, durable worker, and frontend together. Use `Ctrl+C` to terminate all three processes. For an individual process, use `npm run dev:api`, `npm run dev:worker`, or `npm run dev:frontend`. Vite should start on port 5173; if it chooses another port, older development processes are still running and should be stopped first.
 
 The API listens on `127.0.0.1:3000` by default and the Vite frontend on `127.0.0.1:5173`.
 
