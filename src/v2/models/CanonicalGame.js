@@ -33,7 +33,7 @@ const canonicalGameSchema = new mongoose.Schema({
   videos: [{ type: String, trim: true }],
   companies: [{ type: String, trim: true }],
   igdbUrl: String,
-  origin: { type: String, enum: ['provider_discovery', 'manual_catalogue'], default: 'provider_discovery', required: true, index: true },
+  origin: { type: String, enum: ['provider_discovery', 'manual_catalogue', 'casual_friday'], default: 'provider_discovery', required: true, index: true },
   storeAvailability: { type: String, enum: ['store', 'independent'], default: 'store', required: true },
   metadataCandidates: { type: [candidateSchema], default: undefined },
   metadataReviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'UserV2' },

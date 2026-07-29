@@ -26,7 +26,7 @@ function createApp(config, dependencies = {}) {
   app.use('/api/v2', createCatalogueRouter(config, dependencies));
   app.use('/api/v2', createRetroRouter(config, dependencies));
   app.use('/api/v2', createAdminUserRouter(config));
-  app.use('/api/v2', createCasualFridayRouter(config));
+  app.use('/api/v2', createCasualFridayRouter(config, dependencies));
   app.use('/api/v2/me', require('./http/auth').requireAuth(config), (req, res) => res.json({ user: req.user.toPublic() }));
   app.use(notFoundHandler); app.use(errorHandler);
   return app;

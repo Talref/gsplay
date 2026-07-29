@@ -81,7 +81,8 @@ function loadEnvironment(environment = process.env) {
       steamApiKey: environment.STEAM_API_KEY || null,
        igdbClientId: environment.IGDB_CLIENT_ID || environment.TW_CLIENT_ID || environment.TW_CLIENTID || null,
        igdbClientSecret: environment.IGDB_CLIENT_SECRET || environment.TW_CLIENT_SECRET || environment.TW_CLIENTSECRET || null,
-      retroAchievementsUsername: environment.RETROACHIEVEMENT_USERNAME || null,
+       itadApiKey: environment.ITAD_API_KEY || null,
+       retroAchievementsUsername: environment.RETROACHIEVEMENT_USERNAME || null,
       retroAchievementsApiKey: environment.RETROACHIEVEMENT_API_KEY || null
     }
   };
