@@ -1,6 +1,9 @@
 * { box-sizing: border-box; }
 html, body, #root { min-height: 100%; margin: 0; }
-.pixel-label { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .68rem; letter-spacing: .08em; }
+@font-face { font-family: RetroGaming8Bit; src: url('/8bit.ttf') format('truetype'); font-style: normal; font-weight: 400; font-display: swap; }
+.pixel-label { font-family: RetroGaming8Bit, ui-monospace, monospace; font-size: .68rem; font-weight: 400; letter-spacing: .08em; }
+.casual-friday-form { max-width: 980px; }
+.casual-friday-form .MuiFormControl-root { min-width: 0; }
 .game-card { height: 100%; overflow: hidden; transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease; }
 .game-card.game-card--cover { position: relative; isolation: isolate; border: 1px solid #0a1529; background-color: #0a1529; background-clip: padding-box; background-position: center; background-repeat: no-repeat; background-size: cover; }
 .game-card--cover::before { position: absolute; z-index: 0; inset: 0; content: ''; border-radius: inherit; background: linear-gradient(105deg, rgba(10,21,41,.94), rgba(10,21,41,.86)); pointer-events: none; }
@@ -32,4 +35,5 @@ html, body, #root { min-height: 100%; margin: 0; }
 .game-detail-owners { position: sticky; top: 84px; }
 .game-detail-owner { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 9px; border: 1px solid rgba(127,255,212,.2); border-radius: 8px; background: rgba(21,66,113,.22); }
 @media (max-width: 1199px) { .game-detail-owners { position: static; } }
+@media (max-width: 599px) { .casual-friday-tabs .MuiTab-root { min-width: 0; padding-inline: 10px; font-size: .78rem; } }
 @media (prefers-reduced-motion: reduce) { .game-card { transition: none; } .game-card--interactive:hover, .game-card--interactive:focus-visible { transform: none; } }

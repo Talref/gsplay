@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { Autocomplete, CircularProgress, TextField } from '@mui/material';
 import { catalogueApi } from '../services/api';
 
+const executableAlias = /(?:^|\s[-–—·]\s).*\.(?:exe|app|bat|cmd|sh)$/i;
+const cleanTitle = (value) => String(value || '').replace(/\s[-–—]\s[^\s]+\.(?:exe|app|bat|cmd|sh)$/i, '').trim();
+
 /**
  * Server-backed canonical-game preview. It intentionally waits for three
  * characters so catalogue administration does not repeatedly load broad pages.
@@ -23,11 +26,11 @@ export default function CatalogueGameSearch({ label = 'Search catalogue', onSele
     options={options}
     loading={loading}
     filterOptions={(rows) => rows}
-    getOptionLabel={(game) => game.title}
+    getOptionLabel={(game) => cleanTitle(game.title)}
     noOptionsText={input.trim().length < 3 ? 'Type at least 3 characters to preview matches.' : error || 'No canonical games found.'}
     onChange={(_, game) => { if (game) onSelect(game); }}
     onInputChange={(_, value, reason) => { if (reason !== 'reset') setInput(value); }}
-    renderOption={(props, game) => <li {...props} key={game.id}>{game.title}{game.alternativeTitles?.length ? ` · ${game.alternativeTitles.slice(0, 2).join(', ')}` : ''}</li>}
+    renderOption={(props, game) => { const aliases = (game.alternativeTitles || []).filter((title) => !executableAlias.test(title)).slice(0, 2); return <li {...props} key={game.id}>{cleanTitle(game.title)}{aliases.length ? ` · ${aliases.join(', ')}` : ''}</li>; }}
     renderInput={(params) => <TextField {...params} label={label} helperText="Type 3+ characters. Use ↑/↓ and Enter to choose a server result." InputProps={{ ...params.InputProps, endAdornment: <>{loading ? <CircularProgress color="inherit" size={18} /> : null}{params.InputProps.endAdornment}</> }} />}
   />;
 }
