@@ -77,17 +77,18 @@ describe('Casual Friday core workflow', () => {
     expect(await Audit.countDocuments({ playlistId: draft.id, kind: 'playlist_restored' })).toBe(1);
     expect(await Audit.countDocuments({ playlistId: draft.id })).toBeGreaterThanOrEqual(5);
   });
-  test('only exposes active playlist to members and automatically completes elapsed playlists', async () => {
+  test('exposes a published playlist before kickoff and automatically completes elapsed playlists', async () => {
     const helper = await user('FinalHelper', 'helper'); const member = await user('Viewer'); const helperAgent = await agentFor(helper); const memberAgent = await agentFor(member); const rotation = (await helperAgent.post('/api/v2/casual-friday/tools/rotation/manual').send({ ...rotationPayload(undefined), title: 'Gartic Phone', displayTitle: 'Gartic Phone', acquisitionKind: 'web', acquisitionUrl: 'https://garticphone.com' }).expect(201)).body.rotation;
     const draft = (await helperAgent.post(`/api/v2/casual-friday/tools/playlist/entries/${rotation.id}`).expect(200)).body.playlist;
     expect(itadClient.lookupTitle).not.toHaveBeenCalled();
     await memberAgent.get('/api/v2/casual-friday').expect(200).expect((response) => expect(response.body.playlist).toBeNull());
-    await Playlist.updateOne({ _id: draft.id }, { $set: { status: 'published', startsAt: new Date(Date.now() - 60_000), endsAt: new Date(Date.now() + 60_000) } });
+    await Playlist.updateOne({ _id: draft.id }, { $set: { status: 'published', startsAt: new Date(Date.now() + 60_000), endsAt: new Date(Date.now() + 120_000) } });
     await memberAgent.get('/api/v2/casual-friday').expect(200).expect(({ body }) => expect(body.playlist.entries[0]).toMatchObject({
       free: true, owned: false, itad: { status: 'not_required', offer: null },
       rotation: { acquisitionKind: 'web', acquisitionUrl: 'https://garticphone.com', info: 'Join the lobby.' }
     }));
     await Playlist.updateOne({ _id: draft.id }, { $set: { status: 'published', endsAt: new Date('2020-01-01') } });
+    await memberAgent.get('/api/v2/casual-friday').expect(200).expect(({ body }) => expect(body.playlist).toBeNull());
     expect(await completeElapsedPlaylists(new Date('2021-01-01'))).toBe(1); expect(await Playlist.findById(draft.id)).toMatchObject({ status: 'completed' });
   });
   test('publishes any non-empty draft, including a one-game lineup', async () => {
