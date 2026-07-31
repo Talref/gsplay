@@ -14,8 +14,12 @@ function providerError(error) {
 
 function cheapestOffer(item) {
   const deals = Array.isArray(item?.deals) ? item.deals : [];
+  const steamPreference = (deal) => /^steam$/i.test(deal?.shop?.name || '') ? 0 : 1;
   const deal = deals.filter((candidate) => candidate?.shop?.name && candidate?.url)
-    .sort((a, b) => (a.price?.amount ?? Infinity) - (b.price?.amount ?? Infinity))[0];
+    .sort((a, b) => {
+      const priceDifference = (a.price?.amount ?? Infinity) - (b.price?.amount ?? Infinity);
+      return priceDifference || steamPreference(a) - steamPreference(b);
+    })[0];
   return deal ? {
     shop: deal.shop.name,
     url: deal.url,

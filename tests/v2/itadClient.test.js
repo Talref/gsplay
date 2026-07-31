@@ -46,6 +46,20 @@ describe('ITAD client', () => {
     expect(http.post).toHaveBeenCalledWith('/games/prices/v3', ['party'], { params: { key: 'secret' } });
   });
 
+  test('prefers Steam only when another store has the same lowest price', async () => {
+    const equalHttp = { post: jest.fn().mockResolvedValue({ data: [{ deals: [
+      { shop: { name: 'Xbox Store' }, url: 'https://itad.link/xbox', price: { amount: 7.49, currency: 'EUR' } },
+      { shop: { name: 'Steam' }, url: 'https://itad.link/steam', price: { amount: 7.49, currency: 'EUR' } }
+    ] }] }) };
+    await expect(createItadClient({ apiKey: 'secret', http: equalHttp }).bestOffer('party')).resolves.toMatchObject({ shop: 'Steam', url: 'https://itad.link/steam' });
+
+    const cheaperHttp = { post: jest.fn().mockResolvedValue({ data: [{ deals: [
+      { shop: { name: 'Steam' }, url: 'https://itad.link/steam', price: { amount: 7.49, currency: 'EUR' } },
+      { shop: { name: 'Xbox Store' }, url: 'https://itad.link/xbox', price: { amount: 7.48, currency: 'EUR' } }
+    ] }] }) };
+    await expect(createItadClient({ apiKey: 'secret', http: cheaperHttp }).bestOffer('party')).resolves.toMatchObject({ shop: 'Xbox Store', url: 'https://itad.link/xbox' });
+  });
+
   test('loads and correlates best offers for a batch of game IDs in one request', async () => {
     const http = { post: jest.fn().mockResolvedValue({ data: [
       { id: 'second', deals: [{ shop: { name: 'Shop B' }, url: 'https://itad.link/second', price: { amount: 4.99, currency: 'EUR' } }] },
