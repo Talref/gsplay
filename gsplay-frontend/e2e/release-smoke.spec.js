@@ -87,7 +87,7 @@ test('an admin can queue explicit IGDB catalogue maintenance actions', async ({ 
   await expect(page.getByText('IGDB recovery scan queued.')).toBeVisible();
 });
 
-test('Casual Friday tools show responsive reorderable cards, ownership, and direct ITAD offers', async ({ page }) => {
+test('Casual Friday tools show responsive reorderable cards and cached ITAD offers', async ({ page }) => {
   await page.goto('/login');
   await page.getByLabel('Nome utente').fill('E2E Admin');
   await page.getByLabel('Password').fill('correct-horse-battery-staple');
@@ -96,16 +96,38 @@ test('Casual Friday tools show responsive reorderable cards, ownership, and dire
   await page.goto('/casual-friday/tools');
   await expect(page.getByRole('heading', { name: 'Weekly playlist' })).toBeVisible();
   await expect(page.getByText('2 selected')).toBeVisible();
+  await expect(page.getByRole('link', { name: /Buy at E2E Games for €11\.99/i })).toHaveCount(2);
   const aqua = page.getByRole('article').filter({ hasText: 'Aqua Quest' });
   const budget = page.getByRole('article').filter({ hasText: 'Budget Brawlers' });
-  await expect(aqua.getByText(/Owned · steam/i)).toBeVisible();
-  await expect(budget.getByText('Not in your library')).toBeVisible();
-  await expect(budget.getByRole('link', { name: /Buy at E2E Games/i })).toHaveAttribute('href', 'https://isthereanydeal.com/game/budget-brawlers/deal');
-  await expect(budget.getByText('-70%')).toBeVisible();
+  await expect(aqua.getByText(/Owned · steam/i)).toHaveCount(0);
+  await expect(aqua.getByRole('link', { name: /Buy at E2E Games for/i })).toHaveAttribute('href', 'https://isthereanydeal.com/game/aqua-quest/deal');
+  await aqua.getByRole('button', { name: 'Player info' }).click();
+  await expect(page.getByRole('dialog', { name: 'Aqua Quest' })).toContainText('Join the host lobby from your friends list.');
+  await page.getByRole('button', { name: 'Close' }).click();
+  await expect(budget.getByText('Not in your library')).toHaveCount(0);
+  await expect(budget.getByRole('link', { name: /Buy at E2E Games for/i })).toHaveAttribute('href', 'https://isthereanydeal.com/game/budget-brawlers/deal');
+  await page.getByRole('button', { name: 'Edit' }).first().click();
+  const editDialog = page.getByRole('dialog', { name: 'Edit rotation game' });
+  await editDialog.getByLabel('Info for players').fill('Updated helper-facing rotation information.');
+  await editDialog.getByRole('button', { name: 'Save' }).click();
+  await expect(editDialog).not.toBeVisible();
+  await expect(page.getByText(/was updated\.$/)).toBeVisible();
   const cards = page.getByRole('article');
   const secondTitle = (await cards.nth(1).textContent()).includes('Budget Brawlers') ? 'Budget Brawlers' : 'Aqua Quest';
   await cards.nth(1).getByRole('button', { name: `Move ${secondTitle} up` }).click();
   await expect(page.getByText('Playlist order saved.')).toBeVisible();
   await expect(cards.first()).toContainText(secondTitle);
+  const publishButton = page.getByRole('button', { name: 'Publish playlist' });
+  if (await publishButton.isVisible()) {
+    page.once('dialog', (dialog) => dialog.accept());
+    await publishButton.click();
+  }
+  await expect(page.getByRole('button', { name: 'Cancel event' })).toBeVisible();
+  await page.getByRole('button', { name: 'Cancel event' }).click();
+  const cancelDialog = page.getByRole('dialog', { name: 'Cancel this week’s event?' });
+  await expect(cancelDialog).toContainText('restore it as a draft');
+  await cancelDialog.getByLabel('Cancellation reason').fill('E2E cancellation');
+  await cancelDialog.getByRole('button', { name: 'Keep event' }).click();
+  await expect(cancelDialog).not.toBeVisible();
   await expectNoHorizontalOverflow(page);
 });

@@ -6,6 +6,12 @@ describe('v2 environment configuration', () => {
     const config = loadEnvironment(valid);
     expect(config.port).toBe(3000);
     expect(config.auth.cookieSecure).toBe(false);
+    expect(config.itad.priceRefreshMs).toBe(3600000);
+  });
+
+  test('validates the ITAD rotation price refresh interval', () => {
+    expect(() => loadEnvironment({ ...valid, ITAD_PRICE_REFRESH_MS: '30000' })).toThrow('ITAD_PRICE_REFRESH_MS');
+    expect(loadEnvironment({ ...valid, ITAD_PRICE_REFRESH_MS: '7200000' }).itad.priceRefreshMs).toBe(7200000);
   });
 
   test('validates bounded authentication rate-limit configuration', () => {

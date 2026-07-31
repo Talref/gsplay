@@ -20,6 +20,17 @@ describe('ITAD client', () => {
     await expect(client.lookupTitle('Party Animals')).resolves.toEqual({ outcome: 'ambiguous' });
   });
 
+  test('accepts one recognized edition of a base title without matching unrelated products', async () => {
+    const http = { get: jest.fn().mockResolvedValue({ data: [
+      { id: 'complete', title: 'You Suck at Parking Complete Edition', type: 'game' },
+      { id: 'soundtrack', title: 'You Suck at Parking Soundtrack', type: null },
+      { id: 'pack', title: 'You Suck at Parking - 4 Pack', type: null }
+    ] }) };
+    await expect(createItadClient({ apiKey: 'secret', http }).lookupTitle('You Suck at Parking')).resolves.toEqual({
+      outcome: 'matched', game: { id: 'complete', title: 'You Suck at Parking Complete Edition' }
+    });
+  });
+
   test('classifies upstream failures without exposing the API key', async () => {
     const http = { get: jest.fn().mockRejectedValue(Object.assign(new Error('Request failed'), { response: { status: 503 } })) };
     await expect(createItadClient({ apiKey: 'secret', http }).lookupTitle('Party Animals')).rejects.toMatchObject({ name: 'ItadProviderError', status: 503, retryable: true });
@@ -33,5 +44,17 @@ describe('ITAD client', () => {
     ] }] }) };
     await expect(createItadClient({ apiKey: 'secret', http }).bestOffer('party')).resolves.toMatchObject({ shop: 'Best Shop', url: 'https://isthereanydeal.com/game/party/deal-two', price: 7.49, currency: 'EUR', regularPrice: 24.99, discountPercent: 70 });
     expect(http.post).toHaveBeenCalledWith('/games/prices/v3', ['party'], { params: { key: 'secret' } });
+  });
+
+  test('loads and correlates best offers for a batch of game IDs in one request', async () => {
+    const http = { post: jest.fn().mockResolvedValue({ data: [
+      { id: 'second', deals: [{ shop: { name: 'Shop B' }, url: 'https://itad.link/second', price: { amount: 4.99, currency: 'EUR' } }] },
+      { id: 'first', deals: [{ shop: { name: 'Shop A' }, url: 'https://itad.link/first', price: { amount: 8.99, currency: 'EUR' } }] }
+    ] }) };
+    const offers = await createItadClient({ apiKey: 'secret', http }).bestOffers(['first', 'second']);
+    expect(offers.get('first')).toMatchObject({ shop: 'Shop A', price: 8.99 });
+    expect(offers.get('second')).toMatchObject({ shop: 'Shop B', price: 4.99 });
+    expect(http.post).toHaveBeenCalledTimes(1);
+    expect(http.post).toHaveBeenCalledWith('/games/prices/v3', ['first', 'second'], { params: { key: 'secret' } });
   });
 });

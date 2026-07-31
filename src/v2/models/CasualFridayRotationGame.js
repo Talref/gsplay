@@ -13,6 +13,17 @@ const casualFridayRotationGameSchema = new mongoose.Schema({
   acquisitionUrl: { type: String, trim: true, maxlength: 2048 },
   availabilityNote: { type: String, trim: true, maxlength: 1000 },
   itadGameId: { type: String, trim: true, maxlength: 256, index: true }, itadStatus: { type: String, enum: ['pending', 'verified', 'ambiguous', 'not_found', 'error', 'not_required'], default: 'pending', required: true, index: true }, itadCheckedAt: Date, itadError: { type: String, maxlength: 1000 }, itadTitle: { type: String, maxlength: 512 },
+  itadOffer: {
+    type: new mongoose.Schema({
+      shop: { type: String, required: true, maxlength: 256 },
+      url: { type: String, required: true, maxlength: 2048 },
+      price: Number, currency: { type: String, maxlength: 8 },
+      regularPrice: Number, discountPercent: Number, retrievedAt: { type: Date, required: true }
+    }, { _id: false }),
+    default: null
+  },
+  itadOfferCheckedAt: Date,
+  itadOfferError: { type: String, maxlength: 1000 },
   addedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'UserV2', required: true },
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'UserV2', required: true },
   retiredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'UserV2', default: null }, retiredAt: Date, retirementReason: { type: String, trim: true, maxlength: 1000 }

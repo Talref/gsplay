@@ -5,7 +5,8 @@ const { claimNextJob, completeJob, createWorkerId, deferJob, retryJob } = requir
 const { createJobHandlers } = require('./jobs/handlers');
 const { createIgdbGate, reconcileIgdbMetadata } = require('./jobs/igdbScheduler');
 const CanonicalGame = require('./models/CanonicalGame');
-const { completeElapsedPlaylists } = require('./services/casualFridayService');
+const { createItadClient } = require('./providers/itadClient');
+const { completeElapsedPlaylists, refreshRotationOffers } = require('./services/casualFridayService');
 
 async function startWorker({ pollMs = 1_000 } = {}) {
   const config = loadEnvironment();
@@ -13,6 +14,7 @@ async function startWorker({ pollMs = 1_000 } = {}) {
   await connectDatabase(config);
   const workerId = createWorkerId();
   const igdbGate = createIgdbGate(config.igdb);
+  const itadClient = createItadClient({ apiKey: config.providers.itadApiKey });
   const handlers = createJobHandlers(config, { igdbGate });
   let stopping = false;
   let draining = false;
@@ -66,8 +68,13 @@ async function startWorker({ pollMs = 1_000 } = {}) {
   const timer = setInterval(tick, pollMs);
   const maintenance = () => Promise.all([reconcileIgdbMetadata({ config, log: console }), completeElapsedPlaylists().then((count) => count && console.info(`🎲 Casual Friday completed ${count} elapsed playlist${count === 1 ? '' : 's'}`))]).catch((error) => console.error('worker maintenance failed', error));
   const maintenanceTimer = setInterval(maintenance, config.igdb.maintenanceMs);
+  const priceMaintenance = () => refreshRotationOffers({ itadClient })
+    .then(({ checked, offers, batches }) => console.info(`💸 ITAD prices refreshed: ${checked} rotation games, ${offers} offers, ${batches} batches`))
+    .catch((error) => console.error('ITAD price refresh failed', error));
+  const priceTimer = setInterval(priceMaintenance, config.itad.priceRefreshMs);
+  await priceMaintenance();
   await tick();
-  const shutdown = async () => { stopping = true; clearInterval(timer); clearInterval(maintenanceTimer); await disconnectDatabase(); };
+  const shutdown = async () => { stopping = true; clearInterval(timer); clearInterval(maintenanceTimer); clearInterval(priceTimer); await disconnectDatabase(); };
   process.once('SIGINT', shutdown); process.once('SIGTERM', shutdown);
   return { workerId, shutdown };
 }

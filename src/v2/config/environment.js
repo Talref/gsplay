@@ -59,6 +59,9 @@ function loadEnvironment(environment = process.env) {
     logLevel: environment.LOG_LEVEL || 'info',
     workerEnabled: asBoolean(environment.ENABLE_WORKER, true),
     uploadMaxBytes: asInteger(environment.UPLOAD_MAX_BYTES, 10 * 1024 * 1024, 'UPLOAD_MAX_BYTES', 1024, 25 * 1024 * 1024),
+    itad: {
+      priceRefreshMs: asInteger(environment.ITAD_PRICE_REFRESH_MS, 60 * 60 * 1000, 'ITAD_PRICE_REFRESH_MS', 60_000, 24 * 60 * 60 * 1000)
+    },
     igdb: {
       minIntervalMs: asInteger(environment.IGDB_MIN_INTERVAL_MS, 500, 'IGDB_MIN_INTERVAL_MS', 250, 60_000),
       cooldownMs: asInteger(environment.IGDB_COOLDOWN_MS, 60_000, 'IGDB_COOLDOWN_MS', 1_000, 60 * 60 * 1000),
