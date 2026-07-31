@@ -27,11 +27,11 @@ function GameCard({ entry }) {
   return <Card component="article" sx={{ overflow: 'hidden', bgcolor: 'rgba(10,21,41,.78)' }}>
     <CardContent sx={{ display: 'grid', gridTemplateColumns: { xs: '88px minmax(0,1fr)', sm: '132px minmax(0,1fr)' }, gap: { xs: 1.5, sm: 2.5 }, p: { xs: 1.5, sm: 2.5 }, '&:last-child': { pb: { xs: 1.5, sm: 2.5 } } }}>
       <Box sx={{ position: 'relative' }}><Box component="img" src={rotation.artwork || entry.game.artwork || '/placeholder-game.jpg'} alt={`Copertina di ${title}`} sx={{ display: 'block', width: '100%', aspectRatio: '3 / 4', objectFit: 'cover', borderRadius: 1.5, bgcolor: 'background.default' }} /><Chip size="small" color="primary" label={`#${entry.position}`} sx={{ position: 'absolute', top: 6, left: 6, fontWeight: 800, boxShadow: 2 }} /></Box>
-      <Stack spacing={1.25} sx={{ minWidth: 0 }}>
-        <Typography variant="h5" sx={{ overflowWrap: 'anywhere' }}>{title}</Typography>
+      <Stack spacing={1.25} sx={{ minWidth: 0, overflow: 'hidden' }}>
+        <Typography variant="h5" title={title} sx={{ overflow: 'hidden', overflowWrap: 'anywhere', display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2 }}>{title}</Typography>
         <Stack direction="row" flexWrap="wrap" gap={.75}><Chip size="small" icon={<Groups2RoundedIcon />} label={rotation.playerCountLabel || `${rotation.playerCountMin}–${rotation.playerCountMax} giocatori`} /><Chip size="small" variant="outlined" icon={<SportsEsportsRoundedIcon />} label={modeLabel(rotation.hostMode)} /><Access entry={entry} /></Stack>
-        <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>{rotation.info || entry.game.summary || 'Le istruzioni stanno ancora a arrivà. Portate pazienza e un cacciavite.'}</Typography>
-        {rotation.joinInstructions && <Typography><Box component="span" fontWeight={800} color="primary.main">Come s’entra: </Box>{rotation.joinInstructions}</Typography>}
+        <Typography color="text.secondary" title={rotation.info || entry.game.summary || ''} sx={{ whiteSpace: 'pre-line', overflow: 'hidden', overflowWrap: 'anywhere', display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 3 }}>{rotation.info || entry.game.summary || 'Le istruzioni stanno ancora a arrivà. Portate pazienza e un cacciavite.'}</Typography>
+        {rotation.joinInstructions && <Typography title={rotation.joinInstructions} sx={{ overflow: 'hidden', overflowWrap: 'anywhere', display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2 }}><Box component="span" fontWeight={800} color="primary.main">Come s’entra: </Box>{rotation.joinInstructions}</Typography>}
         {rotation.availabilityNote && <Alert severity="info" sx={{ py: 0 }}>{rotation.availabilityNote}</Alert>}
         {directUrl && <Button component="a" href={directUrl} target="_blank" rel="noopener noreferrer" variant="outlined" size="small" endIcon={<OpenInNewRoundedIcon />} sx={{ alignSelf: 'flex-start' }}>Pijalo / gioca</Button>}
       </Stack>
