@@ -47,8 +47,12 @@ sudo install -d -m 0755 "$DESTINATION"
 sudo rsync -a --delete --exclude '.env' "$STAGE/" "$DESTINATION/"
 sudo systemctl restart "$API_SERVICE" "$WORKER_SERVICE"
 
+echo '▶ Waiting for API and worker readiness'
 for attempt in {1..20}; do
-  if curl --fail --silent --show-error http://127.0.0.1:3000/health/live >/dev/null && curl --fail --silent --show-error http://127.0.0.1:3000/health/ready >/dev/null; then
+  if curl --fail --silent --max-time 2 http://127.0.0.1:3000/health/live >/dev/null \
+    && curl --fail --silent --max-time 2 http://127.0.0.1:3000/health/ready >/dev/null \
+    && systemctl is-active --quiet "$API_SERVICE" \
+    && systemctl is-active --quiet "$WORKER_SERVICE"; then
     echo "✅ GSPlay deployed and ready from $revision"
     exit 0
   fi
