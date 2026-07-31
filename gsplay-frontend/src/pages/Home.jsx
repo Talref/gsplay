@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Box, Button, Card, CardContent, CircularProgress, Grid, List, ListItem, ListItemText, Stack, Typography } from '@mui/material';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { useAuth } from '../context/useAuth';
 import { communityApi } from '../services/api';
 import { useLoad } from '../hooks/useLoad';

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Alert, Button, Card, CardContent, Dialog, DialogActions, DialogContent, DialogTitle, List, ListItemButton, ListItemText, Stack, TextField, Typography } from '@mui/material';
-import { Navigate } from 'react-router-dom';
+import { Navigate } from 'react-router';
 import { adminApi } from '../services/api';
 import { useAuth } from '../context/useAuth';
 

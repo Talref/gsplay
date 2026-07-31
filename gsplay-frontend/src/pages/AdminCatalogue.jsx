@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Button, Card, CardContent, CircularProgress, Divider, Snackbar, Stack, TextField, Typography } from '@mui/material';
-import { Navigate } from 'react-router-dom';
+import { Navigate } from 'react-router';
 import { adminApi } from '../services/api';
 import { useAuth } from '../context/useAuth';
 import CatalogueGameSearch from '../components/CatalogueGameSearch';

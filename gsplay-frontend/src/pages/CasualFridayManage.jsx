@@ -9,7 +9,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import LocalOfferRoundedIcon from '@mui/icons-material/LocalOfferRounded';
 import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded';
 import SportsEsportsRoundedIcon from '@mui/icons-material/SportsEsportsRounded';
-import { Navigate } from 'react-router-dom';
+import { Navigate } from 'react-router';
 import CatalogueGameSearch from '../components/CatalogueGameSearch';
 import { catalogueApi, casualFridayApi } from '../services/api';
 import { useAuth } from '../context/useAuth';
