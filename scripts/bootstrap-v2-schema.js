@@ -17,14 +17,17 @@ const models = [
   require('../src/v2/models/CasualFridayPlaylistEntry'),
   require('../src/v2/models/CasualFridayAudit')
 ];
+const ignoreMissingIndex = (error) => {
+  if (!['IndexNotFound', 'NamespaceNotFound'].includes(error.codeName)) throw error;
+};
 
 async function bootstrap() {
   const config = loadEnvironment();
   await connectDatabase(config);
   const aliasIndex = { provider: 1, normalizedProviderTitle: 1, canonicalGameId: 1 };
-  await models.find((model) => model.collection.name === 'game_aliases_v2').collection.dropIndex(aliasIndex).catch((error) => { if (error.codeName !== 'IndexNotFound') throw error; });
+  await models.find((model) => model.collection.name === 'game_aliases_v2').collection.dropIndex(aliasIndex).catch(ignoreMissingIndex);
   const rotationCollection = models.find((model) => model.collection.name === 'casual_friday_rotation_games_v2').collection;
-  await rotationCollection.dropIndex('canonicalGameId_1').catch((error) => { if (error.codeName !== 'IndexNotFound') throw error; });
+  await rotationCollection.dropIndex('canonicalGameId_1').catch(ignoreMissingIndex);
   await Promise.all(models.map((model) => model.createIndexes()));
   console.info(`Created or verified v2 indexes for: ${models.map((model) => model.collection.name).join(', ')}`);
   await disconnectDatabase();
