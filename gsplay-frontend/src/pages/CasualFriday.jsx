@@ -16,7 +16,8 @@ function Access({ entry }) {
   const offer = entry.itad?.status === 'verified' ? entry.itad.offer : null
   const price = money(offer?.price, offer?.currency)
   if (!offer || !price) return <Chip size="small" variant="outlined" label="Da rimedià" />
-  return <Chip component="a" href={offer.url} target="_blank" rel="noopener noreferrer" clickable size="small" color="primary" variant="outlined" icon={<LocalOfferRoundedIcon />} label={`${price} · ${offer.shop}`} aria-label={`Compra ${entry.rotation.displayTitle || entry.game.title} su ${offer.shop} a ${price}`} />
+  const voucher = offer.voucher ? ` · codice ${offer.voucher}` : ''
+  return <Chip component="a" href={offer.url} target="_blank" rel="noopener noreferrer" clickable size="small" color="primary" variant="outlined" icon={<LocalOfferRoundedIcon />} label={`${price} · ${offer.shop}${voucher}`} aria-label={`Compra ${entry.rotation.displayTitle || entry.game.title} su ${offer.shop} a ${price}${offer.voucher ? ` col codice ${offer.voucher}` : ''}`} />
 }
 
 function GameCard({ entry }) {

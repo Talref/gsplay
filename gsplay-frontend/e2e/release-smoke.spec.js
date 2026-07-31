@@ -148,14 +148,14 @@ test('Casual Friday member page shows the running lineup and its inactive placeh
     json: { playlist: running ? { id: 'playlist', entries: [
       { id: 'owned', position: 1, owned: true, free: false, game: { title: 'Già Comprato' }, rotation: rotation('Già Comprato'), itad: { status: 'verified', offer: { shop: 'Steam', url: 'https://example.test/owned', price: 5, currency: 'EUR' } } },
       { id: 'free', position: 2, owned: false, free: true, game: { title: 'A Gratisse' }, rotation: rotation('A Gratisse', 'web', 'https://example.test/free'), itad: { status: 'not_required', offer: null } },
-      { id: 'priced', position: 3, owned: false, free: false, game: { title: 'Da Accattà' }, rotation: rotation('Da Accattà'), itad: { status: 'verified', offer: { shop: 'Steam', url: 'https://example.test/deal', price: 7.49, currency: 'EUR' } } }
+      { id: 'priced', position: 3, owned: false, free: false, game: { title: 'Da Accattà' }, rotation: rotation('Da Accattà'), itad: { status: 'verified', offer: { shop: 'Steam', url: 'https://example.test/deal', price: 7.49, currency: 'EUR', voucher: 'DAJE10' } } }
     ] } : null }
   }));
   await page.goto('/casual-friday');
   await expect(page.getByRole('heading', { name: 'CASUAL FRIDAY' })).toHaveClass(/pixel-label/);
   await expect(page.getByText('Ce l’hai')).toBeVisible();
   await expect(page.getByText('Gratis', { exact: true })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Compra Da Accattà su Steam a 7,49/i })).toHaveAttribute('href', 'https://example.test/deal');
+  await expect(page.getByRole('link', { name: /Compra Da Accattà su Steam a 7,49.*col codice DAJE10/i })).toHaveAttribute('href', 'https://example.test/deal');
   await expect(page.getByRole('article').filter({ hasText: 'Già Comprato' }).getByRole('link')).toHaveCount(0);
   await expect(page.getByText('Come s’entra:', { exact: true }).first()).toBeVisible();
   await expectNoHorizontalOverflow(page);

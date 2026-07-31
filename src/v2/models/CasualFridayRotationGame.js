@@ -18,7 +18,7 @@ const casualFridayRotationGameSchema = new mongoose.Schema({
       shop: { type: String, required: true, maxlength: 256 },
       url: { type: String, required: true, maxlength: 2048 },
       price: Number, currency: { type: String, maxlength: 8 },
-      regularPrice: Number, discountPercent: Number, retrievedAt: { type: Date, required: true }
+      regularPrice: Number, discountPercent: Number, voucher: { type: String, trim: true, maxlength: 256 }, retrievedAt: { type: Date, required: true }
     }, { _id: false }),
     default: null
   },

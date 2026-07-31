@@ -27,11 +27,12 @@ function cheapestOffer(item) {
     currency: deal.price?.currency,
     regularPrice: deal.regular?.amount,
     discountPercent: Number.isFinite(deal.cut) ? deal.cut : undefined,
+    voucher: deal.voucher || undefined,
     retrievedAt: new Date()
   } : null;
 }
 
-function createItadClient({ apiKey, http = axios.create({ baseURL: 'https://api.isthereanydeal.com', timeout: 10_000 }) }) {
+function createItadClient({ apiKey, country = 'IT', http = axios.create({ baseURL: 'https://api.isthereanydeal.com', timeout: 10_000 }) }) {
   function configured() { if (!apiKey) throw new ItadProviderError('ITAD API key is not configured'); }
   return {
     async lookupTitle(title) {
@@ -53,7 +54,7 @@ function createItadClient({ apiKey, http = axios.create({ baseURL: 'https://api.
         throw new ItadProviderError('ITAD price lookup requires 1 to 200 unique game IDs');
       }
       try {
-        const { data } = await http.post('/games/prices/v3', gameIds, { params: { key: apiKey } });
+        const { data } = await http.post('/games/prices/v3', gameIds, { params: { key: apiKey, country, vouchers: true } });
         const rows = Array.isArray(data) ? data : [];
         const byId = new Map(rows.filter((row) => row?.id).map((row) => [String(row.id), row]));
         return new Map(gameIds.map((gameId, index) => [

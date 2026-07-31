@@ -38,7 +38,8 @@ const rotationPayload = (value) => ({
 function OfferChip({ offer }) {
   if (!offer) return null;
   const price = money(offer.price, offer.currency);
-  return <Tooltip title={`Buy at ${offer.shop}${Number.isFinite(offer.discountPercent) && offer.discountPercent > 0 ? ` · ${offer.discountPercent}% off` : ''}`}><Chip component="a" href={offer.url} target="_blank" rel="noopener noreferrer" clickable size="small" color="primary" variant="outlined" icon={<LocalOfferRoundedIcon />} label={price} aria-label={`Buy at ${offer.shop} for ${price}`} /></Tooltip>;
+  const voucher = offer.voucher ? ` · code ${offer.voucher}` : '';
+  return <Tooltip title={`Buy at ${offer.shop}${Number.isFinite(offer.discountPercent) && offer.discountPercent > 0 ? ` · ${offer.discountPercent}% off` : ''}${voucher}`}><Chip component="a" href={offer.url} target="_blank" rel="noopener noreferrer" clickable size="small" color="primary" variant="outlined" icon={<LocalOfferRoundedIcon />} label={`${price}${voucher}`} aria-label={`Buy at ${offer.shop} for ${price}${offer.voucher ? ` with code ${offer.voucher}` : ''}`} /></Tooltip>;
 }
 
 function PlaylistEntryCard({ entry, index, count, editable, dragging, saving, onDragStart, onDragOver, onDrop, onDragEnd, onMove, onRemove, onInfo }) {

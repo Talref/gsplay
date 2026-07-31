@@ -40,10 +40,10 @@ describe('ITAD client', () => {
   test('returns the cheapest direct deal URL with regular price and discount metadata', async () => {
     const http = { post: jest.fn().mockResolvedValue({ data: [{ deals: [
       { shop: { name: 'Expensive Shop' }, url: 'https://isthereanydeal.com/game/party/deal-one', price: { amount: 19.99, currency: 'EUR' }, regular: { amount: 29.99, currency: 'EUR' }, cut: 33 },
-      { shop: { name: 'Best Shop' }, url: 'https://isthereanydeal.com/game/party/deal-two', price: { amount: 7.49, currency: 'EUR' }, regular: { amount: 24.99, currency: 'EUR' }, cut: 70 }
+      { shop: { name: 'Best Shop' }, url: 'https://isthereanydeal.com/game/party/deal-two', price: { amount: 7.49, currency: 'EUR' }, regular: { amount: 24.99, currency: 'EUR' }, cut: 70, voucher: 'PARTY10' }
     ] }] }) };
-    await expect(createItadClient({ apiKey: 'secret', http }).bestOffer('party')).resolves.toMatchObject({ shop: 'Best Shop', url: 'https://isthereanydeal.com/game/party/deal-two', price: 7.49, currency: 'EUR', regularPrice: 24.99, discountPercent: 70 });
-    expect(http.post).toHaveBeenCalledWith('/games/prices/v3', ['party'], { params: { key: 'secret' } });
+    await expect(createItadClient({ apiKey: 'secret', http }).bestOffer('party')).resolves.toMatchObject({ shop: 'Best Shop', url: 'https://isthereanydeal.com/game/party/deal-two', price: 7.49, currency: 'EUR', regularPrice: 24.99, discountPercent: 70, voucher: 'PARTY10' });
+    expect(http.post).toHaveBeenCalledWith('/games/prices/v3', ['party'], { params: { key: 'secret', country: 'IT', vouchers: true } });
   });
 
   test('prefers Steam only when another store has the same lowest price', async () => {
@@ -69,6 +69,6 @@ describe('ITAD client', () => {
     expect(offers.get('first')).toMatchObject({ shop: 'Shop A', price: 8.99 });
     expect(offers.get('second')).toMatchObject({ shop: 'Shop B', price: 4.99 });
     expect(http.post).toHaveBeenCalledTimes(1);
-    expect(http.post).toHaveBeenCalledWith('/games/prices/v3', ['first', 'second'], { params: { key: 'secret' } });
+    expect(http.post).toHaveBeenCalledWith('/games/prices/v3', ['first', 'second'], { params: { key: 'secret', country: 'IT', vouchers: true } });
   });
 });
