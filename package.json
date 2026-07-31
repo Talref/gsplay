@@ -21,6 +21,11 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "allowScripts": {
+    "bcrypt@6.0.0": true,
+    "mongodb-memory-server@10.4.3": true,
+    "unrs-resolver@1.12.2": true
+  },
   "dependencies": {
     "@retroachievements/api": "^2.7.0",
     "axios": "^1.12.2",
