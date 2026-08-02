@@ -63,6 +63,8 @@ git pull --ff-only origin master
 
 `deploy.sh` refuses dirty or out-of-sync source, runs backend tests in an isolated MongoMemoryServer preflight environment and frontend lint/build, prepares dependencies and index checks before publication, installs current systemd unit definitions, publishes to `/srv/gsplay`, restarts both services, and waits for local liveness/readiness.
 
+Successful steps print a concise summary; a failed step prints its captured command output automatically. Use `DEPLOY_VERBOSE=true ./scripts/deploy.sh` to print command output after every validation step.
+
 Check the running release and services:
 
 ```bash
