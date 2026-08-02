@@ -18,6 +18,21 @@ const cleanDisplayTitle = (value) => String(value || '').trim()
 const https = (value, field) => {
   if (!/^https:\/\//.test(value || '')) throw new AppError(400, 'invalid_request', `${field} must be an HTTPS URL`);
 };
+const keyOfferUrl = (value) => {
+  let url;
+  try { url = new URL(value); } catch { throw new AppError(400, 'invalid_request', 'url must be an HTTPS URL'); }
+  if (url.protocol !== 'https:' || !url.hostname || url.username || url.password) {
+    throw new AppError(400, 'invalid_request', 'url must be an HTTPS URL without embedded credentials');
+  }
+  return url.href;
+};
+const keyOfferPrice = (value) => {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0.01 || value > 10000
+    || Math.abs(value - Math.round(value * 100) / 100) > 1e-9) {
+    throw new AppError(400, 'invalid_request', 'price must be between 0.01 and 10000 with at most two decimal places');
+  }
+  return value;
+};
 
 function zonedParts(date, timeZone = EVENT_TIME_ZONE) {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -142,6 +157,13 @@ function itadSnapshot(rotation) {
     offerError: rotation.itadOfferError
   };
 }
+
+const keyOfferDto = (offer) => offer ? {
+  price: offer.price,
+  currency: offer.currency,
+  url: offer.url,
+  updatedAt: offer.updatedAt
+} : null;
 
 async function refreshOneRotationOffer(rotation, itadClient, now = new Date()) {
   if (rotation.itadStatus !== 'verified' || !rotation.itadGameId) return;
@@ -350,12 +372,53 @@ async function buildPlaylistDto(playlist, userId) {
         position: entry.position,
         ...entry.snapshots,
         itad: rotation ? itadSnapshot(rotation) : entry.snapshots.itad,
+        keyOffer: keyOfferDto(entry.keyOffer),
         owned: Boolean(providers.get(String(entry.canonicalGameId))?.length),
         providers: providers.get(String(entry.canonicalGameId)) || [],
         free: ['free', 'web'].includes(entry.snapshots.rotation.acquisitionKind)
       };
     })
   };
+}
+
+async function updateKeyOffer(actor, playlistId, entryId, version, data, { now = new Date() } = {}) {
+  const keyOffer = {
+    price: keyOfferPrice(data.price), currency: 'EUR', url: keyOfferUrl(data.url),
+    updatedAt: now, updatedBy: actor._id
+  };
+  const playlist = await requireEditablePlaylist(playlistId, version, actor, now);
+  const entry = await Entry.findOneAndUpdate(
+    { _id: entryId, playlistId: playlist._id },
+    { $set: { keyOffer } },
+    { new: true, runValidators: true }
+  );
+  if (!entry) {
+    await Playlist.updateOne({ _id: playlist._id, version: playlist.version }, { $inc: { version: -1 } });
+    throw new AppError(404, 'not_found', 'Playlist entry was not found');
+  }
+  await audit(actor, 'playlist_key_offer_updated', {
+    playlistId: playlist._id, rotationGameId: entry.rotationGameId,
+    beforeVersion: version, afterVersion: playlist.version, details: { price: keyOffer.price, currency: keyOffer.currency }
+  });
+  return buildPlaylistDto(playlist, actor._id);
+}
+
+async function removeKeyOffer(actor, playlistId, entryId, version, { now = new Date() } = {}) {
+  const playlist = await requireEditablePlaylist(playlistId, version, actor, now);
+  const entry = await Entry.findOneAndUpdate(
+    { _id: entryId, playlistId: playlist._id, keyOffer: { $exists: true } },
+    { $unset: { keyOffer: 1 } },
+    { new: true }
+  );
+  if (!entry) {
+    await Playlist.updateOne({ _id: playlist._id, version: playlist.version }, { $inc: { version: -1 } });
+    throw new AppError(404, 'not_found', 'Key offer was not found');
+  }
+  await audit(actor, 'playlist_key_offer_removed', {
+    playlistId: playlist._id, rotationGameId: entry.rotationGameId,
+    beforeVersion: version, afterVersion: playlist.version
+  });
+  return buildPlaylistDto(playlist, actor._id);
 }
 
 async function requireEditablePlaylist(playlistId, version, actor, now = new Date()) {
@@ -572,10 +635,12 @@ module.exports = {
   playlistIsEditable,
   publishPlaylist,
   refreshRotationOffers,
+  removeKeyOffer,
   restoreCancelledPlaylist,
   recheckItad,
   removeFromPlaylist,
   reorderPlaylist,
   retireRotation,
+  updateKeyOffer,
   updateRotation
 };

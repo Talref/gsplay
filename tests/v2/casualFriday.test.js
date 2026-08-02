@@ -98,6 +98,27 @@ describe('Casual Friday core workflow', () => {
     const published = (await agent.post(`/api/v2/casual-friday/tools/playlist/${draft.id}/confirm`).send({ version: draft.version }).expect(200)).body.playlist;
     expect(published).toMatchObject({ status: 'published', entries: [expect.objectContaining({ game: expect.objectContaining({ title: 'One Round Wonder' }) })] });
   });
+  test('lets Helpers manage a manual key offer on draft and published playlist entries', async () => {
+    const helper = await user('KeyHelper', 'helper'); const member = await user('KeyViewer'); const helperAgent = await agentFor(helper); const memberAgent = await agentFor(member); const game = await Game.create({ canonicalTitle: 'Human Fall Flat', normalizedTitle: 'human fall flat' });
+    const rotation = (await helperAgent.post('/api/v2/casual-friday/tools/rotation/from-catalogue').send({ ...rotationPayload(game._id.toString()), displayTitle: game.canonicalTitle }).expect(201)).body.rotation;
+    const draft = (await helperAgent.post(`/api/v2/casual-friday/tools/playlist/entries/${rotation.id}`).expect(200)).body.playlist;
+    const path = `/api/v2/casual-friday/tools/playlist/${draft.id}/entries/${draft.entries[0].id}/key-offer`;
+    await memberAgent.put(path).send({ version: draft.version, price: 0.65, url: 'https://www.cdkeyit.it/human-fall-flat/' }).expect(403);
+    await helperAgent.put(path).send({ version: draft.version, price: 0.651, url: 'https://www.cdkeyit.it/human-fall-flat/' }).expect(400);
+    await helperAgent.put(path).send({ version: draft.version, price: 0.65, url: 'http://www.cdkeyit.it/human-fall-flat/' }).expect(400);
+    const keyedDraft = (await helperAgent.put(path).send({ version: draft.version, price: 0.65, url: 'https://www.cdkeyit.it/human-fall-flat/' }).expect(200)).body.playlist;
+    expect(keyedDraft.version).toBe(draft.version + 1);
+    expect(keyedDraft.entries[0].keyOffer).toMatchObject({ price: 0.65, currency: 'EUR', url: 'https://www.cdkeyit.it/human-fall-flat/' });
+    const published = (await helperAgent.post(`/api/v2/casual-friday/tools/playlist/${draft.id}/confirm`).send({ version: keyedDraft.version }).expect(200)).body.playlist;
+    const edited = (await helperAgent.put(path).send({ version: published.version, price: 0.75, url: 'https://www.cdkeyit.it/human-fall-flat/deal/' }).expect(200)).body.playlist;
+    expect(edited).toMatchObject({ status: 'published', editable: true, entries: [expect.objectContaining({ keyOffer: expect.objectContaining({ price: 0.75 }) })] });
+    await memberAgent.get('/api/v2/casual-friday').expect(200).expect(({ body }) => expect(body.playlist.entries[0].keyOffer).toMatchObject({ price: 0.75, currency: 'EUR', url: 'https://www.cdkeyit.it/human-fall-flat/deal/' }));
+    await helperAgent.delete(path).send({ version: published.version }).expect(409);
+    const cleared = (await helperAgent.delete(path).send({ version: edited.version }).expect(200)).body.playlist;
+    expect(cleared.entries[0].keyOffer).toBeNull();
+    expect(await Audit.countDocuments({ playlistId: draft.id, kind: 'playlist_key_offer_updated' })).toBe(2);
+    expect(await Audit.countDocuments({ playlistId: draft.id, kind: 'playlist_key_offer_removed' })).toBe(1);
+  });
   test('builds event boundaries at local Europe/Rome time across DST and keeps Saturday morning on the same event', () => {
     expect(nextFridayWindow(new Date('2026-07-30T12:00:00Z'))).toMatchObject({
       weekKey: '2026-07-31', startsAt: new Date('2026-07-31T17:00:00Z'), endsAt: new Date('2026-08-01T04:00:00Z')
