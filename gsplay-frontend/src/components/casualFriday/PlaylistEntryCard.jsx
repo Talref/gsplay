@@ -57,10 +57,12 @@ export default function PlaylistEntryCard({
       sx={{
         opacity: dragging === entry.id ? 0.55 : 1,
         borderColor: dragging === entry.id ? 'primary.main' : 'divider',
-        bgcolor: 'rgba(10,21,41,.72)',
+        bgcolor: 'rgba(var(--gs-bg-rgb), .72)',
         cursor: editable ? (dragging === entry.id ? 'grabbing' : 'grab') : 'default',
         transition: 'opacity 120ms ease, border-color 120ms ease',
-        '&:hover': { borderColor: editable ? 'rgba(127,255,212,.42)' : 'divider' }
+        '&:hover': {
+          borderColor: editable ? 'rgba(var(--gs-primary-rgb), .42)' : 'divider'
+        }
       }}
     >
       <CardContent

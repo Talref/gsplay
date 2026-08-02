@@ -285,7 +285,9 @@ export default function Catalogue() {
                     height: 42,
                     flexShrink: 0,
                     borderRadius: 1,
-                    background: game.artwork ? `center / cover url("${game.artwork}")` : '#154271'
+                    background: game.artwork
+                      ? `center / cover url("${game.artwork}")`
+                      : 'var(--gs-surface-highlight)'
                   }}
                 />
                 <Box sx={{ minWidth: 0, flexGrow: 1 }}>

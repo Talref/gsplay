@@ -35,7 +35,7 @@ export default function PlaylistPanel({
           p: { xs: 2, sm: 3 },
           pr: { xs: 11, sm: 14 },
           minHeight: { xs: 120, sm: 'auto' },
-          bgcolor: 'rgba(127,255,212,.045)',
+          bgcolor: 'rgba(var(--gs-primary-rgb), .045)',
           borderBottom: 1,
           borderColor: 'divider'
         }}

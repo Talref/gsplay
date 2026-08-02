@@ -35,7 +35,7 @@ export default function Home() {
   return (
     <Stack spacing={4}>
       <Box>
-        <Typography variant="h1" sx={{ color: '#edfdf8' }}>
+        <Typography variant="h1" sx={{ color: 'common.white' }}>
           GIOCATE INSIEME,
           <br />
           CHE DA SOLI VE STUFATE.

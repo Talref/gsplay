@@ -86,7 +86,7 @@ function GameCard({ entry }) {
   const title = rotation.displayTitle || entry.game.title
   const directUrl = entry.free ? rotation.acquisitionUrl : null
   return (
-    <Card component="article" sx={{ overflow: 'hidden', bgcolor: 'rgba(10,21,41,.78)' }}>
+    <Card component="article" sx={{ overflow: 'hidden', bgcolor: 'rgba(var(--gs-bg-rgb), .78)' }}>
       <CardContent
         sx={{
           display: 'grid',

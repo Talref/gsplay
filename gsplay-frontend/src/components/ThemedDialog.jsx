@@ -9,7 +9,10 @@ export default function ThemedDialog({ open, onClose, title, children }) {
       fullWidth
       maxWidth="sm"
       PaperProps={{
-        sx: { boxShadow: '0 0 28px rgba(127,255,212,.24)', borderColor: 'primary.main' }
+        sx: {
+          boxShadow: '0 0 28px rgba(var(--gs-primary-rgb), .24)',
+          borderColor: 'primary.main'
+        }
       }}
     >
       <DialogTitle id="dialogo-tematizzato-titolo" color="primary.main">
