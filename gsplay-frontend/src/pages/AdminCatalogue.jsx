@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Alert, Snackbar, Stack, Typography } from '@mui/material'
 import { Navigate } from 'react-router'
 import { adminApi } from '../services/api'
 import { useAuth } from '../context/useAuth'
+import useInfiniteScroll from '../hooks/useInfiniteScroll'
 import CatalogueCreation from '../components/admin/CatalogueCreation'
 import CatalogueEditor from '../components/admin/CatalogueEditor'
 import MetadataReviewQueue from '../components/admin/MetadataReviewQueue'
@@ -14,7 +15,6 @@ export default function AdminCatalogue() {
   const [reviews, setReviews] = useState([])
   const [reviewPage, setReviewPage] = useState({ number: 0, size: 30, total: 0 })
   const [reviewLoading, setReviewLoading] = useState(true)
-  const reviewSentinel = useRef(null)
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const [manual, setManual] = useState(emptyMetadata)
@@ -55,18 +55,15 @@ export default function AdminCatalogue() {
     loadReviews(1, true)
   }, [loadReviews, version])
   const hasMoreReviews = reviews.length < reviewPage.total
-  useEffect(() => {
-    const target = reviewSentinel.current
-    if (!target || !hasMoreReviews || reviewLoading) return undefined
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) loadReviews(reviewPage.number + 1)
-      },
-      { rootMargin: '280px' }
-    )
-    observer.observe(target)
-    return () => observer.disconnect()
-  }, [hasMoreReviews, loadReviews, reviewLoading, reviewPage.number])
+  const loadMoreReviews = useCallback(
+    () => loadReviews(reviewPage.number + 1),
+    [loadReviews, reviewPage.number]
+  )
+  const reviewSentinel = useInfiniteScroll({
+    hasMore: hasMoreReviews,
+    loading: reviewLoading,
+    onLoadMore: loadMoreReviews
+  })
   const select = (game) => {
     setSelected(game || null)
     setSelectedIgdbUrl('')

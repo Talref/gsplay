@@ -1,24 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import {
-  Alert,
-  Button,
-  Card,
-  CardContent,
-  CircularProgress,
-  Grid,
-  IconButton,
-  MenuItem,
-  Stack,
-  TextField,
-  Tooltip,
-  Typography
-} from '@mui/material'
-import { Link } from 'react-router'
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
+import { useCallback, useEffect, useState } from 'react'
+import { Alert, Stack, Typography } from '@mui/material'
+import LibraryDialogs from '../components/library/LibraryDialogs'
+import LibraryGameGrid from '../components/library/LibraryGameGrid'
+import LibrarySources from '../components/library/LibrarySources'
 import { useAuth } from '../context/useAuth'
+import useInfiniteScroll from '../hooks/useInfiniteScroll'
 import { libraryApi } from '../services/api'
-import ProviderIcons from '../components/ProviderIcons'
-import ThemedDialog from '../components/ThemedDialog'
 
 export default function Library() {
   const { user, refresh } = useAuth()
@@ -35,7 +22,6 @@ export default function Library() {
   const [job, setJob] = useState(null)
   const [help, setHelp] = useState(null)
   const [removeItem, setRemoveItem] = useState(null)
-  const loadMoreRef = useRef(null)
   const loadLibrary = useCallback(
     async (nextPage, replace = false) => {
       setLoading(true)
@@ -116,62 +102,8 @@ export default function Library() {
     </Alert>
   )
   const hasMore = items.length < page.total
-  useEffect(() => {
-    const target = loadMoreRef.current
-    if (!target || !hasMore || loading) return undefined
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) loadLibrary(page.number + 1)
-      },
-      { rootMargin: '280px' }
-    )
-    observer.observe(target)
-    return () => observer.disconnect()
-  }, [hasMore, loading, loadLibrary, page.number])
-  const steamHelp = (
-    <>
-      <Typography>Per Trovare il tuo steamID:</Typography>
-      <ol>
-        <li>Visita il tuo profilo Steam (log in se necessario)</li>
-        <li>Il tuo SteamID sono le ultime 17 cifre dell’URL</li>
-        <li>
-          Se il tuo profilo steam non finisce con lo SteamID visita SteamID.io ed incolla il link
-          del tuo profilo
-        </li>
-        <li>SteamID.io calcolera' il tuo SteamID dal link (quello corretto e' SteamID64).</li>
-        <li>Inserisci il tuo SteamID nel form di questa pagina</li>
-        <li>
-          ATTENZIONE: La tua lista di giochi dev'essere PUBBLICA sul tuo profilo Steam! Altrimenti
-          l'app non puo' leggerla!
-        </li>
-      </ol>
-      <Typography>
-        Non c'e' bisogno di ripetere questa operazione. Se aggiungete nuovi giochi alla vostra
-        libreria basta cliccare su Aggiorna Libreria.
-      </Typography>
-    </>
-  )
-  const importHelp = (
-    <>
-      <ol>
-        <li>Installa Heroic Games Launcher</li>
-        <li>Collega i tuoi account e popola la tua libreria</li>
-        <li>
-          Apri: C:\Users\NOME_UTENTE\AppData\Roaming\heroic\store_cache (Windows) o:
-          ~/.config/heroic/store_cache/ (Linux) (attenzione, i percorsi derivano da test, se avete i
-          file in un altra posizione pingatemi sul server - @eradan)
-        </li>
-        <li>
-          Carica i file rilevanti che finiscono in "library" cliccando su "Importa GOG/Epic"
-          (gog_library.json per GOG, legendary_library.json per Epic e nile_library.json per Amazon
-          Games)
-        </li>
-      </ol>
-      <Typography>
-        Fatto! Ricorda di ricaricare i file ogni tanto se aggiungi nuovi giochi!
-      </Typography>
-    </>
-  )
+  const loadMore = useCallback(() => loadLibrary(page.number + 1), [loadLibrary, page.number])
+  const loadMoreRef = useInfiniteScroll({ hasMore, loading, onLoadMore: loadMore })
   const removeManual = async () => {
     try {
       await libraryApi.removeManualGame(removeItem.canonicalGame.id)
@@ -190,200 +122,38 @@ export default function Library() {
       {libraryError && (
         <Alert severity="error">Aò, la libbreria s’è impicciata: riprova tra poco.</Alert>
       )}
-      <Grid container spacing={2} className="equal-height-grid">
-        <Grid size={{ xs: 12, lg: 6 }}>
-          <Card>
-            <CardContent>
-              <Stack direction="row" alignItems="center">
-                <Typography variant="h6">Collegamento Steam</Typography>
-                <Tooltip title="Come se fa?">
-                  <IconButton
-                    color="primary"
-                    onClick={() => setHelp('steam')}
-                    aria-label="Istruzioni SteamID"
-                  >
-                    <InfoOutlinedIcon />
-                  </IconButton>
-                </Tooltip>
-              </Stack>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mt: 2 }}>
-                {user?.steamAccount?.steamId && !editingSteam ? (
-                  <Typography color="primary" sx={{ flexGrow: 1, alignSelf: 'center' }}>
-                    SteamID a posto, daje.
-                  </Typography>
-                ) : (
-                  <TextField
-                    fullWidth
-                    label="Aggiungi SteamID"
-                    value={steamId}
-                    onChange={(event) => setSteamId(event.target.value)}
-                  />
-                )}
-                <Button
-                  variant="outlined"
-                  disabled={!editingSteam && !steamId && !user?.steamAccount?.steamId}
-                  onClick={() =>
-                    editingSteam || !user?.steamAccount?.steamId
-                      ? run(() => libraryApi.linkSteam(steamId))
-                      : setEditingSteam(true)
-                  }
-                >
-                  {user?.steamAccount?.steamId && !editingSteam ? 'Cambia SteamID' : 'Salva'}
-                </Button>
-                <Button
-                  variant="contained"
-                  disabled={!user?.steamAccount?.steamId}
-                  onClick={() => run(libraryApi.syncSteam)}
-                >
-                  Daje co’ Steam
-                </Button>
-              </Stack>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid size={{ xs: 12, lg: 6 }}>
-          <Card>
-            <CardContent>
-              <Stack direction="row" alignItems="center">
-                <Typography variant="h6">Importa la libbreria</Typography>
-                <Tooltip title="Che file ce vogliono?">
-                  <IconButton
-                    color="primary"
-                    onClick={() => setHelp('import')}
-                    aria-label="Istruzioni importazione"
-                  >
-                    <InfoOutlinedIcon />
-                  </IconButton>
-                </Tooltip>
-              </Stack>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mt: 2 }}>
-                <TextField
-                  select
-                  label="Piattaforma"
-                  value={provider}
-                  onChange={(event) => setProvider(event.target.value)}
-                >
-                  {['gog', 'epic', 'amazon'].map((value) => (
-                    <MenuItem key={value} value={value}>
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <ProviderIcons providers={[value]} /> <span>{value.toUpperCase()}</span>
-                      </Stack>
-                    </MenuItem>
-                  ))}
-                </TextField>
-                <Button component="label" variant="outlined" sx={{ minWidth: 180 }}>
-                  {file?.name || 'Scegli CSV / JSON'}
-                  <input
-                    hidden
-                    type="file"
-                    accept=".csv,.json,text/csv,application/json"
-                    onChange={(event) => setFile(event.target.files?.[0])}
-                  />
-                </Button>
-                <Button
-                  variant="contained"
-                  disabled={!file}
-                  onClick={() => run(() => libraryApi.upload(provider, file))}
-                >
-                  Manda in coda
-                </Button>
-              </Stack>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+      <LibrarySources
+        user={user}
+        steamId={steamId}
+        onSteamIdChange={setSteamId}
+        editingSteam={editingSteam}
+        onEditSteam={() => setEditingSteam(true)}
+        provider={provider}
+        onProviderChange={setProvider}
+        file={file}
+        onFileChange={setFile}
+        onShowHelp={setHelp}
+        onLinkSteam={() => run(() => libraryApi.linkSteam(steamId))}
+        onSyncSteam={() => run(libraryApi.syncSteam)}
+        onUpload={() => run(() => libraryApi.upload(provider, file))}
+      />
       {page.total > 0 && (
         <Typography color="text.secondary">{page.total} giochi. Roba seria, insomma.</Typography>
       )}
-      <Grid container spacing={2}>
-        {items.map((item) => {
-          const title = item.canonicalGame?.title || item.providerTitle
-          const artwork = item.canonicalGame?.artwork
-          const manual = item.providers.includes('manual') && item.providers.length === 1
-          return (
-            <Grid key={item.id} size={{ xs: 12, sm: 6, xl: 4 }}>
-              <Card
-                className={`game-card${artwork ? ' game-card--cover' : ''}`}
-                sx={{
-                  display: 'block',
-                  backgroundImage: artwork ? `url(${JSON.stringify(artwork)})` : undefined
-                }}
-              >
-                <CardContent>
-                  <Stack spacing={1}>
-                    <Stack
-                      direction="row"
-                      justifyContent="space-between"
-                      spacing={1}
-                      alignItems="flex-start"
-                    >
-                      <Typography
-                        component={item.canonicalGame ? Link : 'span'}
-                        to={item.canonicalGame ? `/catalogue/${item.canonicalGame.id}` : undefined}
-                        variant="h6"
-                        className="game-title-clamp"
-                        sx={{ flexGrow: 1, color: 'inherit', textDecoration: 'none' }}
-                      >
-                        {title}
-                      </Typography>
-                      <ProviderIcons providers={item.providers} />
-                    </Stack>
-                    {manual && (
-                      <Button
-                        color="error"
-                        size="small"
-                        onClick={() => setRemoveItem(item)}
-                        sx={{ alignSelf: 'flex-start' }}
-                      >
-                        Rimuovi dalla libbreria
-                      </Button>
-                    )}
-                  </Stack>
-                </CardContent>
-              </Card>
-            </Grid>
-          )
-        })}
-      </Grid>
-      {loading && <CircularProgress aria-label="Caricamento giochi" />}
-      {hasMore && <div ref={loadMoreRef} aria-label="Carica altri giochi" />}
-      {!loading && !items.length && (
-        <Typography color="text.secondary">
-          Qua c’è più vuoto de Trastevere alle sette. Collegati Steam o importa un file.
-        </Typography>
-      )}
-      <ThemedDialog
-        open={help === 'steam'}
-        onClose={() => setHelp(null)}
-        title="Come trovare lo SteamID"
-      >
-        {steamHelp}
-      </ThemedDialog>
-      <ThemedDialog
-        open={help === 'import'}
-        onClose={() => setHelp(null)}
-        title="Come importare giochi da GOG/Epic/Amazon Games"
-      >
-        {importHelp}
-      </ThemedDialog>
-      <ThemedDialog
-        open={Boolean(removeItem)}
-        onClose={() => setRemoveItem(null)}
-        title="Leva dalla libbreria?"
-      >
-        <Stack spacing={2}>
-          <Typography>
-            Rimuoverò solo l’aggiunta manuale di <strong>{removeItem?.canonicalGame?.title}</strong>
-            .
-          </Typography>
-          <Stack direction="row" justifyContent="flex-end" spacing={1}>
-            <Button onClick={() => setRemoveItem(null)}>Annulla</Button>
-            <Button color="error" variant="contained" onClick={removeManual}>
-              Sì, rimuovi
-            </Button>
-          </Stack>
-        </Stack>
-      </ThemedDialog>
+      <LibraryGameGrid
+        items={items}
+        loading={loading}
+        hasMore={hasMore}
+        sentinelRef={loadMoreRef}
+        onRemove={setRemoveItem}
+      />
+      <LibraryDialogs
+        help={help}
+        onCloseHelp={() => setHelp(null)}
+        removeItem={removeItem}
+        onCloseRemove={() => setRemoveItem(null)}
+        onRemove={removeManual}
+      />
     </Stack>
   )
 }
