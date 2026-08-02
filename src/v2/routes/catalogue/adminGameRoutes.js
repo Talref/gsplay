@@ -2,17 +2,21 @@ const mongoose = require('mongoose');
 const CanonicalGame = require('../../models/CanonicalGame');
 const SyncJob = require('../../models/SyncJob');
 const {
-  applyIgdbMetadata,
   archiveCanonicalGame,
   createManualGame,
   mergeCanonicalGames,
   providerIdentitiesForGame,
   reassignProviderGame
 } = require('../../services/catalogueStewardship');
-const { normalizeTitle } = require('../../services/titleNormalization');
 const { requireAuth, requireRole } = require('../../http/auth');
 const { AppError } = require('../../http/errors');
 const { exactKeys, object, string } = require('../../http/validate');
+const {
+  applyEditableMetadata,
+  applyFieldLocks,
+  assertStringList,
+  resolveIgdbMetadata
+} = require('./adminGameMetadata');
 const { escapeRegex, gameDto, igdbSlugFromUrl, pageOf } = require('./common');
 
 function registerAdminGameRoutes(router, config, igdb) {
@@ -59,18 +63,8 @@ function registerAdminGameRoutes(router, config, igdb) {
         platforms: body.platforms,
         releaseDate: body.releaseDate ? new Date(body.releaseDate) : undefined
       };
-      if (
-        metadata.genres !== undefined &&
-        (!Array.isArray(metadata.genres) ||
-          metadata.genres.some((value) => typeof value !== 'string'))
-      )
-        throw new AppError(400, 'invalid_request', 'genres must be a string array');
-      if (
-        metadata.platforms !== undefined &&
-        (!Array.isArray(metadata.platforms) ||
-          metadata.platforms.some((value) => typeof value !== 'string'))
-      )
-        throw new AppError(400, 'invalid_request', 'platforms must be a string array');
+      if (metadata.genres !== undefined) assertStringList(metadata.genres, 'genres');
+      if (metadata.platforms !== undefined) assertStringList(metadata.platforms, 'platforms');
       const game = await createManualGame({
         title: string(body.title, 'title'),
         independent: body.independent !== false,
@@ -131,61 +125,8 @@ function registerAdminGameRoutes(router, config, igdb) {
         ]);
         const game = await CanonicalGame.findOne({ _id: req.params.gameId, mergedIntoId: null });
         if (!game) throw new AppError(404, 'not_found', 'Game was not found');
-        if (body.title !== undefined) {
-          game.canonicalTitle = string(body.title, 'title');
-          game.normalizedTitle = normalizeTitle(game.canonicalTitle);
-        }
-        if (body.summary !== undefined)
-          game.summary = string(body.summary, 'summary', { min: 0, max: 10000 });
-        if (body.artwork !== undefined)
-          game.artwork =
-            body.artwork === null ? undefined : string(body.artwork, 'artwork', { max: 2048 });
-        if (body.genres !== undefined) {
-          if (!Array.isArray(body.genres) || body.genres.some((value) => typeof value !== 'string'))
-            throw new AppError(400, 'invalid_request', 'genres must be a string array');
-          game.genres = body.genres
-            .map((value) => value.trim())
-            .filter(Boolean)
-            .slice(0, 50);
-        }
-        if (body.platforms !== undefined) {
-          if (
-            !Array.isArray(body.platforms) ||
-            body.platforms.some((value) => typeof value !== 'string')
-          )
-            throw new AppError(400, 'invalid_request', 'platforms must be a string array');
-          game.platforms = body.platforms
-            .map((value) => value.trim())
-            .filter(Boolean)
-            .slice(0, 50);
-        }
-        if (body.releaseDate !== undefined) {
-          if (body.releaseDate === null) game.releaseDate = undefined;
-          else {
-            const date = new Date(body.releaseDate);
-            if (Number.isNaN(date.getTime()))
-              throw new AppError(400, 'invalid_request', 'releaseDate must be a valid date');
-            game.releaseDate = date;
-          }
-        }
-        if (body.fieldLocks !== undefined) {
-          if (
-            !Array.isArray(body.fieldLocks) ||
-            body.fieldLocks.some(
-              (field) =>
-                ![
-                  'canonicalTitle',
-                  'summary',
-                  'artwork',
-                  'genres',
-                  'platforms',
-                  'releaseDate'
-                ].includes(field)
-            )
-          )
-            throw new AppError(400, 'invalid_request', 'fieldLocks contains an unsupported field');
-          game.fieldLocks = [...new Set(body.fieldLocks)];
-        }
+        applyEditableMetadata(game, body);
+        applyFieldLocks(game, body.fieldLocks);
         game.metadataReviewedBy = req.user._id;
         game.metadataReviewedAt = new Date();
         await game.save();
@@ -225,21 +166,8 @@ function registerAdminGameRoutes(router, config, igdb) {
         if (!game) throw new AppError(404, 'not_found', 'Game was not found');
         const metadata = await igdb().getGameById(body.igdbId);
         if (!metadata) throw new AppError(404, 'not_found', 'IGDB game was not found');
-        const applied = await applyIgdbMetadata({ game, metadata, reviewedBy: req.user._id });
-        if (applied.duplicate) {
-          const merged = await mergeCanonicalGames({
-            sourceGameId: game._id,
-            targetGameId: applied.duplicate._id,
-            mergedBy: req.user._id,
-            reason: `Verified IGDB identity ${metadata.igdbId} selected during admin metadata review`
-          });
-          return res.json({
-            game: gameDto(merged.target),
-            merged: true,
-            sourceGameId: game._id.toString()
-          });
-        }
-        res.json({ game: gameDto(applied.game), merged: false });
+        const result = await resolveIgdbMetadata({ game, metadata, reviewedBy: req.user._id });
+        res.json({ ...result, game: gameDto(result.game) });
       } catch (error) {
         next(error);
       }
@@ -259,21 +187,8 @@ function registerAdminGameRoutes(router, config, igdb) {
         if (!game) throw new AppError(404, 'not_found', 'Game was not found');
         const metadata = await igdb().getGameBySlug(igdbSlugFromUrl(body.url));
         if (!metadata) throw new AppError(404, 'not_found', 'IGDB game was not found');
-        const applied = await applyIgdbMetadata({ game, metadata, reviewedBy: req.user._id });
-        if (applied.duplicate) {
-          const merged = await mergeCanonicalGames({
-            sourceGameId: game._id,
-            targetGameId: applied.duplicate._id,
-            mergedBy: req.user._id,
-            reason: `Verified IGDB identity ${metadata.igdbId} selected during admin metadata review`
-          });
-          return res.json({
-            game: gameDto(merged.target),
-            merged: true,
-            sourceGameId: game._id.toString()
-          });
-        }
-        res.json({ game: gameDto(applied.game), merged: false });
+        const result = await resolveIgdbMetadata({ game, metadata, reviewedBy: req.user._id });
+        res.json({ ...result, game: gameDto(result.game) });
       } catch (error) {
         next(error);
       }
@@ -295,43 +210,7 @@ function registerAdminGameRoutes(router, config, igdb) {
           archivedAt: null
         });
         if (!game) throw new AppError(404, 'not_found', 'Game was not found');
-        if (body.title !== undefined) {
-          game.canonicalTitle = string(body.title, 'title');
-          game.normalizedTitle = normalizeTitle(game.canonicalTitle);
-        }
-        if (body.summary !== undefined)
-          game.summary = string(body.summary, 'summary', { min: 0, max: 10000 });
-        if (body.artwork !== undefined)
-          game.artwork =
-            body.artwork === null ? undefined : string(body.artwork, 'artwork', { max: 2048 });
-        if (body.genres !== undefined) {
-          if (!Array.isArray(body.genres) || body.genres.some((value) => typeof value !== 'string'))
-            throw new AppError(400, 'invalid_request', 'genres must be a string array');
-          game.genres = body.genres
-            .map((value) => value.trim())
-            .filter(Boolean)
-            .slice(0, 50);
-        }
-        if (body.platforms !== undefined) {
-          if (
-            !Array.isArray(body.platforms) ||
-            body.platforms.some((value) => typeof value !== 'string')
-          )
-            throw new AppError(400, 'invalid_request', 'platforms must be a string array');
-          game.platforms = body.platforms
-            .map((value) => value.trim())
-            .filter(Boolean)
-            .slice(0, 50);
-        }
-        if (body.releaseDate !== undefined) {
-          if (body.releaseDate === null) game.releaseDate = undefined;
-          else {
-            const date = new Date(body.releaseDate);
-            if (Number.isNaN(date.getTime()))
-              throw new AppError(400, 'invalid_request', 'releaseDate must be a valid date');
-            game.releaseDate = date;
-          }
-        }
+        applyEditableMetadata(game, body);
         game.metadataCandidates = undefined;
         game.metadataReviewedBy = req.user._id;
         game.metadataReviewedAt = new Date();
