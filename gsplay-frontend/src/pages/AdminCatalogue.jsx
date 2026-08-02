@@ -1,73 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import {
-  Alert,
-  Button,
-  Card,
-  CardContent,
-  CircularProgress,
-  Divider,
-  Snackbar,
-  Stack,
-  TextField,
-  Typography
-} from '@mui/material'
+import { Alert, Snackbar, Stack, Typography } from '@mui/material'
 import { Navigate } from 'react-router'
 import { adminApi } from '../services/api'
 import { useAuth } from '../context/useAuth'
-import CatalogueGameSearch from '../components/CatalogueGameSearch'
-
-const splitList = (value) =>
-  value
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean)
-const blank = { title: '', summary: '', artwork: '', genres: '', platforms: '', releaseDate: '' }
-
-function MetadataFields({ value, onChange }) {
-  const change = (field) => (event) => onChange({ ...value, [field]: event.target.value })
-  return (
-    <Stack spacing={1.5} sx={{ mt: 2, mb: 2 }}>
-      <TextField
-        required
-        fullWidth
-        label="Game title"
-        value={value.title}
-        onChange={change('title')}
-      />
-      <TextField
-        fullWidth
-        multiline
-        minRows={2}
-        label="Summary"
-        value={value.summary}
-        onChange={change('summary')}
-      />
-      <TextField fullWidth label="Artwork URL" value={value.artwork} onChange={change('artwork')} />
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-        <TextField
-          fullWidth
-          label="Genres (comma-separated)"
-          value={value.genres}
-          onChange={change('genres')}
-        />
-        <TextField
-          fullWidth
-          label="Platforms (comma-separated)"
-          value={value.platforms}
-          onChange={change('platforms')}
-        />
-        <TextField
-          type="date"
-          fullWidth
-          label="Release date"
-          InputLabelProps={{ shrink: true }}
-          value={value.releaseDate}
-          onChange={change('releaseDate')}
-        />
-      </Stack>
-    </Stack>
-  )
-}
+import CatalogueCreation from '../components/admin/CatalogueCreation'
+import CatalogueEditor from '../components/admin/CatalogueEditor'
+import MetadataReviewQueue from '../components/admin/MetadataReviewQueue'
+import { emptyMetadata, metadataPayload } from '../components/admin/metadata'
 
 export default function AdminCatalogue() {
   const { user } = useAuth()
@@ -78,10 +17,10 @@ export default function AdminCatalogue() {
   const reviewSentinel = useRef(null)
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
-  const [manual, setManual] = useState(blank)
+  const [manual, setManual] = useState(emptyMetadata)
   const [igdbUrl, setIgdbUrl] = useState('')
   const [selected, setSelected] = useState(null)
-  const [draft, setDraft] = useState(blank)
+  const [draft, setDraft] = useState(emptyMetadata)
   const [selectedIgdbUrl, setSelectedIgdbUrl] = useState('')
   const [mergeTarget, setMergeTarget] = useState(null)
   const [reason, setReason] = useState('')
@@ -89,7 +28,7 @@ export default function AdminCatalogue() {
   const [selectedIdentity, setSelectedIdentity] = useState(null)
   const [reviewUrls, setReviewUrls] = useState({})
   const [manualReviewId, setManualReviewId] = useState(null)
-  const [manualReview, setManualReview] = useState(blank)
+  const [manualReview, setManualReview] = useState(emptyMetadata)
   const selectedId = selected?.id
   const targetId = mergeTarget?.id
   const refresh = () => setVersion((current) => current + 1)
@@ -145,7 +84,7 @@ export default function AdminCatalogue() {
             platforms: (game.platforms || []).join(', '),
             releaseDate: game.releaseDate ? game.releaseDate.slice(0, 10) : ''
           }
-        : blank
+        : emptyMetadata
     )
   }
   useEffect(() => {
@@ -166,10 +105,7 @@ export default function AdminCatalogue() {
   const save = async () => {
     try {
       const result = await adminApi.updateGame(selectedId, {
-        ...draft,
-        genres: splitList(draft.genres),
-        platforms: splitList(draft.platforms),
-        releaseDate: draft.releaseDate || null
+        ...metadataPayload(draft)
       })
       report(`Successfully updated ${result.game.title}.`)
       refresh()
@@ -180,14 +116,12 @@ export default function AdminCatalogue() {
   const addManual = async () => {
     try {
       const result = await adminApi.createGame({
-        ...manual,
-        genres: splitList(manual.genres),
-        platforms: splitList(manual.platforms),
+        ...metadataPayload(manual),
         releaseDate: manual.releaseDate || undefined,
         independent: true
       })
       report(`${result.game.title} added with the supplied metadata.`)
-      setManual(blank)
+      setManual(emptyMetadata)
       refresh()
     } catch (err) {
       setError(err.message)
@@ -253,10 +187,7 @@ export default function AdminCatalogue() {
   const resolveReviewManual = async (id) => {
     try {
       const result = await adminApi.manualMetadata(id, {
-        ...manualReview,
-        genres: splitList(manualReview.genres),
-        platforms: splitList(manualReview.platforms),
-        releaseDate: manualReview.releaseDate || null
+        ...metadataPayload(manualReview)
       })
       report(`Manual metadata saved for ${result.game.title}.`)
       setManualReviewId(null)
@@ -264,6 +195,19 @@ export default function AdminCatalogue() {
     } catch (err) {
       setError(err.message)
     }
+  }
+  const toggleManualReview = (review) => {
+    const opening = manualReviewId !== review.game.id
+    setManualReviewId(opening ? review.game.id : null)
+    if (!opening) return
+    setManualReview({
+      title: review.game.title,
+      summary: review.game.summary || '',
+      artwork: review.game.artwork || '',
+      genres: (review.game.genres || []).join(', '),
+      platforms: (review.game.platforms || []).join(', '),
+      releaseDate: review.game.releaseDate ? review.game.releaseDate.slice(0, 10) : ''
+    })
   }
   const hide = async (id) => {
     try {
@@ -357,259 +301,56 @@ export default function AdminCatalogue() {
           collapsed provider identities without asking members to do anything.
         </Typography>
         {error && <Alert severity="error">{error}</Alert>}
-        <Card>
-          <CardContent>
-            <Typography variant="h6">Add from IGDB link</Typography>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mt: 2 }}>
-              <TextField
-                fullWidth
-                label="IGDB game URL"
-                placeholder="https://www.igdb.com/games/vintage-story"
-                value={igdbUrl}
-                onChange={(event) => setIgdbUrl(event.target.value)}
-              />
-              <Button variant="contained" disabled={!igdbUrl.trim()} onClick={addIgdb}>
-                Import verified game
-              </Button>
-            </Stack>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
-            <Typography variant="h6">Add manually</Typography>
-            <MetadataFields value={manual} onChange={setManual} />
-            <Button variant="outlined" disabled={!manual.title.trim()} onClick={addManual}>
-              Add independent PC game
-            </Button>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
-            <Typography variant="h6">Find and correct a catalogue game</Typography>
-            <Typography color="text.secondary" sx={{ mt: 1, mb: 2 }}>
-              Searches active and hidden catalogue records on the server. Preview appears after
-              three characters.
-            </Typography>
-            <CatalogueGameSearch
-              label="Search catalogue"
-              onSelect={select}
-              loadGames={adminApi.games}
-            />
-            {selected && (
-              <Stack spacing={2} sx={{ mt: 2 }}>
-                <Typography color="text.secondary">
-                  Editing: {selected.title} · Status: {selected.metadataStatus}
-                  {selected.hidden ? ' · Hidden' : ''}
-                </Typography>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                  <TextField
-                    fullWidth
-                    label="Correct IGDB game URL"
-                    placeholder="https://www.igdb.com/games/correct-game"
-                    value={selectedIgdbUrl}
-                    onChange={(event) => setSelectedIgdbUrl(event.target.value)}
-                    helperText="Pulls verified IGDB metadata into this record. Ownership is unchanged."
-                  />
-                  <Button
-                    variant="outlined"
-                    disabled={!selectedIgdbUrl.trim()}
-                    onClick={attachIgdbUrl}
-                  >
-                    Pull verified metadata
-                  </Button>
-                </Stack>
-                <Button variant="outlined" onClick={refreshSelectedMetadata}>
-                  Refresh this game from IGDB
-                </Button>
-                <Typography variant="caption" color="text.secondary">
-                  Queues a background refresh for this one game. It keeps ownership unchanged and
-                  uses its verified IGDB ID when available.
-                </Typography>
-                <MetadataFields value={draft} onChange={setDraft} />
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                  <Button variant="contained" onClick={save}>
-                    Save changes
-                  </Button>
-                  {selected.hidden ? (
-                    <Button color="success" variant="outlined" onClick={unhide}>
-                      Unhide
-                    </Button>
-                  ) : (
-                    <Button color="warning" variant="outlined" onClick={() => hide(selectedId)}>
-                      Hide from Catalogue
-                    </Button>
-                  )}
-                </Stack>
-                <Divider />
-                <Typography variant="h6">Repair a collapsed provider game</Typography>
-                <Typography color="text.secondary">
-                  Choose the exact provider ID to move. Every current owner moves to the target, and
-                  future syncs follow the correction.
-                </Typography>
-                <Stack direction="row" flexWrap="wrap" gap={1}>
-                  {identities.map((identity) => (
-                    <Button
-                      key={`${identity.provider}:${identity.providerGameId}`}
-                      variant={
-                        selectedIdentity?.provider === identity.provider &&
-                        selectedIdentity?.providerGameId === identity.providerGameId
-                          ? 'contained'
-                          : 'outlined'
-                      }
-                      onClick={() => setSelectedIdentity(identity)}
-                    >
-                      {identity.provider} · {identity.providerGameId} ·{' '}
-                      {identity.providerTitles.join(' / ')} · {identity.affectedUserCount} owners
-                    </Button>
-                  ))}
-                </Stack>
-                {selectedIdentity && (
-                  <>
-                    <CatalogueGameSearch
-                      label="Search correct destination game"
-                      excludeId={selectedId}
-                      onSelect={setMergeTarget}
-                      loadGames={adminApi.games}
-                    />
-                    {mergeTarget && (
-                      <Typography color="text.secondary">
-                        Move {selectedIdentity.provider} {selectedIdentity.providerGameId} to:{' '}
-                        {mergeTarget.title}
-                      </Typography>
-                    )}
-                    <TextField
-                      required
-                      label="Repair reason"
-                      value={reason}
-                      onChange={(event) => setReason(event.target.value)}
-                      helperText="This writes a durable audit record."
-                    />
-                    <Button
-                      color="warning"
-                      variant="contained"
-                      disabled={!targetId || !reason.trim()}
-                      onClick={reassign}
-                    >
-                      Move this provider game for every owner
-                    </Button>
-                  </>
-                )}
-                <Divider />
-                <CatalogueGameSearch
-                  label="Search surviving game to merge into"
-                  excludeId={selectedId}
-                  onSelect={setMergeTarget}
-                  loadGames={adminApi.games}
-                />
-                {mergeTarget && (
-                  <Typography color="text.secondary">Merge target: {mergeTarget.title}</Typography>
-                )}
-                <TextField
-                  label="Merge/archive reason"
-                  value={reason}
-                  onChange={(event) => setReason(event.target.value)}
-                />
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                  <Button variant="outlined" disabled={!targetId} onClick={merge}>
-                    Merge into survivor
-                  </Button>
-                  <Button color="error" variant="outlined" onClick={archive}>
-                    Archive unreferenced game
-                  </Button>
-                </Stack>
-              </Stack>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
-            <Typography variant="h6">IGDB ambiguity review</Typography>
-            <Typography color="text.secondary" sx={{ mt: 1 }}>
-              Every failed, visible catalogue record. Resolve one at a time; only the three
-              strongest suggestions are shown.
-            </Typography>
-            <Divider sx={{ my: 1 }} />
-            {reviews.map((review) => (
-              <Stack
-                key={review.game.id}
-                spacing={1.5}
-                sx={{ py: 2, borderBottom: 1, borderColor: 'divider' }}
-              >
-                <Typography variant="h6">{review.game.title}</Typography>
-                <Typography color="text.secondary">{review.error}</Typography>
-                <Stack direction="row" flexWrap="wrap" gap={1}>
-                  {review.candidates.map((candidate) => (
-                    <Button
-                      key={candidate.igdbId}
-                      variant="outlined"
-                      onClick={() => choose(review.game.id, candidate.igdbId)}
-                    >
-                      Use {candidate.title}
-                    </Button>
-                  ))}
-                </Stack>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                  <TextField
-                    fullWidth
-                    label="IGDB game URL"
-                    placeholder="https://www.igdb.com/games/example"
-                    value={reviewUrls[review.game.id] || ''}
-                    onChange={(event) =>
-                      setReviewUrls({ ...reviewUrls, [review.game.id]: event.target.value })
-                    }
-                  />
-                  <Button
-                    variant="outlined"
-                    disabled={!reviewUrls[review.game.id]?.trim()}
-                    onClick={() => resolveReviewUrl(review.game.id)}
-                  >
-                    Enrich with IGDB Link
-                  </Button>
-                </Stack>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                  <Button
-                    variant="outlined"
-                    onClick={() => {
-                      setManualReviewId(manualReviewId === review.game.id ? null : review.game.id)
-                      setManualReview({
-                        title: review.game.title,
-                        summary: review.game.summary || '',
-                        artwork: review.game.artwork || '',
-                        genres: (review.game.genres || []).join(', '),
-                        platforms: (review.game.platforms || []).join(', '),
-                        releaseDate: review.game.releaseDate
-                          ? review.game.releaseDate.slice(0, 10)
-                          : ''
-                      })
-                    }}
-                  >
-                    Enrich manually
-                  </Button>
-                  <Button color="warning" variant="outlined" onClick={() => hide(review.game.id)}>
-                    Hide from Catalogue
-                  </Button>
-                </Stack>
-                {manualReviewId === review.game.id && (
-                  <>
-                    <MetadataFields value={manualReview} onChange={setManualReview} />
-                    <Button
-                      variant="contained"
-                      disabled={!manualReview.title.trim()}
-                      onClick={() => resolveReviewManual(review.game.id)}
-                    >
-                      Save manual metadata
-                    </Button>
-                  </>
-                )}
-              </Stack>
-            ))}
-            {reviewLoading && <CircularProgress aria-label="Loading failed games" />}
-            {hasMoreReviews && <div ref={reviewSentinel} aria-label="Load more failed games" />}
-            {!reviewLoading && !reviews.length && (
-              <Typography color="text.secondary">No failed visible games await review.</Typography>
-            )}
-          </CardContent>
-        </Card>
+        <CatalogueCreation
+          igdbUrl={igdbUrl}
+          onIgdbUrlChange={setIgdbUrl}
+          onImport={addIgdb}
+          manual={manual}
+          onManualChange={setManual}
+          onAddManual={addManual}
+        />
+        <CatalogueEditor
+          loadGames={adminApi.games}
+          selected={selected}
+          onSelect={select}
+          igdbUrl={selectedIgdbUrl}
+          onIgdbUrlChange={setSelectedIgdbUrl}
+          onAttachIgdb={attachIgdbUrl}
+          onRefreshMetadata={refreshSelectedMetadata}
+          draft={draft}
+          onDraftChange={setDraft}
+          onSave={save}
+          onHide={hide}
+          onUnhide={unhide}
+          identities={identities}
+          selectedIdentity={selectedIdentity}
+          onIdentitySelect={setSelectedIdentity}
+          mergeTarget={mergeTarget}
+          onMergeTargetSelect={setMergeTarget}
+          reason={reason}
+          onReasonChange={setReason}
+          onReassign={reassign}
+          onMerge={merge}
+          onArchive={archive}
+        />
+        <MetadataReviewQueue
+          reviews={reviews}
+          reviewUrls={reviewUrls}
+          onReviewUrlChange={(id, value) =>
+            setReviewUrls((current) => ({ ...current, [id]: value }))
+          }
+          onChooseCandidate={choose}
+          onResolveUrl={resolveReviewUrl}
+          manualReviewId={manualReviewId}
+          manualReview={manualReview}
+          onToggleManual={toggleManualReview}
+          onManualReviewChange={setManualReview}
+          onResolveManual={resolveReviewManual}
+          onHide={hide}
+          loading={reviewLoading}
+          hasMore={hasMoreReviews}
+          sentinelRef={reviewSentinel}
+        />
       </Stack>
       <Snackbar
         open={Boolean(notice)}

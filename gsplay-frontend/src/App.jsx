@@ -1,46 +1,12 @@
-import { lazy, Suspense, useState } from 'react'
-import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from 'react-router'
-import {
-  Alert,
-  AppBar,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  CircularProgress,
-  Container,
-  Divider,
-  Drawer,
-  Grid,
-  IconButton,
-  List,
-  ListItemButton,
-  ListItemText,
-  Stack,
-  TextField,
-  Toolbar,
-  Typography
-} from '@mui/material'
-import MenuIcon from '@mui/icons-material/Menu'
-import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined'
-import GamesOutlinedIcon from '@mui/icons-material/GamesOutlined'
-import CompareArrowsOutlinedIcon from '@mui/icons-material/CompareArrowsOutlined'
-import TravelExploreOutlinedIcon from '@mui/icons-material/TravelExploreOutlined'
-import SportsEsportsOutlinedIcon from '@mui/icons-material/SportsEsportsOutlined'
-import CelebrationOutlinedIcon from '@mui/icons-material/CelebrationOutlined'
-import { adminApi } from './services/api'
-import { useAuth } from './context/useAuth'
-import { useLoad } from './hooks/useLoad'
+import { lazy, Suspense } from 'react'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
+import { Box, CircularProgress } from '@mui/material'
+import AppShell from './components/AppShell'
+import ProtectedRoute from './components/ProtectedRoute'
+import Admin from './pages/Admin'
+import Auth from './pages/Auth'
+import Retro from './pages/Retro'
 
-const links = [
-  ['Home', '/', <HomeOutlinedIcon color="primary" />],
-  ['Libreria', '/library', <GamesOutlinedIcon color="primary" />],
-  ['Confronta', '/compare', <CompareArrowsOutlinedIcon color="primary" />],
-  ['Catalogo', '/catalogue', <TravelExploreOutlinedIcon color="primary" />],
-  ['Casual Friday', '/casual-friday', <CelebrationOutlinedIcon color="primary" />],
-  ['Retroclub', '/retro', <SportsEsportsOutlinedIcon color="primary" />]
-]
 const Home = lazy(() => import('./pages/Home'))
 const Library = lazy(() => import('./pages/Library'))
 const Compare = lazy(() => import('./pages/Compare'))
@@ -50,457 +16,40 @@ const AdminCatalogue = lazy(() => import('./pages/AdminCatalogue'))
 const AdminUsers = lazy(() => import('./pages/AdminUsers'))
 const CasualFriday = lazy(() => import('./pages/CasualFriday'))
 const CasualFridayManage = lazy(() => import('./pages/CasualFridayManage'))
-function ErrorNotice({ value }) {
-  return value ? <Alert severity="error">{value}</Alert> : null
+
+function protectedPage(page) {
+  return <ProtectedRoute>{page}</ProtectedRoute>
 }
-function Shell({ children }) {
-  const { user, loading, logout } = useAuth()
-  const [drawer, setDrawer] = useState(false)
-  const location = useLocation()
-  if (loading)
-    return (
-      <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
-        <CircularProgress />
-      </Box>
-    )
-  const visibleLinks = links.filter(
-    ([, to]) => user || !['/library', '/casual-friday'].includes(to)
-  )
-  const navigation = (
-    <List sx={{ p: 1 }}>
-      {visibleLinks.map(([label, to, icon]) => (
-        <ListItemButton
-          key={to}
-          component={Link}
-          to={to}
-          selected={location.pathname === to}
-          onClick={() => setDrawer(false)}
-        >
-          <Box sx={{ display: 'inline-flex', mr: 1.5 }}>{icon}</Box>
-          <ListItemText primary={label} />
-        </ListItemButton>
-      ))}
-      {user?.role === 'admin' && (
-        <>
-          <ListItemButton component={Link} to="/admin" selected={location.pathname === '/admin'}>
-            <ListItemText primary="Amministrazione" />
-          </ListItemButton>
-          <ListItemButton
-            component={Link}
-            to="/admin/catalogue"
-            selected={location.pathname === '/admin/catalogue'}
-          >
-            <ListItemText primary="Catalogo admin" />
-          </ListItemButton>
-        </>
-      )}
-      {['helper', 'admin'].includes(user?.role) && (
-        <ListItemButton
-          component={Link}
-          to="/casual-friday/tools"
-          selected={location.pathname === '/casual-friday/tools'}
-        >
-          <ListItemText primary="Casual Friday Tools" />
-        </ListItemButton>
-      )}
-    </List>
-  )
-  return (
-    <Box sx={{ minHeight: '100vh' }}>
-      <AppBar
-        position="sticky"
-        color="transparent"
-        elevation={0}
-        sx={{ backdropFilter: 'blur(14px)', borderBottom: 1, borderColor: 'divider' }}
-      >
-        <Toolbar>
-          <IconButton
-            aria-label="Apri navigazione"
-            onClick={() => setDrawer(true)}
-            sx={{ display: { md: 'none' }, mr: 1 }}
-          >
-            <MenuIcon />
-          </IconButton>
-          <Stack
-            component={Link}
-            to="/"
-            direction="row"
-            spacing={1.25}
-            alignItems="center"
-            sx={{ flexGrow: 1, color: 'primary.main', textDecoration: 'none' }}
-          >
-            <Box
-              component="img"
-              src="/gslogo.png"
-              alt="GSplay"
-              sx={{ width: 32, height: 32, objectFit: 'contain' }}
-            />
-            <Typography
-              className="pixel-label"
-              sx={{
-                fontSize: 'clamp(.9rem, 1.7vw, 1.15rem)',
-                fontWeight: 900,
-                color: 'primary.main',
-                letterSpacing: '.11em'
-              }}
-            >
-              GSPLAY
-            </Typography>
-          </Stack>
-          {user ? (
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <Typography sx={{ display: { xs: 'none', sm: 'block' } }}>{user.username}</Typography>
-              <Button color="inherit" onClick={logout}>
-                Esci
-              </Button>
-            </Stack>
-          ) : (
-            <Button component={Link} to="/login" variant="contained">
-              Entra, su
-            </Button>
-          )}
-        </Toolbar>
-      </AppBar>
-      <Drawer open={drawer} onClose={() => setDrawer(false)}>
-        <Box sx={{ pt: 8, width: 240 }}>{navigation}</Box>
-      </Drawer>
-      <Box sx={{ display: 'flex' }}>
-        <Box
-          component="aside"
-          sx={{
-            width: 220,
-            borderRight: 1,
-            borderColor: 'divider',
-            display: { xs: 'none', md: 'block' },
-            minHeight: 'calc(100vh - 65px)'
-          }}
-        >
-          {navigation}
-        </Box>
-        <Container component="main" maxWidth="xl" sx={{ flexGrow: 1, py: { xs: 3, md: 5 } }}>
-          {children}
-        </Container>
-      </Box>
-    </Box>
-  )
-}
-function Protected({ children }) {
-  const { user, loading } = useAuth()
-  return loading ? null : user ? children : <Navigate to="/login" />
-}
-function AuthPage({ signup = false }) {
-  const { user, login, signup: register } = useAuth()
-  const [form, setForm] = useState({ username: '', password: '' })
-  const [error, setError] = useState('')
-  if (user) return <Navigate to="/" />
-  const submit = async (event) => {
-    event.preventDefault()
-    if (signup && form.password.length < 8) {
-      setError('Aò, so’ almeno 8 caratteri: le istruzioni stavano là, mica je serveva er notaio.')
-      return
-    }
-    try {
-      await (signup ? register : login)(form)
-    } catch {
-      setError('Aò, credenziali sbagliate o server imbalsamato.')
-    }
-  }
-  return (
-    <Container maxWidth="sm" sx={{ pt: 12 }}>
-      <Card>
-        <CardContent sx={{ p: 4 }}>
-          <Typography variant="h2">{signup ? 'Fatti riconosce' : 'Rieccote'}</Typography>
-          <Typography color="text.secondary" sx={{ mb: 3 }}>
-            I giochi tuoi, er gruppo tuo, i paesi suoi.
-          </Typography>
-          <Box component="form" onSubmit={submit}>
-            <Stack spacing={2}>
-              <ErrorNotice value={error} />
-              <TextField
-                required
-                label="Nome utente"
-                value={form.username}
-                onChange={(event) => setForm({ ...form, username: event.target.value })}
-              />
-              <TextField
-                required
-                type="password"
-                label="Password"
-                helperText="Almeno 8 caratteri, nun barà"
-                value={form.password}
-                onChange={(event) => setForm({ ...form, password: event.target.value })}
-              />
-              <Button type="submit" variant="contained" size="large">
-                {signup ? 'Crea account' : 'Entra'}
-              </Button>
-              <Button component={Link} to={signup ? '/login' : '/signup'}>
-                {signup ? 'Ce l’hai già? Entra' : 'Sei nuovo? Fatti un account'}
-              </Button>
-            </Stack>
-          </Box>
-        </CardContent>
-      </Card>
-    </Container>
-  )
-}
-function Retro() {
-  return (
-    <Stack
-      spacing={3}
-      sx={{ maxWidth: 760, mx: 'auto', pt: { xs: 3, md: 8 }, textAlign: 'center' }}
-    >
-      <Typography className="pixel-label" color="primary">
-        INSERT COIN, MA NON ANCORA
-      </Typography>
-      <Card>
-        <CardContent sx={{ p: { xs: 3, sm: 6 } }}>
-          <Stack spacing={2.5} alignItems="center">
-            <Typography variant="h1" sx={{ fontSize: 'clamp(2.4rem, 8vw, 5rem)' }}>
-              RETROCLUB
-            </Typography>
-            <Typography variant="h4">Cantiere aperto, joystick chiusi in cassaforte.</Typography>
-            <Typography color="text.secondary" sx={{ maxWidth: 570 }}>
-              Stamo’ montando cabinati, sfidette e trofei senza far saltà er fusibile. Per ora il
-              Retroclub sta a prende’ la rincorsa.
-            </Typography>
-            <Typography color="primary" className="pixel-label">
-              TORNA PRESTO · O FINGI D’AVÉ 3 GETTONI
-            </Typography>
-          </Stack>
-        </CardContent>
-      </Card>
-    </Stack>
-  )
-}
-function Admin() {
-  const { user } = useAuth()
-  const jobs = useLoad(adminApi.jobs, [])
-  const [enrichmentVersion, setEnrichmentVersion] = useState(0)
-  const enrichment = useLoad(adminApi.enrichmentStatus, [enrichmentVersion])
-  const [notice, setNotice] = useState('')
-  const [error, setError] = useState('')
-  const [retroGameId, setRetroGameId] = useState('')
-  const [retroDescription, setRetroDescription] = useState('')
-  if (user?.role !== 'admin') return <Navigate to="/" />
-  const activateChallenge = async () => {
-    try {
-      await adminApi.activateRetroChallenge(retroGameId, retroDescription)
-      setNotice('Retro challenge activated.')
-      setRetroGameId('')
-      setRetroDescription('')
-    } catch (err) {
-      setError(err.message)
-    }
-  }
-  const recover = async () => {
-    try {
-      await adminApi.recoverEnrichment()
-      setNotice('IGDB recovery scan queued.')
-      setEnrichmentVersion((version) => version + 1)
-    } catch (err) {
-      setError(err.message)
-    }
-  }
-  const reset = async () => {
-    if (
-      !window.confirm(
-        'Reset every terminal IGDB enrichment to pending? This will requeue them for provider processing.'
-      )
-    )
-      return
-    try {
-      const result = await adminApi.resetEnrichment()
-      setNotice(`${result.reset || 0} terminal IGDB enrichments reset and queued.`)
-      setEnrichmentVersion((version) => version + 1)
-    } catch (err) {
-      setError(err.message)
-    }
-  }
-  const refreshAll = async () => {
-    if (
-      !window.confirm(
-        'Refresh every active catalogue record from IGDB? This is a background job, may take time, and uses your IGDB quota.'
-      )
-    )
-      return
-    try {
-      const result = await adminApi.refreshAllMetadata()
-      setNotice(
-        result.coalesced
-          ? 'A full catalogue IGDB refresh is already queued.'
-          : 'Full catalogue IGDB refresh queued.'
-      )
-      setEnrichmentVersion((version) => version + 1)
-    } catch (err) {
-      setError(err.message)
-    }
-  }
-  return (
-    <Stack spacing={3}>
-      <Typography variant="h2">Admin operations</Typography>
-      {notice && <Alert severity="success">{notice}</Alert>}
-      <ErrorNotice value={error || jobs.error || enrichment.error} />
-      <AdminUsers />
-      <Card>
-        <CardContent>
-          <Typography variant="h6">IGDB catalogue metadata</Typography>
-          <Typography color="text.secondary" sx={{ mt: 1 }}>
-            {enrichment.data?.metadata?.complete || 0}/{enrichment.data?.metadata?.total || 0}{' '}
-            complete · {enrichment.data?.metadata?.enrichedPercent || 0}%
-          </Typography>
-          <Typography color="text.secondary">
-            Pending {enrichment.data?.metadata?.pending || 0} · Failed{' '}
-            {enrichment.data?.metadata?.failed || 0}
-          </Typography>
-          <Typography color="text.secondary">
-            Queue limit {enrichment.data?.scheduler?.queueLimit || '—'} · interval{' '}
-            {enrichment.data?.scheduler?.minIntervalMs || '—'}ms
-          </Typography>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mt: 2 }}>
-            <Button variant="contained" onClick={recover}>
-              Queue missing or pending IGDB metadata
-            </Button>
-            <Button variant="outlined" onClick={refreshAll}>
-              Refresh all catalogue metadata from IGDB
-            </Button>
-            <Button color="error" variant="outlined" onClick={reset}>
-              Retry all failed IGDB matches
-            </Button>
-          </Stack>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-            The full refresh preserves ownership and processes active catalogue records through the
-            existing bounded queue. Use Catalogue admin to refresh one selected game.
-          </Typography>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent>
-          <Typography variant="h6">Activate Retro challenge</Typography>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} sx={{ mt: 2 }}>
-            <TextField
-              required
-              label="RetroAchievements game ID"
-              value={retroGameId}
-              onChange={(event) => setRetroGameId(event.target.value)}
-            />
-            <TextField
-              fullWidth
-              label="Challenge description (optional)"
-              value={retroDescription}
-              onChange={(event) => setRetroDescription(event.target.value)}
-            />
-            <Button variant="contained" disabled={!retroGameId} onClick={activateChallenge}>
-              Activate
-            </Button>
-          </Stack>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent>
-          <Typography variant="h6">Recent durable jobs</Typography>
-          <Divider sx={{ my: 1 }} />
-          {jobs.data?.jobs?.slice(0, 10).map((job) => (
-            <Typography key={job._id} color="text.secondary">
-              {job.provider} · {job.kind} · {job.status} · attempt {job.attempts}
-            </Typography>
-          ))}
-        </CardContent>
-      </Card>
-    </Stack>
-  )
-}
-function App() {
+
+export default function App() {
   const fallback = (
     <Box sx={{ minHeight: '30vh', display: 'grid', placeItems: 'center' }}>
       <CircularProgress />
     </Box>
   )
+
   return (
     <BrowserRouter>
-      <Shell>
+      <AppShell>
         <Suspense fallback={fallback}>
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/login" element={<AuthPage />} />
-            <Route path="/signup" element={<AuthPage signup />} />
-            <Route
-              path="/library"
-              element={
-                <Protected>
-                  <Library />
-                </Protected>
-              }
-            />
+            <Route path="/login" element={<Auth />} />
+            <Route path="/signup" element={<Auth signup />} />
+            <Route path="/library" element={protectedPage(<Library />)} />
             <Route path="/compare" element={<Compare />} />
-            <Route
-              path="/catalogue"
-              element={
-                <Protected>
-                  <Catalogue />
-                </Protected>
-              }
-            />
-            <Route
-              path="/catalogue/:gameId"
-              element={
-                <Protected>
-                  <GameDetail />
-                </Protected>
-              }
-            />
-            <Route
-              path="/retro"
-              element={
-                <Protected>
-                  <Retro />
-                </Protected>
-              }
-            />
-            <Route
-              path="/casual-friday"
-              element={
-                <Protected>
-                  <CasualFriday />
-                </Protected>
-              }
-            />
-            <Route
-              path="/casual-friday/tools"
-              element={
-                <Protected>
-                  <CasualFridayManage />
-                </Protected>
-              }
-            />
-            <Route
-              path="/admin"
-              element={
-                <Protected>
-                  <Admin />
-                </Protected>
-              }
-            />
-            <Route
-              path="/admin/users"
-              element={
-                <Protected>
-                  <AdminUsers />
-                </Protected>
-              }
-            />
-            <Route
-              path="/admin/catalogue"
-              element={
-                <Protected>
-                  <AdminCatalogue />
-                </Protected>
-              }
-            />
+            <Route path="/catalogue" element={protectedPage(<Catalogue />)} />
+            <Route path="/catalogue/:gameId" element={protectedPage(<GameDetail />)} />
+            <Route path="/retro" element={protectedPage(<Retro />)} />
+            <Route path="/casual-friday" element={protectedPage(<CasualFriday />)} />
+            <Route path="/casual-friday/tools" element={protectedPage(<CasualFridayManage />)} />
+            <Route path="/admin" element={protectedPage(<Admin />)} />
+            <Route path="/admin/users" element={protectedPage(<AdminUsers />)} />
+            <Route path="/admin/catalogue" element={protectedPage(<AdminCatalogue />)} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </Suspense>
-      </Shell>
+      </AppShell>
     </BrowserRouter>
   )
 }
-export default App
