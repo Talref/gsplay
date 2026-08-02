@@ -1,12 +1,21 @@
 require('dotenv').config();
 const { loadEnvironment } = require('./config/environment');
 const { connectDatabase, disconnectDatabase } = require('./database');
-const { claimNextJob, completeJob, createWorkerId, deferJob, retryJob } = require('./jobs/jobService');
+const {
+  claimNextJob,
+  completeJob,
+  createWorkerId,
+  deferJob,
+  retryJob
+} = require('./jobs/jobService');
 const { createJobHandlers } = require('./jobs/handlers');
 const { createIgdbGate, reconcileIgdbMetadata } = require('./jobs/igdbScheduler');
 const CanonicalGame = require('./models/CanonicalGame');
 const { createItadClient } = require('./providers/itadClient');
-const { completeElapsedPlaylists, refreshRotationOffers } = require('./services/casualFridayService');
+const {
+  completeElapsedPlaylists,
+  refreshRotationOffers
+} = require('./services/casualFridayService');
 
 async function startWorker({ pollMs = 1_000 } = {}) {
   const config = loadEnvironment();
@@ -39,22 +48,66 @@ async function startWorker({ pollMs = 1_000 } = {}) {
         const handler = handlers[job.kind];
         let result;
         try {
-          result = handler ? await handler(job) : { failed: true, diagnostics: [{ code: 'handler_not_registered', message: `No worker handler is registered for ${job.kind}` }] };
-        } catch (error) {
-          result = job.provider === 'igdb' && job.kind === 'metadata_enrichment'
-            ? { outcome: 'internal_failure', failed: true, diagnostics: [{ code: 'igdb_worker_error', message: 'IGDB worker handler failed unexpectedly' }] }
-            : { retryable: true, diagnostics: [{ code: 'worker_error', message: 'Worker handler failed unexpectedly' }] };
+          result = handler
+            ? await handler(job)
+            : {
+                failed: true,
+                diagnostics: [
+                  {
+                    code: 'handler_not_registered',
+                    message: `No worker handler is registered for ${job.kind}`
+                  }
+                ]
+              };
+        } catch {
+          result =
+            job.provider === 'igdb' && job.kind === 'metadata_enrichment'
+              ? {
+                  outcome: 'internal_failure',
+                  failed: true,
+                  diagnostics: [
+                    {
+                      code: 'igdb_worker_error',
+                      message: 'IGDB worker handler failed unexpectedly'
+                    }
+                  ]
+                }
+              : {
+                  retryable: true,
+                  diagnostics: [
+                    { code: 'worker_error', message: 'Worker handler failed unexpectedly' }
+                  ]
+                };
         }
         const isIgdb = job.provider === 'igdb' && job.kind === 'metadata_enrichment';
-        const persisted = result.stopProvider ? await deferJob(job, result) : result.retryable ? await retryJob(job, result, { delayMs: result.retryDelayMs }) : await completeJob(job, result);
+        const persisted = result.stopProvider
+          ? await deferJob(job, result)
+          : result.retryable
+            ? await retryJob(job, result, { delayMs: result.retryDelayMs })
+            : await completeJob(job, result);
         if (!persisted) throw new Error(`Job completion lease was lost for ${job._id}`);
-        if (isIgdb && result.retryable) await CanonicalGame.updateOne({ _id: job.payload?.canonicalGameId }, { $set: { 'metadata.nextRetryAt': persisted.runAfter } });
+        if (isIgdb && result.retryable)
+          await CanonicalGame.updateOne(
+            { _id: job.payload?.canonicalGameId },
+            { $set: { 'metadata.nextRetryAt': persisted.runAfter } }
+          );
         if (isIgdb && !result.stopProvider) {
-          const marker = result.outcome === 'matched' ? '✅' : result.outcome === 'duplicate' ? '⚠️' : '❌';
-          const detail = result.outcome === 'duplicate' ? `duplicate of ${JSON.stringify(result.duplicateTitle)}` : result.outcome || (result.failed ? 'failed' : 'no_verified_match');
-          console.info(`${marker} IGDB · ${JSON.stringify(result.title || job.payload?.canonicalGameId)} · ${detail}`);
+          const marker =
+            result.outcome === 'matched' ? '✅' : result.outcome === 'duplicate' ? '⚠️' : '❌';
+          const detail =
+            result.outcome === 'duplicate'
+              ? `duplicate of ${JSON.stringify(result.duplicateTitle)}`
+              : result.outcome || (result.failed ? 'failed' : 'no_verified_match');
+          console.info(
+            `${marker} IGDB · ${JSON.stringify(result.title || job.payload?.canonicalGameId)} · ${detail}`
+          );
         }
-        if (isIgdb && result.stopProvider) { igdbPausedUntil = Date.now() + config.igdb.maintenanceMs; console.warn(`🧠 IGDB auth paused · retrying at ${new Date(igdbPausedUntil).toISOString()}`); }
+        if (isIgdb && result.stopProvider) {
+          igdbPausedUntil = Date.now() + config.igdb.maintenanceMs;
+          console.warn(
+            `🧠 IGDB auth paused · retrying at ${new Date(igdbPausedUntil).toISOString()}`
+          );
+        }
       }
     } finally {
       draining = false;
@@ -66,17 +119,43 @@ async function startWorker({ pollMs = 1_000 } = {}) {
   const startupReport = await reconcileIgdbMetadata({ config, log: console });
   metadataSettled = startupReport.queued === 0;
   const timer = setInterval(tick, pollMs);
-  const maintenance = () => Promise.all([reconcileIgdbMetadata({ config, log: console }), completeElapsedPlaylists().then((count) => count && console.info(`🎲 Casual Friday completed ${count} elapsed playlist${count === 1 ? '' : 's'}`))]).catch((error) => console.error('worker maintenance failed', error));
+  const maintenance = () =>
+    Promise.all([
+      reconcileIgdbMetadata({ config, log: console }),
+      completeElapsedPlaylists().then(
+        (count) =>
+          count &&
+          console.info(
+            `🎲 Casual Friday completed ${count} elapsed playlist${count === 1 ? '' : 's'}`
+          )
+      )
+    ]).catch((error) => console.error('worker maintenance failed', error));
   const maintenanceTimer = setInterval(maintenance, config.igdb.maintenanceMs);
-  const priceMaintenance = () => refreshRotationOffers({ itadClient })
-    .then(({ checked, offers, batches }) => console.info(`💸 ITAD prices refreshed: ${checked} rotation games, ${offers} offers, ${batches} batches`))
-    .catch((error) => console.error('ITAD price refresh failed', error));
+  const priceMaintenance = () =>
+    refreshRotationOffers({ itadClient })
+      .then(({ checked, offers, batches }) =>
+        console.info(
+          `💸 ITAD prices refreshed: ${checked} rotation games, ${offers} offers, ${batches} batches`
+        )
+      )
+      .catch((error) => console.error('ITAD price refresh failed', error));
   const priceTimer = setInterval(priceMaintenance, config.itad.priceRefreshMs);
   await priceMaintenance();
   await tick();
-  const shutdown = async () => { stopping = true; clearInterval(timer); clearInterval(maintenanceTimer); clearInterval(priceTimer); await disconnectDatabase(); };
-  process.once('SIGINT', shutdown); process.once('SIGTERM', shutdown);
+  const shutdown = async () => {
+    stopping = true;
+    clearInterval(timer);
+    clearInterval(maintenanceTimer);
+    clearInterval(priceTimer);
+    await disconnectDatabase();
+  };
+  process.once('SIGINT', shutdown);
+  process.once('SIGTERM', shutdown);
   return { workerId, shutdown };
 }
-if (require.main === module) startWorker().catch((error) => { console.error(error); process.exit(1); });
+if (require.main === module)
+  startWorker().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
 module.exports = { startWorker };

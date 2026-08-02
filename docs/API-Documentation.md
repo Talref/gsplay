@@ -5,6 +5,7 @@
 GSPlay is a comprehensive game library management application that integrates with IGDB (Internet Game Database) to provide detailed game information and user library management.
 
 ## Base URL
+
 ```
 http://localhost:3000/api
 ```
@@ -12,6 +13,7 @@ http://localhost:3000/api
 ## Authentication
 
 Most endpoints require authentication. Include the JWT token in the Authorization header:
+
 ```
 Authorization: Bearer <your-jwt-token>
 ```
@@ -19,6 +21,7 @@ Authorization: Bearer <your-jwt-token>
 ## Response Format
 
 ### Success Response
+
 ```json
 {
   "success": true,
@@ -29,6 +32,7 @@ Authorization: Bearer <your-jwt-token>
 ```
 
 ### Error Response
+
 ```json
 {
   "success": false,
@@ -51,6 +55,7 @@ Search and filter games in the database.
 **Endpoint:** `GET /games/search`
 
 **Query Parameters:**
+
 - `name` (string, optional): Search term for game name
 - `genres` (string[], optional): Filter by genres
 - `platforms` (string[], optional): Filter by platforms
@@ -61,11 +66,13 @@ Search and filter games in the database.
 - `sortOrder` (string, optional): Sort order (asc, desc)
 
 **Example Request:**
+
 ```bash
 GET /api/games/search?name=mario&genres=platform&page=1&limit=10
 ```
 
 **Success Response (200):**
+
 ```json
 {
   "games": [
@@ -101,6 +108,7 @@ GET /api/games/search?name=mario&genres=platform&page=1&limit=10
 ```
 
 **Error Responses:**
+
 - `400 Bad Request`: Invalid search parameters
 - `500 Internal Server Error`: Database or server error
 
@@ -111,14 +119,17 @@ Get detailed information about a specific game.
 **Endpoint:** `GET /games/:id`
 
 **Path Parameters:**
+
 - `id` (string, required): MongoDB ObjectId of the game
 
 **Example Request:**
+
 ```bash
 GET /api/games/507f1f77bcf86cd799439011
 ```
 
 **Success Response (200):**
+
 ```json
 {
   "_id": "507f1f77bcf86cd799439011",
@@ -145,6 +156,7 @@ GET /api/games/507f1f77bcf86cd799439011
 ```
 
 **Error Responses:**
+
 - `400 Bad Request`: Invalid game ID format
 - `404 Not Found`: Game not found
 - `500 Internal Server Error`: Database or server error
@@ -158,6 +170,7 @@ Create a new user account.
 **Endpoint:** `POST /auth/register`
 
 **Request Body:**
+
 ```json
 {
   "name": "John Doe",
@@ -167,6 +180,7 @@ Create a new user account.
 ```
 
 **Success Response (201):**
+
 ```json
 {
   "success": true,
@@ -188,6 +202,7 @@ Authenticate user and get JWT token.
 **Endpoint:** `POST /auth/login`
 
 **Request Body:**
+
 ```json
 {
   "email": "john@example.com",
@@ -196,6 +211,7 @@ Authenticate user and get JWT token.
 ```
 
 **Success Response (200):**
+
 ```json
 {
   "success": true,
@@ -219,11 +235,13 @@ Trigger IGDB enrichment for games in the database.
 **Endpoint:** `POST /admin/force-enrichment`
 
 **Headers:**
+
 ```
 Authorization: Bearer <admin-jwt-token>
 ```
 
 **Success Response (200):**
+
 ```json
 {
   "success": true,
@@ -238,6 +256,7 @@ Authorization: Bearer <admin-jwt-token>
 ## Error Codes
 
 ### Common Error Codes
+
 - `VALIDATION_ERROR`: Input validation failed
 - `UNAUTHORIZED`: Authentication required
 - `FORBIDDEN`: Insufficient permissions
@@ -245,10 +264,12 @@ Authorization: Bearer <admin-jwt-token>
 - `INTERNAL_SERVER_ERROR`: Server error occurred
 
 ### Game-Specific Errors
+
 - `GAME_NOT_FOUND`: Game not found in database
 - `INVALID_GAME_ID`: Invalid game ID format
 
 ### Authentication Errors
+
 - `INVALID_CREDENTIALS`: Wrong email or password
 - `TOKEN_EXPIRED`: JWT token has expired
 - `TOKEN_INVALID`: Invalid JWT token
@@ -256,10 +277,12 @@ Authorization: Bearer <admin-jwt-token>
 ## Rate Limiting
 
 API endpoints are rate limited to prevent abuse:
+
 - **Authenticated requests**: 1000 requests per hour
 - **Unauthenticated requests**: 100 requests per hour
 
 Rate limit headers are included in responses:
+
 ```
 X-RateLimit-Limit: 100
 X-RateLimit-Remaining: 99
@@ -269,6 +292,7 @@ X-RateLimit-Reset: 1640995200
 ## Data Formats
 
 ### Game Object
+
 ```javascript
 {
   _id: "MongoDB ObjectId",
@@ -295,6 +319,7 @@ X-RateLimit-Reset: 1640995200
 ```
 
 ### User Object
+
 ```javascript
 {
   _id: "MongoDB ObjectId",
@@ -310,16 +335,19 @@ X-RateLimit-Reset: 1640995200
 ## Best Practices
 
 ### Search Optimization
+
 - Use specific search terms for better results
 - Combine multiple filters for precise results
 - Use pagination for large result sets
 
 ### Error Handling
+
 - Always check the `success` field in responses
 - Handle different error codes appropriately
 - Use request IDs for debugging when contacting support
 
 ### Authentication
+
 - Store JWT tokens securely
 - Refresh tokens before they expire
 - Include tokens in all authenticated requests
@@ -327,6 +355,7 @@ X-RateLimit-Reset: 1640995200
 ## Support
 
 For API issues or questions:
+
 1. Check this documentation first
 2. Review error messages for specific guidance
 3. Include request IDs when reporting issues

@@ -4,6 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "npm run lint:backend && npm --prefix gsplay-frontend run lint",
+    "lint:backend": "eslint src/v2 scripts tests",
     "test": "echo '⚠️  SAFETY CHECK: Tests use an isolated MongoMemoryServer.' && jest --runInBand tests/v2",
     "test:watch": "jest --watch tests/v2",
     "test:coverage": "jest --coverage --runInBand tests/v2",
@@ -44,10 +48,13 @@
     "steamapi": "^3.1.3"
   },
   "devDependencies": {
+    "eslint": "^9.39.5",
+    "globals": "^16.5.0",
     "jest": "^30.2.0",
     "jsdoc": "^4.0.4",
     "mongodb-memory-server": "^10.2.1",
     "nodemon": "^3.1.10",
+    "prettier": "^3.9.6",
     "supertest": "^7.1.4"
   },
   "jest": {

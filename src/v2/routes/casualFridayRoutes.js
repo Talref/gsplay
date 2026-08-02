@@ -1,25 +1,332 @@
-const express = require('express'); const mongoose = require('mongoose'); const { requireAuth, requireRole } = require('../http/auth'); const { AppError } = require('../http/errors'); const { exactKeys, object, string } = require('../http/validate'); const Playlist = require('../models/CasualFridayPlaylist'); const { createIgdbClient } = require('../providers/igdbClient'); const { createItadClient } = require('../providers/itadClient'); const service = require('../services/casualFridayService');
-const roles = ['helper', 'admin']; const id = (value, field) => { if (!mongoose.isObjectIdOrHexString(value)) throw new AppError(400, 'invalid_request', `${field} must be valid`); return value; }; const integer = (value, field) => { if (!Number.isInteger(value)) throw new AppError(400, 'invalid_request', `${field} must be an integer`); return value; };
-function rotationBody(value, mode) { object(value); const allowed = ['displayTitle', 'artworkOverride', 'info', 'playerCountMin', 'playerCountMax', 'playerCountLabel', 'joinInstructions', 'hostMode', 'acquisitionKind', 'acquisitionUrl', 'availabilityNote']; if (mode === 'catalogue') allowed.push('canonicalGameId'); if (mode === 'igdb') allowed.push('igdbUrl'); if (mode === 'manual') allowed.push('title'); exactKeys(value, allowed); const result = { ...value, playerCountMin: integer(value.playerCountMin, 'playerCountMin'), playerCountMax: integer(value.playerCountMax, 'playerCountMax') }; if (mode === 'catalogue') result.canonicalGameId = id(value.canonicalGameId, 'canonicalGameId'); if (mode === 'igdb') { const url = new URL(string(value.igdbUrl, 'igdbUrl', { max: 2048 })); if (url.protocol !== 'https:' || url.hostname !== 'www.igdb.com' || !/^\/games\/([a-z0-9][a-z0-9-]{0,254})\/?$/.test(url.pathname)) throw new AppError(400, 'invalid_request', 'igdbUrl must be an IGDB game URL'); result.igdbSlug = url.pathname.split('/')[2]; } return result; }
-function createCasualFridayRouter(config, dependencies = {}) { const router = express.Router(); const manage = [requireAuth(config), requireRole(...roles)]; const itad = dependencies.itadClient || createItadClient({ apiKey: config.providers.itadApiKey }); const igdb = dependencies.igdbClient || createIgdbClient({ clientId: config.providers.igdbClientId, clientSecret: config.providers.igdbClientSecret });
-  router.get('/casual-friday', requireAuth(config), async (req, res, next) => { try { const playlist = await Playlist.findOne({ status: 'published', endsAt: { $gt: new Date() } }).sort({ startsAt: 1 }); res.json({ playlist: await service.buildPlaylistDto(playlist, req.user._id) }); } catch (error) { next(error); } });
-  router.get('/casual-friday/rotation', requireAuth(config), async (req, res, next) => { try { res.json({ rotation: (await service.listRotation()).filter((item) => item.status === 'active') }); } catch (error) { next(error); } });
-  router.get('/casual-friday/tools/rotation', ...manage, async (req, res, next) => { try { res.json({ rotation: await service.listRotation({ itadClient: itad, includeOffer: true }) }); } catch (error) { next(error); } });
-  router.post('/casual-friday/tools/rotation/from-catalogue', ...manage, async (req, res, next) => { try { res.status(201).json({ rotation: await service.createRotation(req.user, rotationBody(req.body, 'catalogue'), { itadClient: itad }) }); } catch (error) { next(error); } });
-  router.post('/casual-friday/tools/rotation/from-igdb-url', ...manage, async (req, res, next) => { try { res.status(201).json({ rotation: await service.createExternalRotation(req.user, rotationBody(req.body, 'igdb'), { igdbClient: igdb, itadClient: itad }) }); } catch (error) { next(error); } });
-  router.post('/casual-friday/tools/rotation/manual', ...manage, async (req, res, next) => { try { res.status(201).json({ rotation: await service.createExternalRotation(req.user, rotationBody(req.body, 'manual'), { itadClient: itad }) }); } catch (error) { next(error); } });
-  router.put('/casual-friday/tools/rotation/:id', ...manage, async (req, res, next) => { try { res.json({ rotation: await service.updateRotation(req.user, id(req.params.id, 'id'), rotationBody(req.body), { itadClient: itad }) }); } catch (error) { next(error); } });
-  router.post('/casual-friday/tools/rotation/:id/recheck-itad', ...manage, async (req, res, next) => { try { res.json({ rotation: await service.recheckItad(req.user, id(req.params.id, 'id'), { itadClient: itad }) }); } catch (error) { next(error); } });
-  router.post('/casual-friday/tools/rotation/:id/retire', ...manage, async (req, res, next) => { try { const value = object(req.body); exactKeys(value, ['reason']); await service.retireRotation(req.user, id(req.params.id, 'id'), string(value.reason, 'reason', { max: 1000 })); res.status(204).end(); } catch (error) { next(error); } });
-  router.get('/casual-friday/tools/playlist', ...manage, async (req, res, next) => { try { const window = service.nextFridayWindow(); res.json({ playlist: await service.buildPlaylistDto(await Playlist.findOne({ weekKey: window.weekKey }), req.user._id, { itadClient: itad, includeOffers: true }) }); } catch (error) { next(error); } });
-  router.post('/casual-friday/tools/playlist/entries/:rotationId', ...manage, async (req, res, next) => { try { res.json({ playlist: await service.addToPlaylist(req.user, id(req.params.rotationId, 'rotationId'), { itadClient: itad }) }); } catch (error) { next(error); } });
-  router.delete('/casual-friday/tools/playlist/:playlistId/entries/:entryId', ...manage, async (req, res, next) => { try { const value = object(req.body); exactKeys(value, ['version']); res.json({ playlist: await service.removeFromPlaylist(req.user, id(req.params.playlistId, 'playlistId'), id(req.params.entryId, 'entryId'), integer(value.version, 'version'), { itadClient: itad }) }); } catch (error) { next(error); } });
-  router.put('/casual-friday/tools/playlist/:playlistId/entries/:entryId/key-offer', ...manage, async (req, res, next) => { try { const value = object(req.body); exactKeys(value, ['version', 'price', 'url']); res.json({ playlist: await service.updateKeyOffer(req.user, id(req.params.playlistId, 'playlistId'), id(req.params.entryId, 'entryId'), integer(value.version, 'version'), { price: value.price, url: string(value.url, 'url', { max: 2048 }) }) }); } catch (error) { next(error); } });
-  router.delete('/casual-friday/tools/playlist/:playlistId/entries/:entryId/key-offer', ...manage, async (req, res, next) => { try { const value = object(req.body); exactKeys(value, ['version']); res.json({ playlist: await service.removeKeyOffer(req.user, id(req.params.playlistId, 'playlistId'), id(req.params.entryId, 'entryId'), integer(value.version, 'version')) }); } catch (error) { next(error); } });
-  router.put('/casual-friday/tools/playlist/:id/order', ...manage, async (req, res, next) => { try { const value = object(req.body); exactKeys(value, ['version', 'entryIds']); if (!Array.isArray(value.entryIds)) throw new AppError(400, 'invalid_request', 'entryIds must be an array'); const entryIds = value.entryIds.map((entryId, index) => id(entryId, `entryIds[${index}]`)); res.json({ playlist: await service.reorderPlaylist(req.user, id(req.params.id, 'id'), entryIds, integer(value.version, 'version'), { itadClient: itad }) }); } catch (error) { next(error); } });
-  router.post('/casual-friday/tools/playlist/:id/confirm', ...manage, async (req, res, next) => { try { const value = object(req.body); exactKeys(value, ['version']); res.json({ playlist: await service.publishPlaylist(req.user, id(req.params.id, 'id'), integer(value.version, 'version'), { itadClient: itad }) }); } catch (error) { next(error); } });
-  router.post('/casual-friday/tools/playlist/:id/cancel', ...manage, async (req, res, next) => { try { const value = object(req.body); exactKeys(value, ['version', 'reason']); res.json({ playlist: await service.cancelPlaylist(req.user, id(req.params.id, 'id'), integer(value.version, 'version'), string(value.reason, 'reason', { max: 1000 })) }); } catch (error) { next(error); } });
-  router.post('/casual-friday/tools/playlist/:id/restore', ...manage, async (req, res, next) => { try { const value = object(req.body); exactKeys(value, ['version']); res.json({ playlist: await service.restoreCancelledPlaylist(req.user, id(req.params.id, 'id'), integer(value.version, 'version')) }); } catch (error) { next(error); } });
+const express = require('express');
+const mongoose = require('mongoose');
+const { requireAuth, requireRole } = require('../http/auth');
+const { AppError } = require('../http/errors');
+const { exactKeys, object, string } = require('../http/validate');
+const Playlist = require('../models/CasualFridayPlaylist');
+const { createIgdbClient } = require('../providers/igdbClient');
+const { createItadClient } = require('../providers/itadClient');
+const service = require('../services/casualFridayService');
+const roles = ['helper', 'admin'];
+const id = (value, field) => {
+  if (!mongoose.isObjectIdOrHexString(value))
+    throw new AppError(400, 'invalid_request', `${field} must be valid`);
+  return value;
+};
+const integer = (value, field) => {
+  if (!Number.isInteger(value))
+    throw new AppError(400, 'invalid_request', `${field} must be an integer`);
+  return value;
+};
+function rotationBody(value, mode) {
+  object(value);
+  const allowed = [
+    'displayTitle',
+    'artworkOverride',
+    'info',
+    'playerCountMin',
+    'playerCountMax',
+    'playerCountLabel',
+    'joinInstructions',
+    'hostMode',
+    'acquisitionKind',
+    'acquisitionUrl',
+    'availabilityNote'
+  ];
+  if (mode === 'catalogue') allowed.push('canonicalGameId');
+  if (mode === 'igdb') allowed.push('igdbUrl');
+  if (mode === 'manual') allowed.push('title');
+  exactKeys(value, allowed);
+  const result = {
+    ...value,
+    playerCountMin: integer(value.playerCountMin, 'playerCountMin'),
+    playerCountMax: integer(value.playerCountMax, 'playerCountMax')
+  };
+  if (mode === 'catalogue') result.canonicalGameId = id(value.canonicalGameId, 'canonicalGameId');
+  if (mode === 'igdb') {
+    const url = new URL(string(value.igdbUrl, 'igdbUrl', { max: 2048 }));
+    if (
+      url.protocol !== 'https:' ||
+      url.hostname !== 'www.igdb.com' ||
+      !/^\/games\/([a-z0-9][a-z0-9-]{0,254})\/?$/.test(url.pathname)
+    )
+      throw new AppError(400, 'invalid_request', 'igdbUrl must be an IGDB game URL');
+    result.igdbSlug = url.pathname.split('/')[2];
+  }
+  return result;
+}
+function createCasualFridayRouter(config, dependencies = {}) {
+  const router = express.Router();
+  const manage = [requireAuth(config), requireRole(...roles)];
+  const itad = dependencies.itadClient || createItadClient({ apiKey: config.providers.itadApiKey });
+  const igdb =
+    dependencies.igdbClient ||
+    createIgdbClient({
+      clientId: config.providers.igdbClientId,
+      clientSecret: config.providers.igdbClientSecret
+    });
+  router.get('/casual-friday', requireAuth(config), async (req, res, next) => {
+    try {
+      const playlist = await Playlist.findOne({
+        status: 'published',
+        endsAt: { $gt: new Date() }
+      }).sort({ startsAt: 1 });
+      res.json({ playlist: await service.buildPlaylistDto(playlist, req.user._id) });
+    } catch (error) {
+      next(error);
+    }
+  });
+  router.get('/casual-friday/rotation', requireAuth(config), async (req, res, next) => {
+    try {
+      res.json({
+        rotation: (await service.listRotation()).filter((item) => item.status === 'active')
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+  router.get('/casual-friday/tools/rotation', ...manage, async (req, res, next) => {
+    try {
+      res.json({ rotation: await service.listRotation({ itadClient: itad, includeOffer: true }) });
+    } catch (error) {
+      next(error);
+    }
+  });
+  router.post('/casual-friday/tools/rotation/from-catalogue', ...manage, async (req, res, next) => {
+    try {
+      res.status(201).json({
+        rotation: await service.createRotation(req.user, rotationBody(req.body, 'catalogue'), {
+          itadClient: itad
+        })
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+  router.post('/casual-friday/tools/rotation/from-igdb-url', ...manage, async (req, res, next) => {
+    try {
+      res.status(201).json({
+        rotation: await service.createExternalRotation(req.user, rotationBody(req.body, 'igdb'), {
+          igdbClient: igdb,
+          itadClient: itad
+        })
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+  router.post('/casual-friday/tools/rotation/manual', ...manage, async (req, res, next) => {
+    try {
+      res.status(201).json({
+        rotation: await service.createExternalRotation(req.user, rotationBody(req.body, 'manual'), {
+          itadClient: itad
+        })
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+  router.put('/casual-friday/tools/rotation/:id', ...manage, async (req, res, next) => {
+    try {
+      res.json({
+        rotation: await service.updateRotation(
+          req.user,
+          id(req.params.id, 'id'),
+          rotationBody(req.body),
+          { itadClient: itad }
+        )
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+  router.post(
+    '/casual-friday/tools/rotation/:id/recheck-itad',
+    ...manage,
+    async (req, res, next) => {
+      try {
+        res.json({
+          rotation: await service.recheckItad(req.user, id(req.params.id, 'id'), {
+            itadClient: itad
+          })
+        });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+  router.post('/casual-friday/tools/rotation/:id/retire', ...manage, async (req, res, next) => {
+    try {
+      const value = object(req.body);
+      exactKeys(value, ['reason']);
+      await service.retireRotation(
+        req.user,
+        id(req.params.id, 'id'),
+        string(value.reason, 'reason', { max: 1000 })
+      );
+      res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
+  router.get('/casual-friday/tools/playlist', ...manage, async (req, res, next) => {
+    try {
+      const window = service.nextFridayWindow();
+      res.json({
+        playlist: await service.buildPlaylistDto(
+          await Playlist.findOne({ weekKey: window.weekKey }),
+          req.user._id,
+          { itadClient: itad, includeOffers: true }
+        )
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+  router.post(
+    '/casual-friday/tools/playlist/entries/:rotationId',
+    ...manage,
+    async (req, res, next) => {
+      try {
+        res.json({
+          playlist: await service.addToPlaylist(req.user, id(req.params.rotationId, 'rotationId'), {
+            itadClient: itad
+          })
+        });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+  router.delete(
+    '/casual-friday/tools/playlist/:playlistId/entries/:entryId',
+    ...manage,
+    async (req, res, next) => {
+      try {
+        const value = object(req.body);
+        exactKeys(value, ['version']);
+        res.json({
+          playlist: await service.removeFromPlaylist(
+            req.user,
+            id(req.params.playlistId, 'playlistId'),
+            id(req.params.entryId, 'entryId'),
+            integer(value.version, 'version'),
+            { itadClient: itad }
+          )
+        });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+  router.put(
+    '/casual-friday/tools/playlist/:playlistId/entries/:entryId/key-offer',
+    ...manage,
+    async (req, res, next) => {
+      try {
+        const value = object(req.body);
+        exactKeys(value, ['version', 'price', 'url']);
+        res.json({
+          playlist: await service.updateKeyOffer(
+            req.user,
+            id(req.params.playlistId, 'playlistId'),
+            id(req.params.entryId, 'entryId'),
+            integer(value.version, 'version'),
+            { price: value.price, url: string(value.url, 'url', { max: 2048 }) }
+          )
+        });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+  router.delete(
+    '/casual-friday/tools/playlist/:playlistId/entries/:entryId/key-offer',
+    ...manage,
+    async (req, res, next) => {
+      try {
+        const value = object(req.body);
+        exactKeys(value, ['version']);
+        res.json({
+          playlist: await service.removeKeyOffer(
+            req.user,
+            id(req.params.playlistId, 'playlistId'),
+            id(req.params.entryId, 'entryId'),
+            integer(value.version, 'version')
+          )
+        });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+  router.put('/casual-friday/tools/playlist/:id/order', ...manage, async (req, res, next) => {
+    try {
+      const value = object(req.body);
+      exactKeys(value, ['version', 'entryIds']);
+      if (!Array.isArray(value.entryIds))
+        throw new AppError(400, 'invalid_request', 'entryIds must be an array');
+      const entryIds = value.entryIds.map((entryId, index) => id(entryId, `entryIds[${index}]`));
+      res.json({
+        playlist: await service.reorderPlaylist(
+          req.user,
+          id(req.params.id, 'id'),
+          entryIds,
+          integer(value.version, 'version'),
+          { itadClient: itad }
+        )
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+  router.post('/casual-friday/tools/playlist/:id/confirm', ...manage, async (req, res, next) => {
+    try {
+      const value = object(req.body);
+      exactKeys(value, ['version']);
+      res.json({
+        playlist: await service.publishPlaylist(
+          req.user,
+          id(req.params.id, 'id'),
+          integer(value.version, 'version'),
+          { itadClient: itad }
+        )
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+  router.post('/casual-friday/tools/playlist/:id/cancel', ...manage, async (req, res, next) => {
+    try {
+      const value = object(req.body);
+      exactKeys(value, ['version', 'reason']);
+      res.json({
+        playlist: await service.cancelPlaylist(
+          req.user,
+          id(req.params.id, 'id'),
+          integer(value.version, 'version'),
+          string(value.reason, 'reason', { max: 1000 })
+        )
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+  router.post('/casual-friday/tools/playlist/:id/restore', ...manage, async (req, res, next) => {
+    try {
+      const value = object(req.body);
+      exactKeys(value, ['version']);
+      res.json({
+        playlist: await service.restoreCancelledPlaylist(
+          req.user,
+          id(req.params.id, 'id'),
+          integer(value.version, 'version')
+        )
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
   return router;
 }
 module.exports = { createCasualFridayRouter };

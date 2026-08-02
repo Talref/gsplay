@@ -6,15 +6,35 @@ const { spawn } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 const processes = [
   {
-    name: 'api', color: '\x1b[36m', cwd: root,
-    args: [path.join(root, 'node_modules/nodemon/bin/nodemon.js'), '--watch', 'src/v2', '--ext', 'js', 'src/v2/server.js']
+    name: 'api',
+    color: '\x1b[36m',
+    cwd: root,
+    args: [
+      path.join(root, 'node_modules/nodemon/bin/nodemon.js'),
+      '--watch',
+      'src/v2',
+      '--ext',
+      'js',
+      'src/v2/server.js'
+    ]
   },
   {
-    name: 'worker', color: '\x1b[35m', cwd: root,
-    args: [path.join(root, 'node_modules/nodemon/bin/nodemon.js'), '--watch', 'src/v2', '--ext', 'js', 'src/v2/worker.js']
+    name: 'worker',
+    color: '\x1b[35m',
+    cwd: root,
+    args: [
+      path.join(root, 'node_modules/nodemon/bin/nodemon.js'),
+      '--watch',
+      'src/v2',
+      '--ext',
+      'js',
+      'src/v2/worker.js'
+    ]
   },
   {
-    name: 'web', color: '\x1b[32m', cwd: path.join(root, 'gsplay-frontend'),
+    name: 'web',
+    color: '\x1b[32m',
+    cwd: path.join(root, 'gsplay-frontend'),
     args: [path.join(root, 'gsplay-frontend/node_modules/vite/bin/vite.js'), '--strictPort']
   }
 ];
@@ -26,14 +46,21 @@ let exitCode = 0;
 function writePrefixed(name, color, chunk, stream) {
   const prefix = `${color}[${name}]${reset} `;
   const text = chunk.toString();
-  stream.write(text.split(/(?<=\n)/).filter(Boolean).map((line) => `${prefix}${line}`).join(''));
+  stream.write(
+    text
+      .split(/(?<=\n)/)
+      .filter(Boolean)
+      .map((line) => `${prefix}${line}`)
+      .join('')
+  );
 }
 
 function terminate(child, signal) {
   try {
     child.kill(signal);
   } catch (error) {
-    if (error.code !== 'ESRCH') console.error(`[dev] Could not send ${signal} to ${child.pid}: ${error.message}`);
+    if (error.code !== 'ESRCH')
+      console.error(`[dev] Could not send ${signal} to ${child.pid}: ${error.message}`);
   }
 }
 
@@ -62,8 +89,12 @@ for (const definition of processes) {
     stdio: ['ignore', 'pipe', 'pipe']
   });
   children.set(definition.name, { child, closed: false });
-  child.stdout.on('data', (chunk) => writePrefixed(definition.name, definition.color, chunk, process.stdout));
-  child.stderr.on('data', (chunk) => writePrefixed(definition.name, definition.color, chunk, process.stderr));
+  child.stdout.on('data', (chunk) =>
+    writePrefixed(definition.name, definition.color, chunk, process.stdout)
+  );
+  child.stderr.on('data', (chunk) =>
+    writePrefixed(definition.name, definition.color, chunk, process.stderr)
+  );
   child.once('error', (error) => {
     console.error(`[dev] Could not start ${definition.name}: ${error.message}`);
     stopAll(1);
@@ -71,7 +102,9 @@ for (const definition of processes) {
   child.once('close', (code, signal) => {
     children.get(definition.name).closed = true;
     if (!stopping) {
-      console.error(`[dev] ${definition.name} exited unexpectedly (${signal || code}); stopping the development stack.`);
+      console.error(
+        `[dev] ${definition.name} exited unexpectedly (${signal || code}); stopping the development stack.`
+      );
       stopAll(code || 1);
     }
     if (stopping && allChildrenClosed()) process.exit(exitCode);

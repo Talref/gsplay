@@ -1,0 +1,13 @@
+{
+  "printWidth": 100,
+  "singleQuote": true,
+  "trailingComma": "none",
+  "overrides": [
+    {
+      "files": "gsplay-frontend/**/*.{js,jsx}",
+      "options": {
+        "semi": false
+      }
+    }
+  ]
+}

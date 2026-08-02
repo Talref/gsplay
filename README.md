@@ -54,17 +54,20 @@ See [Operations Runbook](docs/Operations-Runbook.md) for setup, backup, deployme
 
 ## Useful scripts
 
-| Command | Purpose |
-| --- | --- |
-| `npm start` | Start the API |
-| `npm run dev` | Start API, worker, and frontend together with hot reload |
-| `npm run dev:api` | Start only the API with nodemon |
-| `npm run dev:worker` | Start only the worker with nodemon |
-| `npm run dev:frontend` | Start only the Vite frontend |
-| `npm run worker` | Start the durable worker |
-| `npm run bootstrap` | Create/verify indexes |
-| `./scripts/deploy.sh` | Build, validate, publish, restart, and health-check production |
-| `npm test` | Run v2 backend tests |
+| Command                | Purpose                                                        |
+| ---------------------- | -------------------------------------------------------------- |
+| `npm start`            | Start the API                                                  |
+| `npm run dev`          | Start API, worker, and frontend together with hot reload       |
+| `npm run dev:api`      | Start only the API with nodemon                                |
+| `npm run dev:worker`   | Start only the worker with nodemon                             |
+| `npm run dev:frontend` | Start only the Vite frontend                                   |
+| `npm run worker`       | Start the durable worker                                       |
+| `npm run bootstrap`    | Create/verify indexes                                          |
+| `npm run format`       | Format backend, frontend, tests, and project files             |
+| `npm run format:check` | Verify repository formatting without changing files            |
+| `npm run lint`         | Lint backend and frontend JavaScript                           |
+| `./scripts/deploy.sh`  | Build, validate, publish, restart, and health-check production |
+| `npm test`             | Run v2 backend tests                                           |
 
 ## Security notes
 

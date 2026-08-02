@@ -1,27 +1,169 @@
-import axios from 'axios';
+import axios from 'axios'
 
-const api = axios.create({ baseURL: '/api/v2', withCredentials: true });
-let refreshPromise;
-api.interceptors.response.use((response) => response, async (error) => {
-  const original = error.config;
-  const authMutation = ['/auth/login', '/auth/signup', '/auth/logout', '/auth/refresh'].includes(original?.url);
-  if (error.response?.status !== 401 || original?._retried || authMutation) throw error;
-  original._retried = true;
-  try { refreshPromise ||= api.post('/auth/refresh').finally(() => { refreshPromise = null; }); await refreshPromise; return api(original); } catch { throw error; }
-});
+const api = axios.create({ baseURL: '/api/v2', withCredentials: true })
+let refreshPromise
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const original = error.config
+    const authMutation = ['/auth/login', '/auth/signup', '/auth/logout', '/auth/refresh'].includes(
+      original?.url
+    )
+    if (error.response?.status !== 401 || original?._retried || authMutation) throw error
+    original._retried = true
+    try {
+      refreshPromise ||= api.post('/auth/refresh').finally(() => {
+        refreshPromise = null
+      })
+      await refreshPromise
+      return api(original)
+    } catch {
+      throw error
+    }
+  }
+)
 async function request(method, url, data, config) {
-  try { return (await api({ method, url, data, ...config })).data; } catch (error) { const detail = error.response?.data?.error; throw Object.assign(new Error(detail?.message || 'Request failed.'), { status: error.response?.status, code: detail?.code, details: detail?.details }); }
+  try {
+    return (await api({ method, url, data, ...config })).data
+  } catch (error) {
+    const detail = error.response?.data?.error
+    throw Object.assign(new Error(detail?.message || 'Request failed.'), {
+      status: error.response?.status,
+      code: detail?.code,
+      details: detail?.details
+    })
+  }
 }
-export const authApi = { me: () => request('get', '/me'), login: (data) => request('post', '/auth/login', data), signup: (data) => request('post', '/auth/signup', data), logout: () => request('post', '/auth/logout') };
-export const libraryApi = { mine: (page = 1, pageSize = 60) => request('get', `/me/library?page=${page}&pageSize=${pageSize}`), users: () => request('get', '/users'), compare: (userIds) => request('post', '/library-comparisons', { userIds }), addManualGame: (gameId) => request('put', `/me/library/games/${encodeURIComponent(gameId)}`), removeManualGame: (gameId) => request('delete', `/me/library/games/${encodeURIComponent(gameId)}`, { confirmation: 'REMOVE FROM LIBRARY' }), linkSteam: (steamId) => request('put', '/me/providers/steam', { steamId }), syncSteam: () => request('post', '/me/providers/steam/sync', {}), job: (jobId) => request('get', `/me/imports/${jobId}`), upload: (provider, file) => { const data = new FormData(); data.append('provider', provider); data.append('file', file); return request('post', '/me/imports', data); } };
-const catalogueQuery = ({ query = '', page = 1, pageSize = 24, sort = 'rating', genres = [], platforms = [], gameModes = [] } = {}) => {
-  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize), sort });
-  if (query.trim()) params.set('q', query.trim());
-  genres.forEach((genre) => params.append('genre', genre)); platforms.forEach((platform) => params.append('platform', platform)); gameModes.forEach((mode) => params.append('gameMode', mode));
-  return params.toString();
-};
-export const catalogueApi = { games: (options = {}) => request('get', `/games?${catalogueQuery(options)}`), game: (gameId) => request('get', `/games/${encodeURIComponent(gameId)}`), owners: (gameId) => request('get', `/games/${encodeURIComponent(gameId)}/owners`), filters: () => request('get', '/game-filters') };
-export const communityApi = { topGames: () => request('get', '/community/games/top?limit=20') };
-export const retroApi = { link: (username) => request('put', '/me/retroachievements', { username }), profile: () => request('get', '/me/retroachievements/profile'), challenge: () => request('get', '/retroachievements/challenge') };
-export const casualFridayApi = { current: () => request('get', '/casual-friday'), rotation: () => request('get', '/casual-friday/tools/rotation'), playlist: () => request('get', '/casual-friday/tools/playlist'), fromCatalogue: (data) => request('post', '/casual-friday/tools/rotation/from-catalogue', data), fromIgdb: (data) => request('post', '/casual-friday/tools/rotation/from-igdb-url', data), manual: (data) => request('post', '/casual-friday/tools/rotation/manual', data), update: (id, data) => request('put', `/casual-friday/tools/rotation/${id}`, data), recheck: (id) => request('post', `/casual-friday/tools/rotation/${id}/recheck-itad`), retire: (id, reason) => request('post', `/casual-friday/tools/rotation/${id}/retire`, { reason }), addToPlaylist: (id) => request('post', `/casual-friday/tools/playlist/entries/${id}`), removeFromPlaylist: (playlistId, entryId, version) => request('delete', `/casual-friday/tools/playlist/${playlistId}/entries/${entryId}`, { version }), setKeyOffer: (playlistId, entryId, version, price, url) => request('put', `/casual-friday/tools/playlist/${playlistId}/entries/${entryId}/key-offer`, { version, price, url }), removeKeyOffer: (playlistId, entryId, version) => request('delete', `/casual-friday/tools/playlist/${playlistId}/entries/${entryId}/key-offer`, { version }), reorderPlaylist: (id, entryIds, version) => request('put', `/casual-friday/tools/playlist/${id}/order`, { entryIds, version }), confirm: (id, version) => request('post', `/casual-friday/tools/playlist/${id}/confirm`, { version }), cancel: (id, version, reason) => request('post', `/casual-friday/tools/playlist/${id}/cancel`, { version, reason }), restore: (id, version) => request('post', `/casual-friday/tools/playlist/${id}/restore`, { version }) };
-export const adminApi = { jobs: () => request('get', '/admin/jobs'), users: (query) => request('get', `/admin/users?q=${encodeURIComponent(query)}`), setUserRole: (userId, role) => request('put', `/admin/users/${encodeURIComponent(userId)}/role`, { role }), deleteUser: (userId, data) => request('delete', `/admin/users/${encodeURIComponent(userId)}`, data), enrichmentStatus: () => request('get', '/admin/enrichment-status'), repairEnrichment: () => request('post', '/admin/enrichment-repair'), recoverEnrichment: () => request('post', '/admin/enrichment-repair'), refreshAllMetadata: () => request('post', '/admin/enrichment-refresh-all', { confirmation: 'REFRESH ALL IGDB METADATA' }), refreshGameMetadata: (gameId) => request('post', `/admin/games/${gameId}/metadata-refresh`), resetEnrichment: () => request('post', '/admin/enrichment-reset', { confirmation: 'RESET IGDB' }), reviews: () => request('get', '/admin/matches/review'), metadataReviews: (page = 1, pageSize = 30) => request('get', `/admin/metadata-reviews?page=${page}&pageSize=${pageSize}`), games: (query, page = 1, pageSize = 12) => request('get', `/admin/games?page=${page}&pageSize=${pageSize}${query ? `&q=${encodeURIComponent(query)}` : ''}`), providerIdentities: (gameId) => request('get', `/admin/games/${gameId}/provider-identities`), reassignProviderGame: (gameId, data) => request('post', `/admin/games/${gameId}/reassign-provider-game`, data), igdbSearch: (query) => request('get', `/admin/igdb-search?q=${encodeURIComponent(query)}`), assignIgdb: (gameId, igdbId) => request('put', `/admin/games/${gameId}/igdb`, { igdbId }), assignIgdbUrl: (gameId, url) => request('put', `/admin/games/${gameId}/igdb-url`, { url }), manualMetadata: (gameId, data) => request('put', `/admin/games/${gameId}/manual-metadata`, data), setVisibility: (gameId, hidden) => request('put', `/admin/games/${gameId}/visibility`, { hidden }), createGame: (data) => request('post', '/admin/games', data), createFromIgdbUrl: (url) => request('post', '/admin/games/from-igdb-url', { url }), updateGame: (gameId, data) => request('put', `/admin/games/${gameId}`, data), mergeGames: (sourceGameId, targetGameId, reason) => request('post', `/admin/games/${sourceGameId}/merge`, { targetGameId, reason }), archiveGame: (gameId, reason) => request('delete', `/admin/games/${gameId}`, { reason }), resolveMatch: (matchId, canonicalGameId) => request('put', `/admin/matches/${matchId}`, { canonicalGameId }), activateRetroChallenge: (retroGameId, description) => request('put', '/admin/retroachievements/challenge', { retroGameId: Number(retroGameId), description }) };
+export const authApi = {
+  me: () => request('get', '/me'),
+  login: (data) => request('post', '/auth/login', data),
+  signup: (data) => request('post', '/auth/signup', data),
+  logout: () => request('post', '/auth/logout')
+}
+export const libraryApi = {
+  mine: (page = 1, pageSize = 60) =>
+    request('get', `/me/library?page=${page}&pageSize=${pageSize}`),
+  users: () => request('get', '/users'),
+  compare: (userIds) => request('post', '/library-comparisons', { userIds }),
+  addManualGame: (gameId) => request('put', `/me/library/games/${encodeURIComponent(gameId)}`),
+  removeManualGame: (gameId) =>
+    request('delete', `/me/library/games/${encodeURIComponent(gameId)}`, {
+      confirmation: 'REMOVE FROM LIBRARY'
+    }),
+  linkSteam: (steamId) => request('put', '/me/providers/steam', { steamId }),
+  syncSteam: () => request('post', '/me/providers/steam/sync', {}),
+  job: (jobId) => request('get', `/me/imports/${jobId}`),
+  upload: (provider, file) => {
+    const data = new FormData()
+    data.append('provider', provider)
+    data.append('file', file)
+    return request('post', '/me/imports', data)
+  }
+}
+const catalogueQuery = ({
+  query = '',
+  page = 1,
+  pageSize = 24,
+  sort = 'rating',
+  genres = [],
+  platforms = [],
+  gameModes = []
+} = {}) => {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize), sort })
+  if (query.trim()) params.set('q', query.trim())
+  genres.forEach((genre) => params.append('genre', genre))
+  platforms.forEach((platform) => params.append('platform', platform))
+  gameModes.forEach((mode) => params.append('gameMode', mode))
+  return params.toString()
+}
+export const catalogueApi = {
+  games: (options = {}) => request('get', `/games?${catalogueQuery(options)}`),
+  game: (gameId) => request('get', `/games/${encodeURIComponent(gameId)}`),
+  owners: (gameId) => request('get', `/games/${encodeURIComponent(gameId)}/owners`),
+  filters: () => request('get', '/game-filters')
+}
+export const communityApi = { topGames: () => request('get', '/community/games/top?limit=20') }
+export const retroApi = {
+  link: (username) => request('put', '/me/retroachievements', { username }),
+  profile: () => request('get', '/me/retroachievements/profile'),
+  challenge: () => request('get', '/retroachievements/challenge')
+}
+export const casualFridayApi = {
+  current: () => request('get', '/casual-friday'),
+  rotation: () => request('get', '/casual-friday/tools/rotation'),
+  playlist: () => request('get', '/casual-friday/tools/playlist'),
+  fromCatalogue: (data) => request('post', '/casual-friday/tools/rotation/from-catalogue', data),
+  fromIgdb: (data) => request('post', '/casual-friday/tools/rotation/from-igdb-url', data),
+  manual: (data) => request('post', '/casual-friday/tools/rotation/manual', data),
+  update: (id, data) => request('put', `/casual-friday/tools/rotation/${id}`, data),
+  recheck: (id) => request('post', `/casual-friday/tools/rotation/${id}/recheck-itad`),
+  retire: (id, reason) => request('post', `/casual-friday/tools/rotation/${id}/retire`, { reason }),
+  addToPlaylist: (id) => request('post', `/casual-friday/tools/playlist/entries/${id}`),
+  removeFromPlaylist: (playlistId, entryId, version) =>
+    request('delete', `/casual-friday/tools/playlist/${playlistId}/entries/${entryId}`, {
+      version
+    }),
+  setKeyOffer: (playlistId, entryId, version, price, url) =>
+    request('put', `/casual-friday/tools/playlist/${playlistId}/entries/${entryId}/key-offer`, {
+      version,
+      price,
+      url
+    }),
+  removeKeyOffer: (playlistId, entryId, version) =>
+    request('delete', `/casual-friday/tools/playlist/${playlistId}/entries/${entryId}/key-offer`, {
+      version
+    }),
+  reorderPlaylist: (id, entryIds, version) =>
+    request('put', `/casual-friday/tools/playlist/${id}/order`, { entryIds, version }),
+  confirm: (id, version) =>
+    request('post', `/casual-friday/tools/playlist/${id}/confirm`, { version }),
+  cancel: (id, version, reason) =>
+    request('post', `/casual-friday/tools/playlist/${id}/cancel`, { version, reason }),
+  restore: (id, version) =>
+    request('post', `/casual-friday/tools/playlist/${id}/restore`, { version })
+}
+export const adminApi = {
+  jobs: () => request('get', '/admin/jobs'),
+  users: (query) => request('get', `/admin/users?q=${encodeURIComponent(query)}`),
+  setUserRole: (userId, role) =>
+    request('put', `/admin/users/${encodeURIComponent(userId)}/role`, { role }),
+  deleteUser: (userId, data) =>
+    request('delete', `/admin/users/${encodeURIComponent(userId)}`, data),
+  enrichmentStatus: () => request('get', '/admin/enrichment-status'),
+  repairEnrichment: () => request('post', '/admin/enrichment-repair'),
+  recoverEnrichment: () => request('post', '/admin/enrichment-repair'),
+  refreshAllMetadata: () =>
+    request('post', '/admin/enrichment-refresh-all', { confirmation: 'REFRESH ALL IGDB METADATA' }),
+  refreshGameMetadata: (gameId) => request('post', `/admin/games/${gameId}/metadata-refresh`),
+  resetEnrichment: () => request('post', '/admin/enrichment-reset', { confirmation: 'RESET IGDB' }),
+  reviews: () => request('get', '/admin/matches/review'),
+  metadataReviews: (page = 1, pageSize = 30) =>
+    request('get', `/admin/metadata-reviews?page=${page}&pageSize=${pageSize}`),
+  games: (query, page = 1, pageSize = 12) =>
+    request(
+      'get',
+      `/admin/games?page=${page}&pageSize=${pageSize}${query ? `&q=${encodeURIComponent(query)}` : ''}`
+    ),
+  providerIdentities: (gameId) => request('get', `/admin/games/${gameId}/provider-identities`),
+  reassignProviderGame: (gameId, data) =>
+    request('post', `/admin/games/${gameId}/reassign-provider-game`, data),
+  igdbSearch: (query) => request('get', `/admin/igdb-search?q=${encodeURIComponent(query)}`),
+  assignIgdb: (gameId, igdbId) => request('put', `/admin/games/${gameId}/igdb`, { igdbId }),
+  assignIgdbUrl: (gameId, url) => request('put', `/admin/games/${gameId}/igdb-url`, { url }),
+  manualMetadata: (gameId, data) => request('put', `/admin/games/${gameId}/manual-metadata`, data),
+  setVisibility: (gameId, hidden) =>
+    request('put', `/admin/games/${gameId}/visibility`, { hidden }),
+  createGame: (data) => request('post', '/admin/games', data),
+  createFromIgdbUrl: (url) => request('post', '/admin/games/from-igdb-url', { url }),
+  updateGame: (gameId, data) => request('put', `/admin/games/${gameId}`, data),
+  mergeGames: (sourceGameId, targetGameId, reason) =>
+    request('post', `/admin/games/${sourceGameId}/merge`, { targetGameId, reason }),
+  archiveGame: (gameId, reason) => request('delete', `/admin/games/${gameId}`, { reason }),
+  resolveMatch: (matchId, canonicalGameId) =>
+    request('put', `/admin/matches/${matchId}`, { canonicalGameId }),
+  activateRetroChallenge: (retroGameId, description) =>
+    request('put', '/admin/retroachievements/challenge', {
+      retroGameId: Number(retroGameId),
+      description
+    })
+}

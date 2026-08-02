@@ -8,7 +8,10 @@ function authRateLimit(config) {
     standardHeaders: 'draft-8',
     legacyHeaders: false,
     skip: () => config.nodeEnv === 'test',
-    handler: (req, res, next) => next(new AppError(429, 'auth_rate_limited', 'Too many authentication attempts; try again later'))
+    handler: (req, res, next) =>
+      next(
+        new AppError(429, 'auth_rate_limited', 'Too many authentication attempts; try again later')
+      )
   });
 }
 

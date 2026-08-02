@@ -7,5 +7,7 @@ async function connectDatabase(config) {
 async function disconnectDatabase() {
   if (mongoose.connection.readyState !== 0) await mongoose.disconnect();
 }
-function isDatabaseReady() { return mongoose.connection.readyState === 1; }
+function isDatabaseReady() {
+  return mongoose.connection.readyState === 1;
+}
 module.exports = { connectDatabase, disconnectDatabase, isDatabaseReady };

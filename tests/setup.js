@@ -14,10 +14,12 @@ process.env.NODE_ENV = 'test';
 
 // SAFETY CHECK: Prevent tests from running against production database
 const mongoUri = process.env.MONGO_URI || '';
-if (mongoUri.includes('mongodb+srv://') ||
-    mongoUri.includes('production') ||
-    mongoUri.includes('prod') ||
-    (!mongoUri.includes('localhost') && !mongoUri.includes('127.0.0.1'))) {
+if (
+  mongoUri.includes('mongodb+srv://') ||
+  mongoUri.includes('production') ||
+  mongoUri.includes('prod') ||
+  (!mongoUri.includes('localhost') && !mongoUri.includes('127.0.0.1'))
+) {
   console.error('❌ SAFETY ERROR: Tests are trying to connect to a non-localhost database!');
   console.error('This could damage production data. Aborting tests.');
   console.error('MongoDB URI:', mongoUri);
@@ -93,7 +95,7 @@ global.testUtils = {
   },
 
   // Wait for database operations
-  waitForDb: (ms = 100) => new Promise(resolve => setTimeout(resolve, ms))
+  waitForDb: (ms = 100) => new Promise((resolve) => setTimeout(resolve, ms))
 };
 
 // Set longer timeout for database operations

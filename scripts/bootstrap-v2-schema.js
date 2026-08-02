@@ -25,11 +25,22 @@ async function bootstrap() {
   const config = loadEnvironment();
   await connectDatabase(config);
   const aliasIndex = { provider: 1, normalizedProviderTitle: 1, canonicalGameId: 1 };
-  await models.find((model) => model.collection.name === 'game_aliases_v2').collection.dropIndex(aliasIndex).catch(ignoreMissingIndex);
-  const rotationCollection = models.find((model) => model.collection.name === 'casual_friday_rotation_games_v2').collection;
+  await models
+    .find((model) => model.collection.name === 'game_aliases_v2')
+    .collection.dropIndex(aliasIndex)
+    .catch(ignoreMissingIndex);
+  const rotationCollection = models.find(
+    (model) => model.collection.name === 'casual_friday_rotation_games_v2'
+  ).collection;
   await rotationCollection.dropIndex('canonicalGameId_1').catch(ignoreMissingIndex);
   await Promise.all(models.map((model) => model.createIndexes()));
-  console.info(`Created or verified v2 indexes for: ${models.map((model) => model.collection.name).join(', ')}`);
+  console.info(
+    `Created or verified v2 indexes for: ${models.map((model) => model.collection.name).join(', ')}`
+  );
   await disconnectDatabase();
 }
-bootstrap().catch(async (error) => { console.error(error); await disconnectDatabase(); process.exit(1); });
+bootstrap().catch(async (error) => {
+  console.error(error);
+  await disconnectDatabase();
+  process.exit(1);
+});

@@ -13,41 +13,81 @@ const editableStatuses = ['draft', 'published'];
 const modes = new Set(['none', 'host_runs', 'streamable']);
 const kinds = new Set(['owned_store', 'external_store', 'free', 'web']);
 
-const cleanDisplayTitle = (value) => String(value || '').trim()
-  .replace(/\s+-\s+[^\s]+\.(?:exe|app|bat|cmd|sh)$/i, '').trim() || String(value || '').trim();
+const cleanDisplayTitle = (value) =>
+  String(value || '')
+    .trim()
+    .replace(/\s+-\s+[^\s]+\.(?:exe|app|bat|cmd|sh)$/i, '')
+    .trim() || String(value || '').trim();
 const https = (value, field) => {
-  if (!/^https:\/\//.test(value || '')) throw new AppError(400, 'invalid_request', `${field} must be an HTTPS URL`);
+  if (!/^https:\/\//.test(value || ''))
+    throw new AppError(400, 'invalid_request', `${field} must be an HTTPS URL`);
 };
 const keyOfferUrl = (value) => {
   let url;
-  try { url = new URL(value); } catch { throw new AppError(400, 'invalid_request', 'url must be an HTTPS URL'); }
+  try {
+    url = new URL(value);
+  } catch {
+    throw new AppError(400, 'invalid_request', 'url must be an HTTPS URL');
+  }
   if (url.protocol !== 'https:' || !url.hostname || url.username || url.password) {
-    throw new AppError(400, 'invalid_request', 'url must be an HTTPS URL without embedded credentials');
+    throw new AppError(
+      400,
+      'invalid_request',
+      'url must be an HTTPS URL without embedded credentials'
+    );
   }
   return url.href;
 };
 const keyOfferPrice = (value) => {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0.01 || value > 10000
-    || Math.abs(value - Math.round(value * 100) / 100) > 1e-9) {
-    throw new AppError(400, 'invalid_request', 'price must be between 0.01 and 10000 with at most two decimal places');
+  if (
+    typeof value !== 'number' ||
+    !Number.isFinite(value) ||
+    value < 0.01 ||
+    value > 10000 ||
+    Math.abs(value - Math.round(value * 100) / 100) > 1e-9
+  ) {
+    throw new AppError(
+      400,
+      'invalid_request',
+      'price must be between 0.01 and 10000 with at most two decimal places'
+    );
   }
   return value;
 };
 
 function zonedParts(date, timeZone = EVENT_TIME_ZONE) {
   const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23'
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23'
   }).formatToParts(date);
-  return Object.fromEntries(parts.filter(({ type }) => type !== 'literal').map(({ type, value }) => [type, Number(value)]));
+  return Object.fromEntries(
+    parts.filter(({ type }) => type !== 'literal').map(({ type, value }) => [type, Number(value)])
+  );
 }
 
-function zonedDateTimeToUtc({ year, month, day, hour = 0, minute = 0, second = 0 }, timeZone = EVENT_TIME_ZONE) {
+function zonedDateTimeToUtc(
+  { year, month, day, hour = 0, minute = 0, second = 0 },
+  timeZone = EVENT_TIME_ZONE
+) {
   const target = Date.UTC(year, month - 1, day, hour, minute, second);
   let result = target;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const actual = zonedParts(new Date(result), timeZone);
-    const difference = Date.UTC(actual.year, actual.month - 1, actual.day, actual.hour, actual.minute, actual.second) - target;
+    const difference =
+      Date.UTC(
+        actual.year,
+        actual.month - 1,
+        actual.day,
+        actual.hour,
+        actual.minute,
+        actual.second
+      ) - target;
     if (!difference) break;
     result -= difference;
   }
@@ -75,7 +115,12 @@ function nextFridayWindow(now = new Date()) {
 }
 
 async function audit(actor, kind, data) {
-  await Audit.create({ actorUserId: actor._id, actorUsernameSnapshot: actor.usernameDisplay, kind, ...data });
+  await Audit.create({
+    actorUserId: actor._id,
+    actorUsernameSnapshot: actor.usernameDisplay,
+    kind,
+    ...data
+  });
 }
 
 const gameDto = (game) => ({
@@ -89,28 +134,45 @@ const gameDto = (game) => ({
 
 function fields(data) {
   const value = { ...data, displayTitle: cleanDisplayTitle(data.displayTitle) };
-  if (!value.displayTitle || !Number.isInteger(value.playerCountMin) || !Number.isInteger(value.playerCountMax)
-    || value.playerCountMin < 1 || value.playerCountMax < value.playerCountMin
-    || !modes.has(value.hostMode) || !kinds.has(value.acquisitionKind)) {
+  if (
+    !value.displayTitle ||
+    !Number.isInteger(value.playerCountMin) ||
+    !Number.isInteger(value.playerCountMax) ||
+    value.playerCountMin < 1 ||
+    value.playerCountMax < value.playerCountMin ||
+    !modes.has(value.hostMode) ||
+    !kinds.has(value.acquisitionKind)
+  ) {
     throw new AppError(400, 'invalid_request', 'Rotation fields are invalid');
   }
   if (value.artworkOverride) https(value.artworkOverride, 'artworkOverride');
-  if (['free', 'web', 'external_store'].includes(value.acquisitionKind)) https(value.acquisitionUrl, 'acquisitionUrl');
+  if (['free', 'web', 'external_store'].includes(value.acquisitionKind))
+    https(value.acquisitionUrl, 'acquisitionUrl');
   return value;
 }
 
 function resetItad(rotation) {
   if (['free', 'web'].includes(rotation.acquisitionKind)) {
     Object.assign(rotation, {
-      itadStatus: 'not_required', itadCheckedAt: undefined, itadError: undefined,
-      itadGameId: undefined, itadTitle: undefined, itadOffer: null,
-      itadOfferCheckedAt: undefined, itadOfferError: undefined
+      itadStatus: 'not_required',
+      itadCheckedAt: undefined,
+      itadError: undefined,
+      itadGameId: undefined,
+      itadTitle: undefined,
+      itadOffer: null,
+      itadOfferCheckedAt: undefined,
+      itadOfferError: undefined
     });
   } else {
     Object.assign(rotation, {
-      itadStatus: 'pending', itadCheckedAt: undefined, itadError: undefined,
-      itadGameId: undefined, itadTitle: undefined, itadOffer: null,
-      itadOfferCheckedAt: undefined, itadOfferError: undefined
+      itadStatus: 'pending',
+      itadCheckedAt: undefined,
+      itadError: undefined,
+      itadGameId: undefined,
+      itadTitle: undefined,
+      itadOffer: null,
+      itadOfferCheckedAt: undefined,
+      itadOfferError: undefined
     });
   }
 }
@@ -126,14 +188,21 @@ async function verifyItad(rotation, itadClient) {
     const matchedGameId = found.outcome === 'matched' ? found.game.id : undefined;
     Object.assign(rotation, {
       itadCheckedAt: new Date(),
-      itadStatus: found.outcome === 'matched' ? 'verified' : found.outcome === 'ambiguous' ? 'ambiguous' : 'not_found',
+      itadStatus:
+        found.outcome === 'matched'
+          ? 'verified'
+          : found.outcome === 'ambiguous'
+            ? 'ambiguous'
+            : 'not_found',
       itadGameId: matchedGameId,
       itadTitle: found.outcome === 'matched' ? found.game.title : undefined,
       itadError: undefined
     });
     if (!matchedGameId || matchedGameId !== previousGameId) {
       Object.assign(rotation, {
-        itadOffer: null, itadOfferCheckedAt: undefined, itadOfferError: undefined
+        itadOffer: null,
+        itadOfferCheckedAt: undefined,
+        itadOfferError: undefined
       });
     }
   } catch (error) {
@@ -158,12 +227,15 @@ function itadSnapshot(rotation) {
   };
 }
 
-const keyOfferDto = (offer) => offer ? {
-  price: offer.price,
-  currency: offer.currency,
-  url: offer.url,
-  updatedAt: offer.updatedAt
-} : null;
+const keyOfferDto = (offer) =>
+  offer
+    ? {
+        price: offer.price,
+        currency: offer.currency,
+        url: offer.url,
+        updatedAt: offer.updatedAt
+      }
+    : null;
 
 async function refreshOneRotationOffer(rotation, itadClient, now = new Date()) {
   if (rotation.itadStatus !== 'verified' || !rotation.itadGameId) return;
@@ -175,7 +247,8 @@ async function refreshOneRotationOffer(rotation, itadClient, now = new Date()) {
       itadOfferError: undefined
     });
   } catch (error) {
-    rotation.itadOfferError = error instanceof ItadProviderError ? error.message : 'ITAD price refresh failed';
+    rotation.itadOfferError =
+      error instanceof ItadProviderError ? error.message : 'ITAD price refresh failed';
   }
 }
 
@@ -200,20 +273,35 @@ const rotationDto = (rotation, game) => ({
 
 async function listRotation() {
   const rotations = await Rotation.find().sort({ status: 1, createdAt: -1 });
-  const games = await CanonicalGame.find({ _id: { $in: rotations.map((item) => item.canonicalGameId) } });
+  const games = await CanonicalGame.find({
+    _id: { $in: rotations.map((item) => item.canonicalGameId) }
+  });
   const gameMap = new Map(games.map((game) => [String(game._id), game]));
-  return rotations.map((rotation) => rotationDto(rotation, gameMap.get(String(rotation.canonicalGameId))));
+  return rotations.map((rotation) =>
+    rotationDto(rotation, gameMap.get(String(rotation.canonicalGameId)))
+  );
 }
 
 async function createRotation(actor, data, { itadClient } = {}) {
-  const game = await CanonicalGame.findOne({ _id: data.canonicalGameId, hiddenAt: null, archivedAt: null, mergedIntoId: null });
+  const game = await CanonicalGame.findOne({
+    _id: data.canonicalGameId,
+    hiddenAt: null,
+    archivedAt: null,
+    mergedIntoId: null
+  });
   if (!game) throw new AppError(404, 'not_found', 'Catalogue game was not found');
   if (await Rotation.exists({ canonicalGameId: game._id, status: 'active' })) {
     throw new AppError(409, 'rotation_game_exists', 'Game is already in the active rotation');
   }
   const rotation = new Rotation({
-    ...fields({ ...data, displayTitle: data.displayTitle || cleanDisplayTitle(game.canonicalTitle), info: data.info ?? game.summary }),
-    canonicalGameId: game._id, addedBy: actor._id, updatedBy: actor._id
+    ...fields({
+      ...data,
+      displayTitle: data.displayTitle || cleanDisplayTitle(game.canonicalTitle),
+      info: data.info ?? game.summary
+    }),
+    canonicalGameId: game._id,
+    addedBy: actor._id,
+    updatedBy: actor._id
   });
   resetItad(rotation);
   await verifyItad(rotation, itadClient);
@@ -228,25 +316,41 @@ async function createExternalRotation(actor, data, { igdbClient, itadClient } = 
   if (data.igdbSlug) {
     const metadata = await igdbClient.getGameBySlug(data.igdbSlug);
     if (!metadata) throw new AppError(404, 'not_found', 'IGDB game was not found');
-    game = await CanonicalGame.findOne({ igdbId: metadata.igdbId, mergedIntoId: null })
-      || await CanonicalGame.create({
-        ...metadata, origin: 'casual_friday', storeAvailability: 'independent',
-        metadata: { status: 'complete' }, metadataReviewedBy: actor._id, metadataReviewedAt: new Date()
-      });
+    game =
+      (await CanonicalGame.findOne({ igdbId: metadata.igdbId, mergedIntoId: null })) ||
+      (await CanonicalGame.create({
+        ...metadata,
+        origin: 'casual_friday',
+        storeAvailability: 'independent',
+        metadata: { status: 'complete' },
+        metadataReviewedBy: actor._id,
+        metadataReviewedAt: new Date()
+      }));
   } else {
     const title = cleanDisplayTitle(data.title);
     if (!title) throw new AppError(400, 'invalid_request', 'title is required');
     game = await CanonicalGame.create({
-      canonicalTitle: title, normalizedTitle: normalizeTitle(title), artwork: data.artworkOverride,
-      summary: data.info, origin: 'casual_friday', storeAvailability: 'independent',
-      metadata: { status: 'complete' }, metadataReviewedBy: actor._id, metadataReviewedAt: new Date()
+      canonicalTitle: title,
+      normalizedTitle: normalizeTitle(title),
+      artwork: data.artworkOverride,
+      summary: data.info,
+      origin: 'casual_friday',
+      storeAvailability: 'independent',
+      metadata: { status: 'complete' },
+      metadataReviewedBy: actor._id,
+      metadataReviewedAt: new Date()
     });
   }
-  return createRotation(actor, {
-    ...data, canonicalGameId: game._id,
-    displayTitle: data.displayTitle || cleanDisplayTitle(game.canonicalTitle),
-    info: data.info ?? game.summary
-  }, { itadClient });
+  return createRotation(
+    actor,
+    {
+      ...data,
+      canonicalGameId: game._id,
+      displayTitle: data.displayTitle || cleanDisplayTitle(game.canonicalTitle),
+      info: data.info ?? game.summary
+    },
+    { itadClient }
+  );
 }
 
 function rotationSnapshot(rotation, game) {
@@ -300,7 +404,10 @@ async function updateRotation(actor, id, data, { itadClient } = {}) {
   await rotation.save();
   const game = await CanonicalGame.findById(rotation.canonicalGameId);
   const syncedEntries = await syncEditablePlaylistEntries(rotation, game, actor);
-  await audit(actor, 'rotation_updated', { rotationGameId: rotation._id, details: { syncedPlaylistEntries: syncedEntries } });
+  await audit(actor, 'rotation_updated', {
+    rotationGameId: rotation._id,
+    details: { syncedPlaylistEntries: syncedEntries }
+  });
   return { ...rotationDto(rotation, game), syncedPlaylistEntries: syncedEntries };
 }
 
@@ -319,11 +426,20 @@ async function retireRotation(actor, id, reason) {
   const retiredAt = new Date();
   const rotation = await Rotation.findOneAndUpdate(
     { _id: id, status: { $ne: 'retired' } },
-    { $set: { status: 'retired', retiredAt, retiredBy: actor._id, retirementReason: reason, updatedBy: actor._id } },
+    {
+      $set: {
+        status: 'retired',
+        retiredAt,
+        retiredBy: actor._id,
+        retirementReason: reason,
+        updatedBy: actor._id
+      }
+    },
     { new: true, runValidators: false }
   );
   if (!rotation) {
-    if (!await Rotation.exists({ _id: id })) throw new AppError(404, 'not_found', 'Rotation game was not found');
+    if (!(await Rotation.exists({ _id: id })))
+      throw new AppError(404, 'not_found', 'Rotation game was not found');
     return;
   }
   await audit(actor, 'rotation_retired', { rotationGameId: rotation._id, details: { reason } });
@@ -344,14 +460,23 @@ async function buildPlaylistDto(playlist, userId) {
   const entries = await Entry.find({ playlistId: playlist._id }).sort({ position: 1 });
   const canonicalGameIds = entries.map((entry) => entry.canonicalGameId);
   const ownership = userId
-    ? await LibraryItem.find({ userId, canonicalGameId: { $in: canonicalGameIds }, removedAt: null }).select('canonicalGameId provider')
+    ? await LibraryItem.find({
+        userId,
+        canonicalGameId: { $in: canonicalGameIds },
+        removedAt: null
+      }).select('canonicalGameId provider')
     : [];
   const providers = new Map();
-  ownership.forEach((item) => providers.set(String(item.canonicalGameId), [
-    ...new Set([...(providers.get(String(item.canonicalGameId)) || []), item.provider])
-  ]));
-  const rotations = await Rotation.find({ _id: { $in: entries.map((entry) => entry.rotationGameId) } })
-    .select('itadStatus itadGameId itadTitle itadCheckedAt itadError itadOffer itadOfferCheckedAt itadOfferError');
+  ownership.forEach((item) =>
+    providers.set(String(item.canonicalGameId), [
+      ...new Set([...(providers.get(String(item.canonicalGameId)) || []), item.provider])
+    ])
+  );
+  const rotations = await Rotation.find({
+    _id: { $in: entries.map((entry) => entry.rotationGameId) }
+  }).select(
+    'itadStatus itadGameId itadTitle itadCheckedAt itadError itadOffer itadOfferCheckedAt itadOfferError'
+  );
   const rotationMap = new Map(rotations.map((rotation) => [String(rotation._id), rotation]));
   return {
     id: String(playlist._id),
@@ -381,10 +506,20 @@ async function buildPlaylistDto(playlist, userId) {
   };
 }
 
-async function updateKeyOffer(actor, playlistId, entryId, version, data, { now = new Date() } = {}) {
+async function updateKeyOffer(
+  actor,
+  playlistId,
+  entryId,
+  version,
+  data,
+  { now = new Date() } = {}
+) {
   const keyOffer = {
-    price: keyOfferPrice(data.price), currency: 'EUR', url: keyOfferUrl(data.url),
-    updatedAt: now, updatedBy: actor._id
+    price: keyOfferPrice(data.price),
+    currency: 'EUR',
+    url: keyOfferUrl(data.url),
+    updatedAt: now,
+    updatedBy: actor._id
   };
   const playlist = await requireEditablePlaylist(playlistId, version, actor, now);
   const entry = await Entry.findOneAndUpdate(
@@ -393,12 +528,18 @@ async function updateKeyOffer(actor, playlistId, entryId, version, data, { now =
     { new: true, runValidators: true }
   );
   if (!entry) {
-    await Playlist.updateOne({ _id: playlist._id, version: playlist.version }, { $inc: { version: -1 } });
+    await Playlist.updateOne(
+      { _id: playlist._id, version: playlist.version },
+      { $inc: { version: -1 } }
+    );
     throw new AppError(404, 'not_found', 'Playlist entry was not found');
   }
   await audit(actor, 'playlist_key_offer_updated', {
-    playlistId: playlist._id, rotationGameId: entry.rotationGameId,
-    beforeVersion: version, afterVersion: playlist.version, details: { price: keyOffer.price, currency: keyOffer.currency }
+    playlistId: playlist._id,
+    rotationGameId: entry.rotationGameId,
+    beforeVersion: version,
+    afterVersion: playlist.version,
+    details: { price: keyOffer.price, currency: keyOffer.currency }
   });
   return buildPlaylistDto(playlist, actor._id);
 }
@@ -411,12 +552,17 @@ async function removeKeyOffer(actor, playlistId, entryId, version, { now = new D
     { new: true }
   );
   if (!entry) {
-    await Playlist.updateOne({ _id: playlist._id, version: playlist.version }, { $inc: { version: -1 } });
+    await Playlist.updateOne(
+      { _id: playlist._id, version: playlist.version },
+      { $inc: { version: -1 } }
+    );
     throw new AppError(404, 'not_found', 'Key offer was not found');
   }
   await audit(actor, 'playlist_key_offer_removed', {
-    playlistId: playlist._id, rotationGameId: entry.rotationGameId,
-    beforeVersion: version, afterVersion: playlist.version
+    playlistId: playlist._id,
+    rotationGameId: entry.rotationGameId,
+    beforeVersion: version,
+    afterVersion: playlist.version
   });
   return buildPlaylistDto(playlist, actor._id);
 }
@@ -431,17 +577,29 @@ async function requireEditablePlaylist(playlistId, version, actor, now = new Dat
   const existing = await Playlist.findById(playlistId);
   if (!existing) throw new AppError(404, 'not_found', 'Playlist was not found');
   if (!playlistIsEditable(existing, now)) {
-    throw new AppError(409, 'playlist_not_editable', 'The playlist can only be changed before Saturday at 06:00 Europe/Rome');
+    throw new AppError(
+      409,
+      'playlist_not_editable',
+      'The playlist can only be changed before Saturday at 06:00 Europe/Rome'
+    );
   }
-  throw new AppError(409, 'playlist_version_conflict', 'This playlist changed. Reload it before saving.');
+  throw new AppError(
+    409,
+    'playlist_version_conflict',
+    'This playlist changed. Reload it before saving.'
+  );
 }
 
-async function addToPlaylist(actor, id, { itadClient, now = new Date() } = {}) {
+async function addToPlaylist(actor, id, { now = new Date() } = {}) {
   const rotation = await Rotation.findOne({ _id: id, status: 'active' });
   if (!rotation) throw new AppError(404, 'not_found', 'Active rotation game was not found');
   const playlist = await upcomingPlaylist(actor, now);
   if (!playlistIsEditable(playlist, now)) {
-    throw new AppError(409, 'playlist_not_editable', 'The playlist can only be changed before Saturday at 06:00 Europe/Rome');
+    throw new AppError(
+      409,
+      'playlist_not_editable',
+      'The playlist can only be changed before Saturday at 06:00 Europe/Rome'
+    );
   }
   if (await Entry.exists({ playlistId: playlist._id, rotationGameId: rotation._id })) {
     return buildPlaylistDto(playlist, actor._id);
@@ -465,7 +623,9 @@ async function addToPlaylist(actor, id, { itadClient, now = new Date() } = {}) {
   playlist.updatedBy = actor._id;
   await playlist.save();
   await audit(actor, 'playlist_entry_added', {
-    playlistId: playlist._id, rotationGameId: rotation._id, afterVersion: playlist.version,
+    playlistId: playlist._id,
+    rotationGameId: rotation._id,
+    afterVersion: playlist.version,
     details: { itadStatus: itad.status, offerFound: Boolean(itad.offer) }
   });
   return buildPlaylistDto(playlist, actor._id);
@@ -475,13 +635,21 @@ async function removeFromPlaylist(actor, playlistId, entryId, version, { now = n
   const playlist = await requireEditablePlaylist(playlistId, version, actor, now);
   const entry = await Entry.findOneAndDelete({ _id: entryId, playlistId: playlist._id });
   if (!entry) {
-    await Playlist.updateOne({ _id: playlist._id, version: playlist.version }, { $inc: { version: -1 } });
+    await Playlist.updateOne(
+      { _id: playlist._id, version: playlist.version },
+      { $inc: { version: -1 } }
+    );
     throw new AppError(404, 'not_found', 'Playlist entry was not found');
   }
-  await Entry.updateMany({ playlistId: playlist._id, position: { $gt: entry.position } }, { $inc: { position: -1 } });
+  await Entry.updateMany(
+    { playlistId: playlist._id, position: { $gt: entry.position } },
+    { $inc: { position: -1 } }
+  );
   await audit(actor, 'playlist_entry_removed', {
-    playlistId: playlist._id, rotationGameId: entry.rotationGameId,
-    beforeVersion: version, afterVersion: playlist.version
+    playlistId: playlist._id,
+    rotationGameId: entry.rotationGameId,
+    beforeVersion: version,
+    afterVersion: playlist.version
   });
   return buildPlaylistDto(playlist, actor._id);
 }
@@ -489,19 +657,38 @@ async function removeFromPlaylist(actor, playlistId, entryId, version, { now = n
 async function reorderPlaylist(actor, playlistId, entryIds, version, { now = new Date() } = {}) {
   const entries = await Entry.find({ playlistId }).sort({ position: 1 });
   const currentIds = entries.map((entry) => String(entry._id));
-  if (entryIds.length !== currentIds.length || new Set(entryIds).size !== entryIds.length
-    || entryIds.some((entryId) => !currentIds.includes(entryId))) {
-    throw new AppError(400, 'invalid_playlist_order', 'entryIds must contain every playlist entry exactly once');
+  if (
+    entryIds.length !== currentIds.length ||
+    new Set(entryIds).size !== entryIds.length ||
+    entryIds.some((entryId) => !currentIds.includes(entryId))
+  ) {
+    throw new AppError(
+      400,
+      'invalid_playlist_order',
+      'entryIds must contain every playlist entry exactly once'
+    );
   }
   const playlist = await requireEditablePlaylist(playlistId, version, actor, now);
-  await Entry.bulkWrite(entryIds.map((entryId, index) => ({
-    updateOne: { filter: { _id: entryId, playlistId }, update: { $set: { position: -(index + 1) } } }
-  })), { ordered: true });
-  await Entry.bulkWrite(entryIds.map((entryId, index) => ({
-    updateOne: { filter: { _id: entryId, playlistId }, update: { $set: { position: index + 1 } } }
-  })), { ordered: true });
+  await Entry.bulkWrite(
+    entryIds.map((entryId, index) => ({
+      updateOne: {
+        filter: { _id: entryId, playlistId },
+        update: { $set: { position: -(index + 1) } }
+      }
+    })),
+    { ordered: true }
+  );
+  await Entry.bulkWrite(
+    entryIds.map((entryId, index) => ({
+      updateOne: { filter: { _id: entryId, playlistId }, update: { $set: { position: index + 1 } } }
+    })),
+    { ordered: true }
+  );
   await audit(actor, 'playlist_reordered', {
-    playlistId: playlist._id, beforeVersion: version, afterVersion: playlist.version, details: { entryIds }
+    playlistId: playlist._id,
+    beforeVersion: version,
+    afterVersion: playlist.version,
+    details: { entryIds }
   });
   return buildPlaylistDto(playlist, actor._id);
 }
@@ -513,16 +700,31 @@ async function publishPlaylist(actor, id, version) {
     throw new AppError(409, 'playlist_not_editable', 'Only an active draft can be published');
   }
   if (playlist.version !== version) {
-    throw new AppError(409, 'playlist_version_conflict', 'This playlist changed. Reload it before saving.');
+    throw new AppError(
+      409,
+      'playlist_version_conflict',
+      'This playlist changed. Reload it before saving.'
+    );
   }
   const count = await Entry.countDocuments({ playlistId: playlist._id });
-  if (count < 1) throw new AppError(400, 'invalid_playlist_size', 'A playlist needs at least one game before publication');
+  if (count < 1)
+    throw new AppError(
+      400,
+      'invalid_playlist_size',
+      'A playlist needs at least one game before publication'
+    );
   Object.assign(playlist, {
-    status: 'published', version: playlist.version + 1, publishedBy: actor._id,
-    publishedAt: new Date(), updatedBy: actor._id
+    status: 'published',
+    version: playlist.version + 1,
+    publishedBy: actor._id,
+    publishedAt: new Date(),
+    updatedBy: actor._id
   });
   await playlist.save();
-  await audit(actor, 'playlist_published', { playlistId: playlist._id, afterVersion: playlist.version });
+  await audit(actor, 'playlist_published', {
+    playlistId: playlist._id,
+    afterVersion: playlist.version
+  });
   return buildPlaylistDto(playlist, actor._id);
 }
 
@@ -531,8 +733,11 @@ async function cancelPlaylist(actor, id, version, reason, now = new Date()) {
     { _id: id, status: 'published', endsAt: { $gt: now }, version },
     {
       $set: {
-        status: 'cancelled', cancellationReason: reason, cancelledBy: actor._id,
-        cancelledAt: now, updatedBy: actor._id
+        status: 'cancelled',
+        cancellationReason: reason,
+        cancelledBy: actor._id,
+        cancelledAt: now,
+        updatedBy: actor._id
       },
       $inc: { version: 1 }
     },
@@ -542,12 +747,23 @@ async function cancelPlaylist(actor, id, version, reason, now = new Date()) {
     const existing = await Playlist.findById(id);
     if (!existing) throw new AppError(404, 'not_found', 'Playlist was not found');
     if (existing.status !== 'published' || existing.endsAt <= now) {
-      throw new AppError(409, 'playlist_not_cancellable', 'Only an active published playlist can be cancelled');
+      throw new AppError(
+        409,
+        'playlist_not_cancellable',
+        'Only an active published playlist can be cancelled'
+      );
     }
-    throw new AppError(409, 'playlist_version_conflict', 'This playlist changed. Reload it before saving.');
+    throw new AppError(
+      409,
+      'playlist_version_conflict',
+      'This playlist changed. Reload it before saving.'
+    );
   }
   await audit(actor, 'playlist_cancelled', {
-    playlistId: playlist._id, beforeVersion: version, afterVersion: playlist.version, details: { reason }
+    playlistId: playlist._id,
+    beforeVersion: version,
+    afterVersion: playlist.version,
+    details: { reason }
   });
   return buildPlaylistDto(playlist, actor._id);
 }
@@ -566,21 +782,33 @@ async function restoreCancelledPlaylist(actor, id, version, now = new Date()) {
     const existing = await Playlist.findById(id);
     if (!existing) throw new AppError(404, 'not_found', 'Playlist was not found');
     if (existing.status !== 'cancelled' || existing.endsAt <= now) {
-      throw new AppError(409, 'playlist_not_restorable', 'Only a cancelled playlist can be restored before Saturday at 06:00 Europe/Rome');
+      throw new AppError(
+        409,
+        'playlist_not_restorable',
+        'Only a cancelled playlist can be restored before Saturday at 06:00 Europe/Rome'
+      );
     }
-    throw new AppError(409, 'playlist_version_conflict', 'This playlist changed. Reload it before saving.');
+    throw new AppError(
+      409,
+      'playlist_version_conflict',
+      'This playlist changed. Reload it before saving.'
+    );
   }
   await audit(actor, 'playlist_restored', {
-    playlistId: playlist._id, beforeVersion: version, afterVersion: playlist.version
+    playlistId: playlist._id,
+    beforeVersion: version,
+    afterVersion: playlist.version
   });
   return buildPlaylistDto(playlist, actor._id);
 }
 
 async function completeElapsedPlaylists(now = new Date()) {
-  return (await Playlist.updateMany(
-    { status: 'published', endsAt: { $lte: now } },
-    { $set: { status: 'completed', completedAt: now }, $inc: { version: 1 } }
-  )).modifiedCount;
+  return (
+    await Playlist.updateMany(
+      { status: 'published', endsAt: { $lte: now } },
+      { $set: { status: 'completed', completedAt: now }, $inc: { version: 1 } }
+    )
+  ).modifiedCount;
 }
 
 async function refreshRotationOffers({ itadClient, now = new Date() }) {
@@ -604,14 +832,18 @@ async function refreshRotationOffers({ itadClient, now = new Date() }) {
         return {
           updateOne: {
             filter: { _id: rotation._id, status: 'active', itadGameId: rotation.itadGameId },
-            update: { $set: { itadOffer: offer, itadOfferCheckedAt: now }, $unset: { itadOfferError: 1 } }
+            update: {
+              $set: { itadOffer: offer, itadOfferCheckedAt: now },
+              $unset: { itadOfferError: 1 }
+            }
           }
         };
       });
       await Rotation.bulkWrite(operations);
       batches += 1;
     } catch (error) {
-      const message = error instanceof ItadProviderError ? error.message : 'ITAD price refresh failed';
+      const message =
+        error instanceof ItadProviderError ? error.message : 'ITAD price refresh failed';
       await Rotation.updateMany(
         { _id: { $in: batch.map((rotation) => rotation._id) } },
         { $set: { itadOfferError: message } }

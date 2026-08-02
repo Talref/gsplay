@@ -58,14 +58,44 @@ function loadEnvironment(environment = process.env) {
     mongoUri,
     logLevel: environment.LOG_LEVEL || 'info',
     workerEnabled: asBoolean(environment.ENABLE_WORKER, true),
-    uploadMaxBytes: asInteger(environment.UPLOAD_MAX_BYTES, 10 * 1024 * 1024, 'UPLOAD_MAX_BYTES', 1024, 25 * 1024 * 1024),
+    uploadMaxBytes: asInteger(
+      environment.UPLOAD_MAX_BYTES,
+      10 * 1024 * 1024,
+      'UPLOAD_MAX_BYTES',
+      1024,
+      25 * 1024 * 1024
+    ),
     itad: {
-      priceRefreshMs: asInteger(environment.ITAD_PRICE_REFRESH_MS, 60 * 60 * 1000, 'ITAD_PRICE_REFRESH_MS', 60_000, 24 * 60 * 60 * 1000)
+      priceRefreshMs: asInteger(
+        environment.ITAD_PRICE_REFRESH_MS,
+        60 * 60 * 1000,
+        'ITAD_PRICE_REFRESH_MS',
+        60_000,
+        24 * 60 * 60 * 1000
+      )
     },
     igdb: {
-      minIntervalMs: asInteger(environment.IGDB_MIN_INTERVAL_MS, 500, 'IGDB_MIN_INTERVAL_MS', 250, 60_000),
-      cooldownMs: asInteger(environment.IGDB_COOLDOWN_MS, 60_000, 'IGDB_COOLDOWN_MS', 1_000, 60 * 60 * 1000),
-      maintenanceMs: asInteger(environment.IGDB_MAINTENANCE_MS, 15 * 60 * 1000, 'IGDB_MAINTENANCE_MS', 60_000, 24 * 60 * 60 * 1000),
+      minIntervalMs: asInteger(
+        environment.IGDB_MIN_INTERVAL_MS,
+        500,
+        'IGDB_MIN_INTERVAL_MS',
+        250,
+        60_000
+      ),
+      cooldownMs: asInteger(
+        environment.IGDB_COOLDOWN_MS,
+        60_000,
+        'IGDB_COOLDOWN_MS',
+        1_000,
+        60 * 60 * 1000
+      ),
+      maintenanceMs: asInteger(
+        environment.IGDB_MAINTENANCE_MS,
+        15 * 60 * 1000,
+        'IGDB_MAINTENANCE_MS',
+        60_000,
+        24 * 60 * 60 * 1000
+      ),
       queueLimit: asInteger(environment.IGDB_QUEUE_LIMIT, 100, 'IGDB_QUEUE_LIMIT', 1, 10_000),
       maxAttempts: asInteger(environment.IGDB_MAX_ATTEMPTS, 6, 'IGDB_MAX_ATTEMPTS', 1, 10),
       recoverLegacyPermanent: asBoolean(environment.IGDB_RECOVER_LEGACY_PERMANENT, !isProduction)
@@ -77,15 +107,26 @@ function loadEnvironment(environment = process.env) {
       refreshTtl: environment.JWT_REFRESH_TTL || '30d',
       cookieSecure: asBoolean(environment.COOKIE_SECURE, isProduction),
       cookieSameSite: environment.COOKIE_SAME_SITE || 'lax',
-      rateLimitWindowMs: asInteger(environment.AUTH_RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000, 'AUTH_RATE_LIMIT_WINDOW_MS', 60_000, 24 * 60 * 60 * 1000),
+      rateLimitWindowMs: asInteger(
+        environment.AUTH_RATE_LIMIT_WINDOW_MS,
+        15 * 60 * 1000,
+        'AUTH_RATE_LIMIT_WINDOW_MS',
+        60_000,
+        24 * 60 * 60 * 1000
+      ),
       rateLimitMax: asInteger(environment.AUTH_RATE_LIMIT_MAX, 20, 'AUTH_RATE_LIMIT_MAX', 1, 1_000)
     },
     providers: {
       steamApiKey: environment.STEAM_API_KEY || null,
-       igdbClientId: environment.IGDB_CLIENT_ID || environment.TW_CLIENT_ID || environment.TW_CLIENTID || null,
-       igdbClientSecret: environment.IGDB_CLIENT_SECRET || environment.TW_CLIENT_SECRET || environment.TW_CLIENTSECRET || null,
-       itadApiKey: environment.ITAD_API_KEY || null,
-       retroAchievementsUsername: environment.RETROACHIEVEMENT_USERNAME || null,
+      igdbClientId:
+        environment.IGDB_CLIENT_ID || environment.TW_CLIENT_ID || environment.TW_CLIENTID || null,
+      igdbClientSecret:
+        environment.IGDB_CLIENT_SECRET ||
+        environment.TW_CLIENT_SECRET ||
+        environment.TW_CLIENTSECRET ||
+        null,
+      itadApiKey: environment.ITAD_API_KEY || null,
+      retroAchievementsUsername: environment.RETROACHIEVEMENT_USERNAME || null,
       retroAchievementsApiKey: environment.RETROACHIEVEMENT_API_KEY || null
     }
   };

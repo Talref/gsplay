@@ -6,7 +6,16 @@ function requestContext(req, res, next) {
   const startedAt = process.hrtime.bigint();
   res.on('finish', () => {
     const durationMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
-    console.info(JSON.stringify({ level: 'info', requestId: req.id, method: req.method, path: req.originalUrl, status: res.statusCode, durationMs: Math.round(durationMs) }));
+    console.info(
+      JSON.stringify({
+        level: 'info',
+        requestId: req.id,
+        method: req.method,
+        path: req.originalUrl,
+        status: res.statusCode,
+        durationMs: Math.round(durationMs)
+      })
+    );
   });
   next();
 }
