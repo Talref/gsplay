@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
   Box,
@@ -13,7 +12,6 @@ import {
   Grid,
   InputAdornment,
   MenuItem,
-  Paper,
   Select,
   Stack,
   TextField,
@@ -21,88 +19,14 @@ import {
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import FilterAltIcon from '@mui/icons-material/FilterAlt'
-import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined'
-import StarRoundedIcon from '@mui/icons-material/StarRounded'
+import CatalogueFilters from '../components/catalogue/CatalogueFilters'
+import CatalogueGameCard from '../components/catalogue/CatalogueGameCard'
+import CatalogueSuggestions from '../components/catalogue/CatalogueSuggestions'
+import useInfiniteScroll from '../hooks/useInfiniteScroll'
 import { catalogueApi } from '../services/api'
 
 const toggle = (items, item) =>
   items.includes(item) ? items.filter((value) => value !== item) : [...items, item]
-const ownerText = (count) =>
-  count === 1 ? 'Ce l’ha un disgraziato' : `Ce l’hanno ${count} disgraziati`
-function Facet({ title, values, selected, onChange }) {
-  const safeValues = Array.isArray(values) ? values : []
-  const safeSelected = Array.isArray(selected) ? selected : []
-  return (
-    <Stack spacing={1}>
-      <Typography className="pixel-label" color="primary">
-        {title}
-      </Typography>
-      <FormControl fullWidth size="small">
-        <Select
-          multiple
-          displayEmpty
-          value={safeSelected}
-          onChange={(event) => onChange(event.target.value)}
-          renderValue={(items) =>
-            items.length
-              ? `${items.length} selezionat${items.length === 1 ? 'o' : 'i'}`
-              : `Scegli ${title.toLowerCase()}`
-          }
-        >
-          <MenuItem disabled value="">
-            Scegli {title.toLowerCase()}
-          </MenuItem>
-          {safeValues.map((value) => (
-            <MenuItem key={value} value={value}>
-              {value}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-    </Stack>
-  )
-}
-function GameCard({ game }) {
-  const extras = (values, maximum = 2) => values?.slice(0, maximum) || []
-  return (
-    <Card
-      component={Link}
-      to={`/catalogue/${game.id}`}
-      className="catalogue-game-card catalogue-game-card--link"
-    >
-      <Box
-        className={`catalogue-cover${game.artwork ? ' catalogue-cover--artwork' : ''}`}
-        sx={game.artwork ? { backgroundImage: `url("${game.artwork}")` } : undefined}
-      >
-        <Box className="catalogue-rating">
-          <StarRoundedIcon fontSize="small" />
-          {Number.isFinite(game.rating) ? Math.round(game.rating) : '—'}
-        </Box>
-      </Box>
-      <CardContent className="catalogue-game-card__content">
-        <Typography className="game-title-clamp" variant="h6">
-          {game.title}
-        </Typography>
-        <Stack direction="row" flexWrap="wrap" gap={0.5} sx={{ mt: 1 }}>
-          {extras(game.genres).map((value) => (
-            <Chip key={value} size="small" label={value} />
-          ))}
-          {game.genres?.length > 2 && <Chip size="small" label={`+${game.genres.length - 2}`} />}
-        </Stack>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1, minHeight: 40 }}>
-          {extras(game.platforms, 3).join(' · ') || 'Piattaforme in arrivo da er cosmo'}
-        </Typography>
-        <Box className="catalogue-ownership">
-          <PeopleAltOutlinedIcon color="primary" fontSize="small" />
-          <Typography variant="body2" color="primary">
-            {ownerText(game.ownerCount)}
-          </Typography>
-        </Box>
-      </CardContent>
-    </Card>
-  )
-}
-
 export default function Catalogue() {
   const [query, setQuery] = useState('')
   const [appliedQuery, setAppliedQuery] = useState('')
@@ -117,7 +41,6 @@ export default function Catalogue() {
   const [error, setError] = useState('')
   const [facets, setFacets] = useState({ genres: [], platforms: [], gameModes: [] })
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const sentinel = useRef(null)
   const options = useMemo(
     () => ({ query: appliedQuery, sort, genres, platforms, gameModes, pageSize: page.size }),
     [appliedQuery, gameModes, genres, page.size, platforms, sort]
@@ -170,18 +93,8 @@ export default function Catalogue() {
     return () => clearTimeout(timer)
   }, [appliedQuery, query])
   const hasMore = games.length < page.total
-  useEffect(() => {
-    const target = sentinel.current
-    if (!target || !hasMore || loading) return undefined
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) load(page.number + 1)
-      },
-      { rootMargin: '320px' }
-    )
-    observer.observe(target)
-    return () => observer.disconnect()
-  }, [hasMore, load, loading, page.number])
+  const loadMore = useCallback(() => load(page.number + 1), [load, page.number])
+  const sentinel = useInfiniteScroll({ hasMore, loading, onLoadMore: loadMore })
   const applySearch = (value = query) => {
     setQuery(value)
     setAppliedQuery(value)
@@ -197,26 +110,18 @@ export default function Catalogue() {
     ['Piattaforma', platforms, setPlatforms],
     ['Modalità', gameModes, setGameModes]
   ]
-  const filterContent = (
-    <Stack spacing={3}>
-      <Facet title="GENERI" values={facets.genres} selected={genres} onChange={setGenres} />
-      <Facet
-        title="PIATTAFORME"
-        values={facets.platforms}
-        selected={platforms}
-        onChange={setPlatforms}
-      />
-      <Facet
-        title="MODALITÀ DI GIOCO"
-        values={facets.gameModes}
-        selected={gameModes}
-        onChange={setGameModes}
-      />
-      <Button variant="text" onClick={clearFilters}>
-        Leva tutto, daje
-      </Button>
-    </Stack>
-  )
+  const filterProps = {
+    facets,
+    genres,
+    platforms,
+    gameModes,
+    onChange: {
+      genres: setGenres,
+      platforms: setPlatforms,
+      gameModes: setGameModes,
+      clear: clearFilters
+    }
+  }
   return (
     <Stack spacing={3}>
       <Box textAlign={{ xs: 'left', md: 'center' }}>
@@ -254,59 +159,13 @@ export default function Catalogue() {
             Filtri
           </Button>
         </Stack>
-        {suggestions.length > 0 && (
-          <Paper
-            elevation={8}
-            sx={{
-              position: 'absolute',
-              zIndex: 4,
-              top: { xs: 58, md: 58 },
-              left: 0,
-              width: { xs: '100%', md: 'calc(100% - 190px)' },
-              p: 0.75
-            }}
-          >
-            <Typography className="pixel-label" color="primary" sx={{ px: 1, pt: 0.5 }}>
-              5 DRITTE, POI DECIDI TU
-            </Typography>
-            {suggestions.map((game) => (
-              <Button
-                key={game.id}
-                component={Link}
-                to={`/catalogue/${game.id}`}
-                fullWidth
-                color="inherit"
-                sx={{ justifyContent: 'flex-start', gap: 1.25, py: 0.75, textAlign: 'left' }}
-                onClick={() => setSuggestions([])}
-              >
-                <Box
-                  sx={{
-                    width: 30,
-                    height: 42,
-                    flexShrink: 0,
-                    borderRadius: 1,
-                    background: game.artwork
-                      ? `center / cover url("${game.artwork}")`
-                      : 'var(--gs-surface-highlight)'
-                  }}
-                />
-                <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-                  <Typography noWrap>{game.title}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {Number.isFinite(game.rating)
-                      ? `${Math.round(game.rating)}/100`
-                      : 'Voto disperso'}{' '}
-                    · {ownerText(game.ownerCount)}
-                  </Typography>
-                </Box>
-              </Button>
-            ))}
-          </Paper>
-        )}
+        <CatalogueSuggestions games={suggestions} onSelect={() => setSuggestions([])} />
       </Box>
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} alignItems="flex-start">
         <Card sx={{ width: 260, flexShrink: 0, display: { xs: 'none', md: 'block' } }}>
-          <CardContent>{filterContent}</CardContent>
+          <CardContent>
+            <CatalogueFilters {...filterProps} />
+          </CardContent>
         </Card>
         <Stack spacing={2} sx={{ minWidth: 0, flex: 1 }}>
           <Stack
@@ -345,7 +204,7 @@ export default function Catalogue() {
           <Grid container spacing={2} className="equal-height-grid">
             {games.map((game) => (
               <Grid key={game.id} size={{ xs: 12, sm: 6, md: 4, xl: 3 }}>
-                <GameCard game={game} />
+                <CatalogueGameCard game={game} />
               </Grid>
             ))}
           </Grid>
@@ -363,7 +222,7 @@ export default function Catalogue() {
       <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
         <Stack spacing={2} sx={{ width: 'min(85vw, 340px)', p: 3 }}>
           <Typography variant="h5">FILTRA ‘STO BORDELLO</Typography>
-          {filterContent}
+          <CatalogueFilters {...filterProps} />
           <Button variant="contained" onClick={() => setDrawerOpen(false)}>
             Fatto, annamo
           </Button>
