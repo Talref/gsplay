@@ -29,6 +29,8 @@ COOKIE_SAME_SITE=lax
 AUTH_RATE_LIMIT_WINDOW_MS=900000
 AUTH_RATE_LIMIT_MAX=20
 ENABLE_WORKER=true
+GUIDE_UPLOAD_DIR=/var/lib/gsplay/guide
+GUIDE_IMAGE_MAX_BYTES=5242880
 ```
 
 Provider credentials are optional and must remain only in this protected file.
@@ -43,6 +45,10 @@ gsplay.daje.cc {
         reverse_proxy 127.0.0.1:3000
     }
 
+    handle /uploads/guide/* {
+        reverse_proxy 127.0.0.1:3000
+    }
+
     handle {
         root * /srv/gsplay/gsplay-frontend/dist
         try_files {path} /index.html
@@ -50,6 +56,12 @@ gsplay.daje.cc {
     }
 }
 ```
+
+The API systemd unit creates `/var/lib/gsplay` as persistent state owned by the `gsplay` service
+account; GSPlay creates its `guide` subdirectory on the first upload. The path is outside
+`/srv/gsplay`, so publishing a release does not replace uploaded guide images. If
+`GUIDE_UPLOAD_DIR` is customized, add the same absolute path to the API unit's `ReadWritePaths` and
+backup commands.
 
 ## Routine deployment
 
@@ -83,6 +95,20 @@ stamp=$(date +%Y%m%d-%H%M%S)
 mkdir -p ~/gsplay-backups
 sudo bash -c 'set -a; source /etc/gsplay/v2.env; set +a; mongodump --uri "$MONGO_URI" --archive="$1" --gzip' bash "$HOME/gsplay-backups/gsplay-$stamp.archive.gz"
 gzip -t "$HOME/gsplay-backups/gsplay-$stamp.archive.gz"
+sudo bash -c 'set -a; source "$1"; set +a; tar -C "${GUIDE_UPLOAD_DIR:-/var/lib/gsplay/guide}" -czf "$2" .' bash /etc/gsplay/v2.env "$HOME/gsplay-backups/gsplay-guide-images-$stamp.tar.gz"
+gzip -t "$HOME/gsplay-backups/gsplay-guide-images-$stamp.tar.gz"
+```
+
+Keep the MongoDB archive and matching guide-image archive together. To restore guide images after
+provisioning the API unit, stop the API, extract into the configured empty upload directory, restore
+ownership, and start the API again:
+
+```bash
+sudo systemctl stop gsplay-v2-api.service
+sudo install -d -o gsplay -g gsplay -m 0750 /var/lib/gsplay/guide
+sudo tar -xzf ~/gsplay-backups/gsplay-guide-images-<timestamp>.tar.gz -C /var/lib/gsplay/guide
+sudo chown -R gsplay:gsplay /var/lib/gsplay/guide
+sudo systemctl start gsplay-v2-api.service
 ```
 
 For an application rollback, deploy a previously known-good release tag rather than modifying database collections:
@@ -104,7 +130,8 @@ sudo journalctl -fu gsplay-v2-api.service -u gsplay-v2-worker.service
 sudo caddy validate --config /etc/caddy/Caddyfile
 ```
 
-The public Caddy boundary intentionally proxies only `/api/v2/*`. Local `/health/*` endpoints are for systemd/host checks and do not need public routing.
+The public Caddy boundary proxies `/api/v2/*` and immutable `/uploads/guide/*` content. Local
+`/health/*` endpoints are for systemd/host checks and do not need public routing.
 
 ## Branch and release policy
 
