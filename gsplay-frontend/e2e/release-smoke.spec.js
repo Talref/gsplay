@@ -102,6 +102,37 @@ test('an admin can queue explicit IGDB catalogue maintenance actions', async ({ 
   await expect(page.getByText('IGDB recovery scan queued.')).toBeVisible()
 })
 
+test('an admin can safely edit and publish the member guide', async ({ page }, testInfo) => {
+  await page.goto('/login')
+  await page.getByLabel('Nome utente').fill('E2E Admin')
+  await page.getByLabel('Password').fill('correct-horse-battery-staple')
+  await page.getByRole('button', { name: 'Entra' }).click()
+  await expect(page.getByRole('button', { name: 'Esci' })).toBeVisible()
+  await page.goto('/admin/guide')
+  await expect(page.getByRole('heading', { name: 'Guide editor' })).toBeVisible()
+
+  const markdown = `# Benvenuti nella guida\n\nTesto **importante** per ${testInfo.project.name}.\n\n<script>alert(1)</script>`
+  await page.getByLabel('Guide Markdown').fill(markdown)
+  await page.getByRole('tab', { name: 'Preview' }).click()
+  await expect(page.getByRole('heading', { name: 'Benvenuti nella guida' })).toBeVisible()
+  await expect(page.getByText('importante')).toBeVisible()
+  await expect(page.locator('.guide-markdown script')).toHaveCount(0)
+
+  const openNavigation = page.getByRole('button', { name: 'Apri navigazione' })
+  if (await openNavigation.isVisible()) await openNavigation.click()
+  page.once('dialog', (dialog) => dialog.dismiss())
+  await page.getByRole('link', { name: 'Home' }).click()
+  await expect(page).toHaveURL(/\/admin\/guide$/)
+  await page.getByRole('button', { name: 'Save guide' }).click()
+  await expect(page.getByText('Guide saved.')).toBeVisible()
+
+  await page.goto('/guide')
+  await expect(page.getByRole('heading', { name: 'GUIDA GSPLAY' })).toHaveClass(/pixel-label/)
+  await expect(page.getByRole('heading', { name: 'Benvenuti nella guida' })).toBeVisible()
+  await expect(page.locator('.guide-markdown script')).toHaveCount(0)
+  await expectNoHorizontalOverflow(page)
+})
+
 test('Casual Friday tools show responsive reorderable cards and cached ITAD offers', async ({
   page
 }) => {

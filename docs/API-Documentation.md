@@ -46,6 +46,19 @@ Authorization: Bearer <your-jwt-token>
 }
 ```
 
+## V2 Guide API
+
+The guide API uses the `/api/v2` base path and cookie or bearer-token authentication.
+
+- `GET /api/v2/guide` returns the saved Markdown source and its last update timestamp to an
+  authenticated member.
+- `PUT /api/v2/guide` replaces the singleton guide document and requires the `admin` role. The
+  request body is `{ "markdown": "..." }`, with a maximum source length of 100,000 characters.
+
+The first successful update creates the `guides_v2` collection and its unique `slug` index. The
+normal deployment schema-bootstrap step creates or verifies that index; no existing data migration
+is required.
+
 ## Games API
 
 ### Search Games

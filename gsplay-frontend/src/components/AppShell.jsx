@@ -22,6 +22,7 @@ import CompareArrowsOutlinedIcon from '@mui/icons-material/CompareArrowsOutlined
 import TravelExploreOutlinedIcon from '@mui/icons-material/TravelExploreOutlined'
 import SportsEsportsOutlinedIcon from '@mui/icons-material/SportsEsportsOutlined'
 import CelebrationOutlinedIcon from '@mui/icons-material/CelebrationOutlined'
+import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined'
 import { useAuth } from '../context/useAuth'
 
 const memberLinks = [
@@ -34,7 +35,8 @@ const memberLinks = [
     '/casual-friday',
     <CelebrationOutlinedIcon key="casual-friday" color="primary" />
   ],
-  ['Retroclub', '/retro', <SportsEsportsOutlinedIcon key="retro" color="primary" />]
+  ['Retroclub', '/retro', <SportsEsportsOutlinedIcon key="retro" color="primary" />],
+  ['Guida', '/guide', <MenuBookOutlinedIcon key="guide" color="primary" />]
 ]
 
 function Navigation({ user, pathname, closeDrawer }) {
@@ -67,6 +69,14 @@ function Navigation({ user, pathname, closeDrawer }) {
             selected={pathname === '/admin/catalogue'}
           >
             <ListItemText primary="Catalogo admin" />
+          </ListItemButton>
+          <ListItemButton
+            component={Link}
+            to="/admin/guide"
+            selected={pathname === '/admin/guide'}
+            onClick={closeDrawer}
+          >
+            <ListItemText primary="Modifica guida" />
           </ListItemButton>
         </>
       )}
