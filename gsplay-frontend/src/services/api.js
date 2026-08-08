@@ -90,7 +90,12 @@ export const retroApi = {
 }
 export const guideApi = {
   get: () => request('get', '/guide'),
-  update: (markdown) => request('put', '/guide', { markdown })
+  update: (markdown) => request('put', '/guide', { markdown }),
+  uploadImage: (file) => {
+    const data = new FormData()
+    data.append('image', file)
+    return request('post', '/guide/images', data)
+  }
 }
 export const casualFridayApi = {
   current: () => request('get', '/casual-friday'),

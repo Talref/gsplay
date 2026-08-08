@@ -1,4 +1,6 @@
 const { URL } = require('node:url');
+const os = require('node:os');
+const path = require('node:path');
 
 const TRUE_VALUES = new Set(['1', 'true', 'yes']);
 const FALSE_VALUES = new Set(['0', 'false', 'no']);
@@ -28,6 +30,12 @@ function asOrigins(value) {
   if (!origins.length) throw new Error('CORS_ORIGINS must contain at least one origin');
   origins.forEach((origin) => new URL(origin));
   return origins;
+}
+
+function asAbsolutePath(value, fallback, label) {
+  const result = value || fallback;
+  if (!path.isAbsolute(result)) throw new Error(`${label} must be an absolute path`);
+  return result;
 }
 
 function requireSecret(environment, name) {
@@ -65,6 +73,20 @@ function loadEnvironment(environment = process.env) {
       1024,
       25 * 1024 * 1024
     ),
+    guide: {
+      uploadDir: asAbsolutePath(
+        environment.GUIDE_UPLOAD_DIR,
+        isProduction ? '/var/lib/gsplay/guide' : path.join(os.tmpdir(), 'gsplay-guide-images'),
+        'GUIDE_UPLOAD_DIR'
+      ),
+      imageMaxBytes: asInteger(
+        environment.GUIDE_IMAGE_MAX_BYTES,
+        5 * 1024 * 1024,
+        'GUIDE_IMAGE_MAX_BYTES',
+        1024,
+        10 * 1024 * 1024
+      )
+    },
     itad: {
       priceRefreshMs: asInteger(
         environment.ITAD_PRICE_REFRESH_MS,

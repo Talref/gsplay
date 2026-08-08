@@ -112,11 +112,28 @@ test('an admin can safely edit and publish the member guide', async ({ page }, t
   await expect(page.getByRole('heading', { name: 'Guide editor' })).toBeVisible()
 
   const markdown = `# Benvenuti nella guida\n\nTesto **importante** per ${testInfo.project.name}.\n\n<script>alert(1)</script>`
-  await page.getByLabel('Guide Markdown').fill(markdown)
+  const editor = page.getByLabel('Guide Markdown')
+  await editor.fill(markdown)
+  await editor.evaluate((element, projectName) => {
+    const png = Uint8Array.from(
+      atob(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
+      ),
+      (character) => character.charCodeAt(0)
+    )
+    const transfer = new DataTransfer()
+    transfer.items.add(new File([png], `pixel-${projectName}.png`, { type: 'image/png' }))
+    element.dispatchEvent(
+      new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: transfer })
+    )
+  }, testInfo.project.name)
+  await expect(page.getByText('Image uploaded and inserted.')).toBeVisible()
+  await expect(editor).toHaveValue(/\/uploads\/guide\/[0-9a-f-]+\.png/)
   await page.getByRole('tab', { name: 'Preview' }).click()
   await expect(page.getByRole('heading', { name: 'Benvenuti nella guida' })).toBeVisible()
   await expect(page.getByText('importante')).toBeVisible()
   await expect(page.locator('.guide-markdown script')).toHaveCount(0)
+  await expect(page.getByRole('img', { name: `pixel-${testInfo.project.name}` })).toBeVisible()
 
   const openNavigation = page.getByRole('button', { name: 'Apri navigazione' })
   if (await openNavigation.isVisible()) await openNavigation.click()
@@ -130,6 +147,7 @@ test('an admin can safely edit and publish the member guide', async ({ page }, t
   await expect(page.getByRole('heading', { name: 'GUIDA GSPLAY' })).toHaveClass(/pixel-label/)
   await expect(page.getByRole('heading', { name: 'Benvenuti nella guida' })).toBeVisible()
   await expect(page.locator('.guide-markdown script')).toHaveCount(0)
+  await expect(page.getByRole('img', { name: `pixel-${testInfo.project.name}` })).toBeVisible()
   await expectNoHorizontalOverflow(page)
 })
 

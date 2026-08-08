@@ -16,7 +16,9 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/srv/gsplay
+StateDirectory=gsplay
+StateDirectoryMode=0750
+ReadWritePaths=/srv/gsplay /var/lib/gsplay
 
 [Install]
 WantedBy=multi-user.target

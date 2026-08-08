@@ -7,6 +7,24 @@ describe('v2 environment configuration', () => {
     expect(config.port).toBe(3000);
     expect(config.auth.cookieSecure).toBe(false);
     expect(config.itad.priceRefreshMs).toBe(3600000);
+    expect(config.guide).toMatchObject({ imageMaxBytes: 5 * 1024 * 1024 });
+    expect(config.guide.uploadDir).toContain('gsplay-guide-images');
+  });
+
+  test('validates guide image storage and upload limits', () => {
+    expect(() => loadEnvironment({ ...valid, GUIDE_UPLOAD_DIR: 'relative/path' })).toThrow(
+      'GUIDE_UPLOAD_DIR'
+    );
+    expect(() => loadEnvironment({ ...valid, GUIDE_IMAGE_MAX_BYTES: '100' })).toThrow(
+      'GUIDE_IMAGE_MAX_BYTES'
+    );
+    expect(
+      loadEnvironment({
+        ...valid,
+        GUIDE_UPLOAD_DIR: '/var/lib/custom-guide',
+        GUIDE_IMAGE_MAX_BYTES: '2097152'
+      }).guide
+    ).toEqual({ uploadDir: '/var/lib/custom-guide', imageMaxBytes: 2097152 });
   });
 
   test('validates the ITAD rotation price refresh interval', () => {

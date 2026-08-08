@@ -54,10 +54,16 @@ The guide API uses the `/api/v2` base path and cookie or bearer-token authentica
   authenticated member.
 - `PUT /api/v2/guide` replaces the singleton guide document and requires the `admin` role. The
   request body is `{ "markdown": "..." }`, with a maximum source length of 100,000 characters.
+- `POST /api/v2/guide/images` accepts one admin-only multipart field named `image`. JPEG, PNG, GIF,
+  and WebP content is detected from file bytes, stored under a random filename, and returned as a
+  stable `/uploads/guide/...` URL. The default size limit is 5 MiB.
 
 The first successful update creates the `guides_v2` collection and its unique `slug` index. The
 normal deployment schema-bootstrap step creates or verifies that index; no existing data migration
 is required.
+
+Guide images are filesystem state rather than MongoDB documents. They live outside the application
+release and must be backed up with the configured `GUIDE_UPLOAD_DIR`.
 
 ## Games API
 

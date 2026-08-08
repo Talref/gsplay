@@ -46,6 +46,16 @@ function createApp(config, dependencies = {}) {
   );
   app.use(express.json({ limit: config.uploadMaxBytes }));
   app.use(cookieParser());
+  app.use(
+    '/uploads/guide',
+    express.static(config.guide.uploadDir, {
+      dotfiles: 'deny',
+      fallthrough: true,
+      immutable: true,
+      index: false,
+      maxAge: '1y'
+    })
+  );
   app.get('/health/live', (req, res) => res.json({ status: 'ok' }));
   app.get('/health/ready', (req, res) =>
     res
