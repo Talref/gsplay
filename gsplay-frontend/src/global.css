@@ -20,6 +20,54 @@ body,
   font-weight: 400;
   letter-spacing: 0.08em;
 }
+.guide-markdown {
+  overflow-wrap: anywhere;
+}
+.guide-markdown > :first-child {
+  margin-top: 0;
+}
+.guide-markdown > :last-child {
+  margin-bottom: 0;
+}
+.guide-markdown h1,
+.guide-markdown h2,
+.guide-markdown h3,
+.guide-markdown h4,
+.guide-markdown h5,
+.guide-markdown h6,
+.guide-markdown a {
+  color: var(--gs-primary);
+}
+.guide-markdown img {
+  max-width: 100%;
+  height: auto;
+}
+.guide-markdown pre {
+  overflow-x: auto;
+  padding: 1rem;
+  border-radius: 10px;
+  background: var(--gs-surface-deep);
+}
+.guide-markdown code {
+  font-family: ui-monospace, monospace;
+}
+.guide-markdown blockquote {
+  margin-inline: 0;
+  padding-left: 1rem;
+  border-left: 3px solid var(--gs-primary);
+  color: rgba(var(--gs-text-rgb), 0.82);
+}
+.guide-markdown table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+.guide-markdown th,
+.guide-markdown td {
+  padding: 0.5rem;
+  border: 1px solid rgba(var(--gs-primary-rgb), 0.24);
+}
 .casual-friday-form {
   max-width: 980px;
 }

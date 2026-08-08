@@ -9,6 +9,7 @@ const { createCatalogueRouter } = require('./routes/catalogueRoutes');
 const { createRetroRouter } = require('./routes/retroRoutes');
 const { createAdminUserRouter } = require('./routes/adminUserRoutes');
 const { createCasualFridayRouter } = require('./routes/casualFridayRoutes');
+const { createGuideRouter } = require('./routes/guideRoutes');
 const { errorHandler, notFoundHandler } = require('./http/errors');
 const { requestContext } = require('./http/requestContext');
 
@@ -57,6 +58,7 @@ function createApp(config, dependencies = {}) {
   app.use('/api/v2', createRetroRouter(config, dependencies));
   app.use('/api/v2', createAdminUserRouter(config));
   app.use('/api/v2', createCasualFridayRouter(config, dependencies));
+  app.use('/api/v2', createGuideRouter(config));
   app.use('/api/v2/me', require('./http/auth').requireAuth(config), (req, res) =>
     res.json({ user: req.user.toPublic() })
   );

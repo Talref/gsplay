@@ -88,6 +88,10 @@ export const retroApi = {
   profile: () => request('get', '/me/retroachievements/profile'),
   challenge: () => request('get', '/retroachievements/challenge')
 }
+export const guideApi = {
+  get: () => request('get', '/guide'),
+  update: (markdown) => request('put', '/guide', { markdown })
+}
 export const casualFridayApi = {
   current: () => request('get', '/casual-friday'),
   rotation: () => request('get', '/casual-friday/tools/rotation'),
