@@ -31,6 +31,10 @@ AUTH_RATE_LIMIT_MAX=20
 ENABLE_WORKER=true
 GUIDE_UPLOAD_DIR=/var/lib/gsplay/guide
 GUIDE_IMAGE_MAX_BYTES=5242880
+SERVER_STATUS_INTEGRATION_TOKEN=<independent random token, 32+ characters>
+SERVER_STATUS_MAX_BYTES=65536
+SERVER_STATUS_RATE_LIMIT_WINDOW_MS=60000
+SERVER_STATUS_RATE_LIMIT_MAX=10
 ```
 
 Provider credentials are optional and must remain only in this protected file.

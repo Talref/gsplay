@@ -65,6 +65,16 @@ is required.
 Guide images are filesystem state rather than MongoDB documents. They live outside the application
 release and must be backed up with the configured `GUIDE_UPLOAD_DIR`.
 
+## V2 Server-status integration
+
+`PUT /api/v2/integrations/server-status` replaces the current server snapshot. It requires the
+dedicated `SERVER_STATUS_INTEGRATION_TOKEN` as a bearer token and does not accept user sessions.
+The operational n8n payload and request setup are documented in
+[`n8n-Server-Status.md`](n8n-Server-Status.md).
+
+The endpoint stores one document in `server_status_snapshots_v2`. The normal schema bootstrap
+creates or verifies its unique singleton index.
+
 ## Games API
 
 ### Search Games

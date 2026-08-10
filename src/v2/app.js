@@ -10,6 +10,7 @@ const { createRetroRouter } = require('./routes/retroRoutes');
 const { createAdminUserRouter } = require('./routes/adminUserRoutes');
 const { createCasualFridayRouter } = require('./routes/casualFridayRoutes');
 const { createGuideRouter } = require('./routes/guideRoutes');
+const { createIntegrationRouter } = require('./routes/integrationRoutes');
 const { errorHandler, notFoundHandler } = require('./http/errors');
 const { requestContext } = require('./http/requestContext');
 
@@ -44,6 +45,7 @@ function createApp(config, dependencies = {}) {
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id']
     })
   );
+  app.use('/api/v2/integrations', createIntegrationRouter(config));
   app.use(express.json({ limit: config.uploadMaxBytes }));
   app.use(cookieParser());
   app.use(

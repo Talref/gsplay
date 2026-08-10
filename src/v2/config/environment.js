@@ -87,6 +87,30 @@ function loadEnvironment(environment = process.env) {
         10 * 1024 * 1024
       )
     },
+    serverStatus: {
+      integrationToken: environment.SERVER_STATUS_INTEGRATION_TOKEN || null,
+      maxBytes: asInteger(
+        environment.SERVER_STATUS_MAX_BYTES,
+        64 * 1024,
+        'SERVER_STATUS_MAX_BYTES',
+        1024,
+        1024 * 1024
+      ),
+      rateLimitWindowMs: asInteger(
+        environment.SERVER_STATUS_RATE_LIMIT_WINDOW_MS,
+        60_000,
+        'SERVER_STATUS_RATE_LIMIT_WINDOW_MS',
+        1000,
+        60 * 60 * 1000
+      ),
+      rateLimitMax: asInteger(
+        environment.SERVER_STATUS_RATE_LIMIT_MAX,
+        10,
+        'SERVER_STATUS_RATE_LIMIT_MAX',
+        1,
+        1000
+      )
+    },
     itad: {
       priceRefreshMs: asInteger(
         environment.ITAD_PRICE_REFRESH_MS,
@@ -163,6 +187,10 @@ function loadEnvironment(environment = process.env) {
   if (isProduction) {
     config.auth.accessSecret = requireSecret(environment, 'JWT_ACCESS_SECRET');
     config.auth.refreshSecret = requireSecret(environment, 'JWT_REFRESH_SECRET');
+    config.serverStatus.integrationToken = requireSecret(
+      environment,
+      'SERVER_STATUS_INTEGRATION_TOKEN'
+    );
   }
   return Object.freeze(config);
 }
