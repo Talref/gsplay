@@ -23,6 +23,7 @@ import TravelExploreOutlinedIcon from '@mui/icons-material/TravelExploreOutlined
 import SportsEsportsOutlinedIcon from '@mui/icons-material/SportsEsportsOutlined'
 import CelebrationOutlinedIcon from '@mui/icons-material/CelebrationOutlined'
 import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined'
+import DnsOutlinedIcon from '@mui/icons-material/DnsOutlined'
 import { useAuth } from '../context/useAuth'
 
 const memberLinks = [
@@ -36,6 +37,7 @@ const memberLinks = [
     <CelebrationOutlinedIcon key="casual-friday" color="primary" />
   ],
   ['Retroclub', '/retro', <SportsEsportsOutlinedIcon key="retro" color="primary" />],
+  ['Server', '/servers', <DnsOutlinedIcon key="servers" color="primary" />],
   ['Guida', '/guide', <MenuBookOutlinedIcon key="guide" color="primary" />]
 ]
 

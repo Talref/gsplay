@@ -8,6 +8,7 @@ const LibraryItem = require('../src/v2/models/LibraryItem');
 const CasualFridayRotationGame = require('../src/v2/models/CasualFridayRotationGame');
 const CasualFridayPlaylist = require('../src/v2/models/CasualFridayPlaylist');
 const CasualFridayPlaylistEntry = require('../src/v2/models/CasualFridayPlaylistEntry');
+const ServerStatusSnapshot = require('../src/v2/models/ServerStatusSnapshot');
 const { nextFridayWindow } = require('../src/v2/services/casualFridayService');
 
 async function start() {
@@ -208,6 +209,32 @@ async function start() {
       }
     }
   ]);
+  await ServerStatusSnapshot.create({
+    singletonKey: 'current',
+    sourceUpdatedAt: new Date(),
+    receivedAt: new Date(),
+    servers: [
+      {
+        groupId: 'landover',
+        groupName: 'Landover GS server',
+        managerMention: '<@111111111111111111>',
+        name: 'GSplay Palworld',
+        identifier: '8209baa0',
+        status: 'running',
+        uptimeMilliseconds: 14276045
+      },
+      {
+        groupId: 'jamserver',
+        groupName: 'Jam GS server',
+        managerMention: '<@222222222222222222>',
+        name: 'Project Zomboid GS',
+        identifier: '64e0cec5-40ae-4369-9af2-17c750810979',
+        status: 'idle',
+        players: 0,
+        maxPlayers: 24
+      }
+    ]
+  });
   const itadClient = {
     lookupTitle: async (title) => ({ outcome: 'matched', game: { id: `${title}-itad`, title } }),
     bestOffers: async (ids) =>

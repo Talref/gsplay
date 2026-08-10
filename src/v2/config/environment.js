@@ -109,6 +109,13 @@ function loadEnvironment(environment = process.env) {
         'SERVER_STATUS_RATE_LIMIT_MAX',
         1,
         1000
+      ),
+      staleAfterMs: asInteger(
+        environment.SERVER_STATUS_STALE_AFTER_MS,
+        3 * 60 * 1000,
+        'SERVER_STATUS_STALE_AFTER_MS',
+        60_000,
+        60 * 60 * 1000
       )
     },
     itad: {

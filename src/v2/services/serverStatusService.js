@@ -154,4 +154,39 @@ async function replaceServerStatusSnapshot(value) {
   };
 }
 
-module.exports = { normalizeSnapshot, replaceServerStatusSnapshot };
+function toPublicServer(server) {
+  const result = {
+    groupId: server.groupId,
+    groupName: server.groupName,
+    name: server.name,
+    status: server.status,
+    uptimeMilliseconds: server.uptimeMilliseconds ?? null
+  };
+  if (server.players !== undefined && server.players !== null) result.players = server.players;
+  if (server.maxPlayers !== undefined && server.maxPlayers !== null)
+    result.maxPlayers = server.maxPlayers;
+  return result;
+}
+
+function toPublicSnapshot(snapshot, staleAfterMs, now = new Date()) {
+  if (!snapshot) return null;
+  const receivedAt = new Date(snapshot.receivedAt);
+  return {
+    sourceUpdatedAt: snapshot.sourceUpdatedAt,
+    receivedAt,
+    stale: now.getTime() - receivedAt.getTime() > staleAfterMs,
+    servers: snapshot.servers.map(toPublicServer)
+  };
+}
+
+async function getServerStatusSnapshot(staleAfterMs, now = new Date()) {
+  const snapshot = await ServerStatusSnapshot.findOne({ singletonKey: 'current' }).lean();
+  return toPublicSnapshot(snapshot, staleAfterMs, now);
+}
+
+module.exports = {
+  getServerStatusSnapshot,
+  normalizeSnapshot,
+  replaceServerStatusSnapshot,
+  toPublicSnapshot
+};

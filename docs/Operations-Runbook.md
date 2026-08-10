@@ -35,9 +35,13 @@ SERVER_STATUS_INTEGRATION_TOKEN=<independent random token, 32+ characters>
 SERVER_STATUS_MAX_BYTES=65536
 SERVER_STATUS_RATE_LIMIT_WINDOW_MS=60000
 SERVER_STATUS_RATE_LIMIT_MAX=10
+SERVER_STATUS_STALE_AFTER_MS=180000
 ```
 
 Provider credentials are optional and must remain only in this protected file.
+
+`SERVER_STATUS_STALE_AFTER_MS` controls when the Servers page warns that its latest snapshot is no
+longer current. The default is three minutes, comfortably above the 30-second n8n update cycle.
 
 Initial Caddy routing should proxy the API namespace and serve the built SPA:
 

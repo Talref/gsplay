@@ -13,7 +13,8 @@ describe('v2 environment configuration', () => {
       integrationToken: null,
       maxBytes: 64 * 1024,
       rateLimitWindowMs: 60000,
-      rateLimitMax: 10
+      rateLimitMax: 10,
+      staleAfterMs: 180000
     });
   });
 
@@ -79,6 +80,9 @@ describe('v2 environment configuration', () => {
     );
     expect(() => loadEnvironment({ ...valid, SERVER_STATUS_RATE_LIMIT_MAX: '0' })).toThrow(
       'SERVER_STATUS_RATE_LIMIT_MAX'
+    );
+    expect(() => loadEnvironment({ ...valid, SERVER_STATUS_STALE_AFTER_MS: '30000' })).toThrow(
+      'SERVER_STATUS_STALE_AFTER_MS'
     );
   });
 
