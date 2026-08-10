@@ -9,6 +9,12 @@ describe('v2 environment configuration', () => {
     expect(config.itad.priceRefreshMs).toBe(3600000);
     expect(config.guide).toMatchObject({ imageMaxBytes: 5 * 1024 * 1024 });
     expect(config.guide.uploadDir).toContain('gsplay-guide-images');
+    expect(config.serverStatus).toMatchObject({
+      integrationToken: null,
+      maxBytes: 64 * 1024,
+      rateLimitWindowMs: 60000,
+      rateLimitMax: 10
+    });
   });
 
   test('validates guide image storage and upload limits', () => {
@@ -54,6 +60,26 @@ describe('v2 environment configuration', () => {
         JWT_ACCESS_SECRET: 'a'.repeat(32)
       })
     ).toThrow('JWT_REFRESH_SECRET is required');
+  });
+
+  test('requires a dedicated production server-status token', () => {
+    expect(() =>
+      loadEnvironment({
+        NODE_ENV: 'production',
+        MONGO_URI: 'mongodb://127.0.0.1:27017/gsplay',
+        JWT_ACCESS_SECRET: 'a'.repeat(32),
+        JWT_REFRESH_SECRET: 'b'.repeat(32)
+      })
+    ).toThrow('SERVER_STATUS_INTEGRATION_TOKEN is required');
+  });
+
+  test('validates server-status payload and rate limits', () => {
+    expect(() => loadEnvironment({ ...valid, SERVER_STATUS_MAX_BYTES: '100' })).toThrow(
+      'SERVER_STATUS_MAX_BYTES'
+    );
+    expect(() => loadEnvironment({ ...valid, SERVER_STATUS_RATE_LIMIT_MAX: '0' })).toThrow(
+      'SERVER_STATUS_RATE_LIMIT_MAX'
+    );
   });
 
   test('rejects insecure same-site none cookies', () => {

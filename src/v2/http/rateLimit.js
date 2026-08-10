@@ -15,4 +15,22 @@ function authRateLimit(config) {
   });
 }
 
-module.exports = { authRateLimit };
+function serverStatusRateLimit(config) {
+  return rateLimit({
+    windowMs: config.serverStatus.rateLimitWindowMs,
+    limit: config.serverStatus.rateLimitMax,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    skip: () => config.nodeEnv === 'test',
+    handler: (req, res, next) =>
+      next(
+        new AppError(
+          429,
+          'server_status_rate_limited',
+          'Too many server-status updates; try again later'
+        )
+      )
+  });
+}
+
+module.exports = { authRateLimit, serverStatusRateLimit };
