@@ -18,6 +18,7 @@ const CasualFriday = lazy(() => import('./pages/CasualFriday'))
 const CasualFridayManage = lazy(() => import('./pages/CasualFridayManage'))
 const Guide = lazy(() => import('./pages/Guide'))
 const AdminGuide = lazy(() => import('./pages/AdminGuide'))
+const Servers = lazy(() => import('./pages/Servers'))
 
 function protectedPage(page) {
   return <ProtectedRoute>{page}</ProtectedRoute>
@@ -46,6 +47,7 @@ export default function App() {
             <Route path="/casual-friday" element={protectedPage(<CasualFriday />)} />
             <Route path="/casual-friday/tools" element={protectedPage(<CasualFridayManage />)} />
             <Route path="/guide" element={protectedPage(<Guide />)} />
+            <Route path="/servers" element={protectedPage(<Servers />)} />
             <Route path="/admin" element={protectedPage(<Admin />)} />
             <Route path="/admin/users" element={protectedPage(<AdminUsers />)} />
             <Route path="/admin/catalogue" element={protectedPage(<AdminCatalogue />)} />

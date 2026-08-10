@@ -151,6 +151,54 @@ test('an admin can safely edit and publish the member guide', async ({ page }, t
   await expectNoHorizontalOverflow(page)
 })
 
+test('members see fresh server groups and safe stale and empty states', async ({ page }) => {
+  await page.goto('/login')
+  await page.getByLabel('Nome utente').fill('E2E Admin')
+  await page.getByLabel('Password').fill('correct-horse-battery-staple')
+  await page.getByRole('button', { name: 'Entra' }).click()
+  await expect(page.getByRole('button', { name: 'Esci' })).toBeVisible()
+  await page.goto('/servers')
+
+  await expect(page.getByRole('heading', { name: 'SERVER LIVE' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Landover GS server' })).toContainText(
+    'GSplay Palworld'
+  )
+  await expect(page.getByLabel('GSplay Palworld: Online')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Jam GS server' })).toContainText(
+    'Project Zomboid GS'
+  )
+  await expect(page.getByText('Giocatori: 0/24')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Jam GS server' })).not.toContainText('Uptime:')
+  await expect(page.getByText('Dati aggiornati')).toBeVisible()
+  await expect(page.getByText(/amp|pterodactyl/i)).toHaveCount(0)
+
+  let mockedSnapshot = {
+    sourceUpdatedAt: '2026-08-11T10:00:00.000Z',
+    receivedAt: '2026-08-11T10:00:01.000Z',
+    stale: true,
+    servers: [
+      {
+        groupId: 'old-machine',
+        groupName: 'Server non aggiornato',
+        name: 'Vecchio server',
+        status: 'unknown',
+        uptimeMilliseconds: null
+      }
+    ]
+  }
+  await page.route('**/api/v2/server-status', (route) =>
+    route.fulfill({ json: { snapshot: mockedSnapshot } })
+  )
+  await page.getByRole('button', { name: 'Aggiorna' }).click()
+  await expect(page.getByText('Questi dati non sono aggiornati.')).toBeVisible()
+  await expect(page.getByLabel('Vecchio server: Sconosciuto')).toBeVisible()
+
+  mockedSnapshot = null
+  await page.getByRole('button', { name: 'Aggiorna' }).click()
+  await expect(page.getByText('Lo stato dei server non è attualmente disponibile.')).toBeVisible()
+  await expectNoHorizontalOverflow(page)
+})
+
 test('Casual Friday tools show responsive reorderable cards and cached ITAD offers', async ({
   page
 }) => {

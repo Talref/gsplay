@@ -75,6 +75,11 @@ The operational n8n payload and request setup are documented in
 The endpoint stores one document in `server_status_snapshots_v2`. The normal schema bootstrap
 creates or verifies its unique singleton index.
 
+Authenticated members read the latest snapshot with `GET /api/v2/server-status`. The response is
+`{"snapshot": null}` before the first n8n update. Otherwise `snapshot` contains `sourceUpdatedAt`,
+`receivedAt`, `stale`, and the display-safe server fields. Provider names, provider identifiers, and
+Discord mentions are not returned.
+
 ## Games API
 
 ### Search Games

@@ -97,6 +97,9 @@ export const guideApi = {
     return request('post', '/guide/images', data)
   }
 }
+export const serverStatusApi = {
+  current: () => request('get', '/server-status')
+}
 export const casualFridayApi = {
   current: () => request('get', '/casual-friday'),
   rotation: () => request('get', '/casual-friday/tools/rotation'),

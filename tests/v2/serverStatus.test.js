@@ -2,6 +2,7 @@ const request = require('supertest');
 const { loadEnvironment } = require('../../src/v2/config/environment');
 const { createApp } = require('../../src/v2/app');
 const ServerStatusSnapshot = require('../../src/v2/models/ServerStatusSnapshot');
+const User = require('../../src/v2/models/User');
 const { normalizeSnapshot } = require('../../src/v2/services/serverStatusService');
 
 const token = 'server-status-test-token'.padEnd(32, '-');
@@ -49,6 +50,18 @@ function putStatus(body = payload(), authorization = `Bearer ${token}`) {
     .put('/api/v2/integrations/server-status')
     .set('Authorization', authorization)
     .send(body);
+}
+
+async function authenticatedAgent(username = 'Status Member') {
+  const password = 'correct-horse-battery-staple';
+  await User.create({
+    usernameNormalized: username.toLowerCase(),
+    usernameDisplay: username,
+    passwordHash: await User.hashPassword(password)
+  });
+  const agent = request.agent(app);
+  await agent.post('/api/v2/auth/login').send({ username, password }).expect(200);
+  return agent;
 }
 
 describe('v2 server-status integration', () => {
@@ -182,5 +195,71 @@ describe('v2 server-status integration', () => {
     await update().expect(200);
     await update().expect(200);
     await update().expect(429);
+  });
+
+  test('requires a member session and returns a neutral empty snapshot', async () => {
+    await request(app).get('/api/v2/server-status').expect(401);
+    const member = await authenticatedAgent();
+    await member.get('/api/v2/server-status').expect(200, { snapshot: null });
+  });
+
+  test('returns the fresh display snapshot without integration-only fields', async () => {
+    await putStatus().expect(200);
+    const member = await authenticatedAgent();
+    const response = await member.get('/api/v2/server-status').expect(200);
+    expect(response.body.snapshot).toMatchObject({
+      sourceUpdatedAt: '2026-08-10T12:34:56.000Z',
+      stale: false,
+      servers: [
+        {
+          groupId: 'landover',
+          groupName: 'Landover GS server',
+          name: 'GSplay Palworld',
+          status: 'running',
+          uptimeMilliseconds: 14276045
+        },
+        {
+          groupId: 'jamserver',
+          groupName: 'Jam GS server',
+          name: 'Project Zomboid GS',
+          status: 'idle',
+          uptimeMilliseconds: null,
+          players: 0,
+          maxPlayers: 24
+        }
+      ]
+    });
+    expect(response.body.snapshot.receivedAt).toBeTruthy();
+    expect(JSON.stringify(response.body.snapshot)).not.toMatch(
+      /managerMention|identifier|provider|ampAppState/
+    );
+  });
+
+  test('marks the entire snapshot stale from its GSPlay receive time', async () => {
+    const staleAt = new Date(Date.now() - config.serverStatus.staleAfterMs - 1);
+    await ServerStatusSnapshot.create({
+      singletonKey: 'current',
+      sourceUpdatedAt: staleAt,
+      receivedAt: staleAt,
+      servers: [
+        {
+          groupId: 'machine',
+          groupName: 'Machine',
+          name: 'Old server',
+          identifier: 'old-server',
+          status: 'unknown'
+        }
+      ]
+    });
+    const member = await authenticatedAgent();
+    const response = await member.get('/api/v2/server-status').expect(200);
+    expect(response.body.snapshot.stale).toBe(true);
+    expect(response.body.snapshot.servers[0]).toEqual({
+      groupId: 'machine',
+      groupName: 'Machine',
+      name: 'Old server',
+      status: 'unknown',
+      uptimeMilliseconds: null
+    });
   });
 });

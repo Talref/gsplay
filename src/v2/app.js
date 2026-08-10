@@ -11,6 +11,7 @@ const { createAdminUserRouter } = require('./routes/adminUserRoutes');
 const { createCasualFridayRouter } = require('./routes/casualFridayRoutes');
 const { createGuideRouter } = require('./routes/guideRoutes');
 const { createIntegrationRouter } = require('./routes/integrationRoutes');
+const { createServerStatusRouter } = require('./routes/serverStatusRoutes');
 const { errorHandler, notFoundHandler } = require('./http/errors');
 const { requestContext } = require('./http/requestContext');
 
@@ -71,6 +72,7 @@ function createApp(config, dependencies = {}) {
   app.use('/api/v2', createAdminUserRouter(config));
   app.use('/api/v2', createCasualFridayRouter(config, dependencies));
   app.use('/api/v2', createGuideRouter(config));
+  app.use('/api/v2', createServerStatusRouter(config));
   app.use('/api/v2/me', require('./http/auth').requireAuth(config), (req, res) =>
     res.json({ user: req.user.toPublic() })
   );
