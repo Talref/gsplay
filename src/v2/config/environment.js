@@ -184,7 +184,10 @@ function loadEnvironment(environment = process.env) {
     }
   };
 
-  new URL(config.publicAppUrl);
+  const publicAppUrl = new URL(config.publicAppUrl);
+  if (!['http:', 'https:'].includes(publicAppUrl.protocol)) {
+    throw new Error('PUBLIC_APP_URL must use HTTP or HTTPS');
+  }
   if (!['lax', 'strict', 'none'].includes(config.auth.cookieSameSite)) {
     throw new Error('COOKIE_SAME_SITE must be lax, strict, or none');
   }

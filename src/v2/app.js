@@ -14,6 +14,7 @@ const { createIntegrationRouter } = require('./routes/integrationRoutes');
 const { createServerStatusRouter } = require('./routes/serverStatusRoutes');
 const { errorHandler, notFoundHandler } = require('./http/errors');
 const { requestContext } = require('./http/requestContext');
+const { createSocialPreviewHandler } = require('./http/socialPreview');
 
 function createApp(config, dependencies = {}) {
   const app = express();
@@ -76,6 +77,12 @@ function createApp(config, dependencies = {}) {
   app.use('/api/v2/me', require('./http/auth').requireAuth(config), (req, res) =>
     res.json({ user: req.user.toPublic() })
   );
+  const socialPreviewHandler = createSocialPreviewHandler(config, {
+    template: dependencies.frontendTemplate,
+    templatePath: dependencies.frontendTemplatePath,
+    resolveMetadata: dependencies.socialMetadataResolver
+  });
+  if (socialPreviewHandler) app.get(/.*/, socialPreviewHandler);
   app.use(notFoundHandler);
   app.use(errorHandler);
   return app;

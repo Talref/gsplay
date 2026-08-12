@@ -9,9 +9,18 @@ gsplay.daje.cc {
         reverse_proxy 127.0.0.1:3000
     }
 
-    handle {
+    handle /assets/* {
         root * /srv/gsplay/gsplay-frontend/dist
-        try_files {path} /index.html
         file_server
+    }
+
+    @frontend_public path /8bit.ttf /gslogo.png /placeholder-game.jpg
+    handle @frontend_public {
+        root * /srv/gsplay/gsplay-frontend/dist
+        file_server
+    }
+
+    handle {
+        reverse_proxy 127.0.0.1:3000
     }
 }

@@ -52,7 +52,8 @@ standard deployment bootstrap creates their indexes. Existing rotation documents
 and are voting-enabled unless explicitly disabled; no data migration or new environment setting is
 required.
 
-Initial Caddy routing should proxy the API namespace and serve the built SPA:
+Initial Caddy routing should proxy the API namespace, serve immutable frontend files directly, and
+send page navigation to the API so it can inject crawler-visible social metadata into the SPA HTML:
 
 ```caddy
 gsplay.daje.cc {
@@ -66,13 +67,25 @@ gsplay.daje.cc {
         reverse_proxy 127.0.0.1:3000
     }
 
-    handle {
+    handle /assets/* {
         root * /srv/gsplay/gsplay-frontend/dist
-        try_files {path} /index.html
         file_server
+    }
+
+    @frontend_public path /8bit.ttf /gslogo.png /placeholder-game.jpg
+    handle @frontend_public {
+        root * /srv/gsplay/gsplay-frontend/dist
+        file_server
+    }
+
+    handle {
+        reverse_proxy 127.0.0.1:3000
     }
 }
 ```
+
+This Caddy layout is required for social previews. After changing a custom Caddyfile, validate and
+reload it using the normal host procedure. Existing API, upload, and asset URLs do not change.
 
 The API systemd unit creates `/var/lib/gsplay` as persistent state owned by the `gsplay` service
 account; GSPlay creates its `guide` subdirectory on the first upload. The path is outside
