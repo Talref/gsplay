@@ -2,18 +2,7 @@ const mongoose = require('mongoose');
 const LibraryItem = require('../models/LibraryItem');
 const User = require('../models/User');
 const { AppError } = require('../http/errors');
-
-const MULTIPLAYER_MODES = [
-  { id: 'multiplayer', label: 'Multiplayer', sourceValues: ['Multiplayer'] },
-  { id: 'co_op', label: 'Co-op', sourceValues: ['Co-operative', 'Co-op', 'Cooperative'] },
-  { id: 'split_screen', label: 'Schermo condiviso', sourceValues: ['Split screen', 'Split-screen'] },
-  {
-    id: 'mmo',
-    label: 'MMO',
-    sourceValues: ['Massively Multiplayer Online (MMO)', 'MMO']
-  },
-  { id: 'battle_royale', label: 'Battle royale', sourceValues: ['Battle Royale'] }
-];
+const { MULTIPLAYER_MODES, normalizedMultiplayerModes } = require('./multiplayerModes');
 const multiplayerModeMap = new Map(MULTIPLAYER_MODES.map((mode) => [mode.id, mode]));
 const multiplayerSourceValues = MULTIPLAYER_MODES.flatMap((mode) => mode.sourceValues);
 
@@ -67,12 +56,6 @@ function normalizeOptions(data) {
     page: positiveInteger(data.page, 1, 'page', 10_000),
     pageSize: positiveInteger(data.pageSize, 24, 'pageSize', 48)
   };
-}
-
-function normalizedModes(sourceValues = []) {
-  return MULTIPLAYER_MODES.filter((mode) =>
-    mode.sourceValues.some((value) => sourceValues.includes(value))
-  ).map(({ id, label }) => ({ id, label }));
 }
 
 async function compareLibraries(data) {
@@ -143,7 +126,11 @@ async function compareLibraries(data) {
       }
     }
   ]);
-  const availableModeIds = new Set(normalizedModes((aggregate?.gameModes || []).map((row) => row._id)).map((mode) => mode.id));
+  const availableModeIds = new Set(
+    normalizedMultiplayerModes((aggregate?.gameModes || []).map((row) => row._id)).map(
+      (mode) => mode.id
+    )
+  );
   const games = (aggregate?.games || []).map((row) => {
     const owners = selectedUsers.filter((user) => row.ownerIds.some((ownerId) => ownerId.equals(user.id)));
     return {
@@ -152,7 +139,7 @@ async function compareLibraries(data) {
       artwork: row.game.artwork || null,
       igdbUrl: row.game.igdbUrl || null,
       genres: row.game.genres || [],
-      multiplayerModes: normalizedModes(row.game.gameModes),
+      multiplayerModes: normalizedMultiplayerModes(row.game.gameModes),
       ownerIds: owners.map((owner) => owner.id),
       owners,
       ownerCount: row.ownerCount,
@@ -183,4 +170,4 @@ async function compareLibraries(data) {
   };
 }
 
-module.exports = { MULTIPLAYER_MODES, compareLibraries, normalizedModes };
+module.exports = { MULTIPLAYER_MODES, compareLibraries, normalizedModes: normalizedMultiplayerModes };

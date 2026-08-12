@@ -15,6 +15,7 @@ const { createServerStatusRouter } = require('./routes/serverStatusRoutes');
 const { errorHandler, notFoundHandler } = require('./http/errors');
 const { requestContext } = require('./http/requestContext');
 const { createSocialPreviewHandler } = require('./http/socialPreview');
+const { resolveSocialMetadata } = require('./services/socialMetadataService');
 
 function createApp(config, dependencies = {}) {
   const app = express();
@@ -80,7 +81,7 @@ function createApp(config, dependencies = {}) {
   const socialPreviewHandler = createSocialPreviewHandler(config, {
     template: dependencies.frontendTemplate,
     templatePath: dependencies.frontendTemplatePath,
-    resolveMetadata: dependencies.socialMetadataResolver
+    resolveMetadata: dependencies.socialMetadataResolver || resolveSocialMetadata
   });
   if (socialPreviewHandler) app.get(/.*/, socialPreviewHandler);
   app.use(notFoundHandler);
