@@ -21,6 +21,14 @@ const config = loadEnvironment({
 });
 
 describe('social preview HTML infrastructure', () => {
+  test('does not auto-load stale build output outside production', async () => {
+    const app = createApp(config);
+    const response = await request(app).get('/').set('Accept', 'text/html').expect(404);
+
+    expect(response.headers['content-type']).toMatch(/^application\/json/);
+    expect(response.body.error.code).toBe('not_found');
+  });
+
   test('rejects a frontend template that cannot receive metadata', () => {
     expect(() => createApp(config, { frontendTemplate: '<html><head></head></html>' })).toThrow(
       METADATA_MARKER

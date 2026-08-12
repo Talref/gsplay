@@ -87,6 +87,7 @@ function acceptsSpaHtml(req) {
 
 function loadTemplate(config, options) {
   if (options.template !== undefined) return options.template;
+  if (!config.isProduction && !options.templatePath) return null;
   const templatePath =
     options.templatePath || path.resolve(__dirname, '../../../gsplay-frontend/dist/index.html');
   if (fs.existsSync(templatePath)) return fs.readFileSync(templatePath, 'utf8');
