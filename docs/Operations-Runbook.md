@@ -43,6 +43,9 @@ Provider credentials are optional and must remain only in this protected file.
 `SERVER_STATUS_STALE_AFTER_MS` controls when the Servers page warns that its latest snapshot is no
 longer current. The default is three minutes, comfortably above the 30-second n8n update cycle.
 
+The Casual Friday proposal feature adds `casual_friday_game_proposals_v2`; the standard deployment
+bootstrap creates its unique game index. It requires no additional environment settings.
+
 Initial Caddy routing should proxy the API namespace and serve the built SPA:
 
 ```caddy

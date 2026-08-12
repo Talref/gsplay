@@ -21,11 +21,13 @@ export default function Guide() {
             {guide.data?.guide.markdown ? (
               <MarkdownRenderer markdown={guide.data.guide.markdown} />
             ) : (
-              <Alert severity="info">La guida non è ancora disponibile.</Alert>
+              <Alert severity="info">
+                La guida ancora nun s’è fatta vede’. Ripassa tra poco e porta pazienza.
+              </Alert>
             )}
             {guide.data?.guide.updatedAt && (
               <Typography color="text.secondary" variant="body2" sx={{ mt: 4 }}>
-                Ultimo aggiornamento: {new Date(guide.data.guide.updatedAt).toLocaleString('it-IT')}
+                Ultima sistemata: {new Date(guide.data.guide.updatedAt).toLocaleString('it-IT')}
               </Typography>
             )}
           </CardContent>

@@ -20,8 +20,9 @@ import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded'
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined'
 import PlayCircleFilledWhiteRoundedIcon from '@mui/icons-material/PlayCircleFilledWhiteRounded'
 import StarRoundedIcon from '@mui/icons-material/StarRounded'
+import HowToVoteOutlinedIcon from '@mui/icons-material/HowToVoteOutlined'
 import VideocamOffOutlinedIcon from '@mui/icons-material/VideocamOffOutlined'
-import { catalogueApi, libraryApi } from '../services/api'
+import { catalogueApi, casualFridayApi, libraryApi } from '../services/api'
 import ProviderIcons from '../components/ProviderIcons'
 import ThemedDialog from '../components/ThemedDialog'
 import { useLoad } from '../hooks/useLoad'
@@ -62,9 +63,11 @@ export default function GameDetail() {
   const [version, setVersion] = useState(0)
   const detail = useLoad(() => catalogueApi.game(gameId), [gameId, version])
   const owners = useLoad(() => catalogueApi.owners(gameId), [gameId, version])
+  const proposal = useLoad(() => casualFridayApi.proposal(gameId), [gameId, version])
   const [activeVideo, setActiveVideo] = useState(0)
   const [removeOpen, setRemoveOpen] = useState(false)
   const [ownershipError, setOwnershipError] = useState('')
+  const [proposalError, setProposalError] = useState('')
   if (detail.loading)
     return (
       <Box sx={{ minHeight: '44vh', display: 'grid', placeItems: 'center' }}>
@@ -111,6 +114,24 @@ export default function GameDetail() {
       setOwnershipError(error.message)
     }
   }
+  const propose = async () => {
+    try {
+      await casualFridayApi.propose(game.id)
+      setProposalError('')
+      setVersion((value) => value + 1)
+    } catch (error) {
+      setProposalError(error.message)
+    }
+  }
+  const proposalState = proposal.data?.proposal
+  const pendingByMe = proposalState?.status === 'pending' && proposalState.proposedByMe
+  const proposalLabel = pendingByMe
+    ? 'Già proposto pe’ Casual Friday'
+    : proposalState?.status === 'pending'
+      ? 'Mettice pure er tuo nome'
+      : ['approved', 'rejected'].includes(proposalState?.status)
+        ? 'Ributtalo ner Casual Friday'
+        : 'Buttalo ner Casual Friday'
   return (
     <Stack spacing={{ xs: 3, md: 5 }}>
       <Button
@@ -169,6 +190,10 @@ export default function GameDetail() {
                   />
                 </Stack>
                 {ownershipError && <Alert severity="error">{ownershipError}</Alert>}
+                {proposalError && <Alert severity="error">{proposalError}</Alert>}
+                {proposal.error && (
+                  <Alert severity="warning">Aò, la proposta s’è incartata: {proposal.error}</Alert>
+                )}
                 {!game.ownership?.owned ? (
                   <Button variant="contained" onClick={add} sx={{ alignSelf: 'flex-start' }}>
                     Ce l’ho — aggiungi alla libbreria
@@ -188,6 +213,31 @@ export default function GameDetail() {
                     label="Nella tua libbreria"
                     sx={{ alignSelf: 'flex-start' }}
                   />
+                )}
+                {proposalState?.inRotation ? (
+                  <Chip
+                    color="success"
+                    icon={<HowToVoteOutlinedIcon />}
+                    label="Già sta ner giro der Casual Friday"
+                    sx={{ alignSelf: 'flex-start' }}
+                  />
+                ) : (
+                  <Stack direction="row" flexWrap="wrap" gap={1} alignItems="center">
+                    <Button
+                      variant="outlined"
+                      startIcon={<HowToVoteOutlinedIcon />}
+                      onClick={propose}
+                      disabled={proposal.loading || Boolean(proposal.error) || pendingByMe}
+                    >
+                      {proposalLabel}
+                    </Button>
+                    {proposalState?.proposerCount > 0 && (
+                      <Chip
+                        size="small"
+                        label={`${proposalState.proposerCount} ${proposalState.proposerCount === 1 ? 'compare interessato' : 'compari interessati'}`}
+                      />
+                    )}
+                  </Stack>
                 )}
                 {game.summary && (
                   <Typography color="text.secondary" className="game-detail-summary">

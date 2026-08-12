@@ -13,6 +13,7 @@ const {
   rotationSnapshot
 } = require('./common');
 const { refreshOneRotationOffer, resetItad, verifyItad } = require('./itadService');
+const { approveProposal } = require('./proposalService');
 
 const editableStatuses = ['draft', 'published'];
 const modes = new Set(['none', 'host_runs', 'streamable']);
@@ -93,6 +94,7 @@ async function createRotation(actor, data, { itadClient } = {}) {
   await refreshOneRotationOffer(rotation, itadClient);
   await rotation.save();
   await audit(actor, 'rotation_added', { rotationGameId: rotation._id });
+  await approveProposal(actor, game._id, rotation._id);
   return rotationDto(rotation, game);
 }
 

@@ -174,7 +174,7 @@ export default function RotationPool({
   onRetire
 }) {
   return (
-    <Card>
+    <Card id="rotation-pool">
       <CardContent sx={{ p: { xs: 2, sm: 3 }, '&:last-child': { pb: { xs: 2, sm: 3 } } }}>
         <Typography variant="h6" sx={{ mb: 1.5 }}>
           Rotation pool

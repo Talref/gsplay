@@ -7,6 +7,7 @@ const GameAlias = require('../models/GameAlias');
 const CanonicalGameMerge = require('../models/CanonicalGameMerge');
 const CatalogueReassignment = require('../models/CatalogueReassignment');
 const RetroChallenge = require('../models/RetroChallenge');
+const CasualFridayGameProposal = require('../models/CasualFridayGameProposal');
 const AdminUserAction = require('../models/AdminUserAction');
 const { AppError } = require('../http/errors');
 
@@ -139,7 +140,12 @@ async function deleteUser({ actor, subjectId, confirmation, reason }) {
       { reassignedBy: subject._id },
       { $set: { reassignedBy: null } }
     ),
-    RetroChallenge.updateMany({ activatedBy: subject._id }, { $set: { activatedBy: null } })
+    RetroChallenge.updateMany({ activatedBy: subject._id }, { $set: { activatedBy: null } }),
+    CasualFridayGameProposal.updateMany(
+      { proposedBy: subject._id },
+      { $pull: { proposedBy: subject._id } }
+    ),
+    CasualFridayGameProposal.updateMany({ reviewedBy: subject._id }, { $set: { reviewedBy: null } })
   ]);
   const hiddenOrphans = await hideOrphanedProviderGames(ownedGameIds, actor._id);
   await User.deleteOne({ _id: subject._id });

@@ -102,6 +102,14 @@ export const serverStatusApi = {
 }
 export const casualFridayApi = {
   current: () => request('get', '/casual-friday'),
+  proposal: (gameId) => request('get', `/casual-friday/proposals/${encodeURIComponent(gameId)}`),
+  propose: (gameId) =>
+    request('post', `/casual-friday/proposals/${encodeURIComponent(gameId)}`, {}),
+  proposals: () => request('get', '/casual-friday/tools/proposals'),
+  rejectProposal: (proposalId, adminNote) =>
+    request('post', `/casual-friday/tools/proposals/${encodeURIComponent(proposalId)}/reject`, {
+      adminNote
+    }),
   rotation: () => request('get', '/casual-friday/tools/rotation'),
   playlist: () => request('get', '/casual-friday/tools/playlist'),
   fromCatalogue: (data) => request('post', '/casual-friday/tools/rotation/from-catalogue', data),
