@@ -68,6 +68,23 @@ test('catalogue search and member Steam validation expose safe UI feedback', asy
   await expect(page.getByText('1 compare interessato')).toBeVisible()
   await page.getByRole('button', { name: 'Ce l’ho — aggiungi alla libbreria' }).click()
   await expect(page.getByRole('button', { name: 'Rimuovi dalla mia libbreria' })).toBeVisible()
+  await page.goto('/library')
+  const gameLink = page.getByRole('link', { name: 'Aqua Quest' })
+  const gameCard = page.locator('.game-card', { has: gameLink })
+  await expect(gameCard).toHaveClass(/game-card--interactive/)
+  await gameCard.hover()
+  await expect
+    .poll(() => gameCard.evaluate((element) => getComputedStyle(element).transform))
+    .not.toBe('none')
+  await page.mouse.move(0, 0)
+  await expect
+    .poll(() => gameCard.evaluate((element) => getComputedStyle(element).transform))
+    .toBe('none')
+  await gameLink.focus()
+  await expect
+    .poll(() => gameCard.evaluate((element) => getComputedStyle(element).transform))
+    .not.toBe('none')
+  await gameLink.click()
   await page.getByRole('button', { name: 'Rimuovi dalla mia libbreria' }).click()
   await expect(page.getByRole('dialog', { name: 'Leva dalla libbreria?' })).toBeVisible()
   await page.getByRole('button', { name: 'Sì, rimuovi' }).click()

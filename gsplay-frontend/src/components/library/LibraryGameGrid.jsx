@@ -14,7 +14,7 @@ export default function LibraryGameGrid({ items, loading, hasMore, sentinelRef, 
           return (
             <Grid key={item.id} size={{ xs: 12, sm: 6, xl: 4 }}>
               <Card
-                className={`game-card${artwork ? ' game-card--cover' : ''}`}
+                className={`game-card${item.canonicalGame ? ' game-card--interactive' : ''}${artwork ? ' game-card--cover' : ''}`}
                 sx={{
                   display: 'block',
                   backgroundImage: artwork ? `url(${JSON.stringify(artwork)})` : undefined

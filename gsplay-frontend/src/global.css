@@ -110,7 +110,8 @@ body,
   cursor: pointer;
 }
 .game-card.game-card--interactive:hover,
-.game-card.game-card--interactive:focus-visible {
+.game-card.game-card--interactive:focus-visible,
+.game-card.game-card--interactive:focus-within {
   transform: scale(1.018);
   border-color: var(--gs-primary);
   box-shadow: 0 0 18px rgba(var(--gs-primary-rgb), 0.34);
@@ -303,7 +304,8 @@ body,
     transition: none;
   }
   .game-card--interactive:hover,
-  .game-card--interactive:focus-visible {
+  .game-card--interactive:focus-visible,
+  .game-card--interactive:focus-within {
     transform: none;
   }
 }
