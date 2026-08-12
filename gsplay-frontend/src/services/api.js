@@ -44,7 +44,7 @@ export const libraryApi = {
   mine: (page = 1, pageSize = 60) =>
     request('get', `/me/library?page=${page}&pageSize=${pageSize}`),
   users: () => request('get', '/users'),
-  compare: (userIds) => request('post', '/library-comparisons', { userIds }),
+  compare: (data) => request('post', '/library-comparisons', data),
   addManualGame: (gameId) => request('put', `/me/library/games/${encodeURIComponent(gameId)}`),
   removeManualGame: (gameId) =>
     request('delete', `/me/library/games/${encodeURIComponent(gameId)}`, {

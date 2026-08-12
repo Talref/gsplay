@@ -82,7 +82,7 @@ test('catalogue search and member Steam validation expose safe UI feedback', asy
   await expectNoHorizontalOverflow(page)
 })
 
-test('guests can view one public library and compare an explicit multi-user selection', async ({
+test('guests compare ownership coverage and filter multiplayer results', async ({
   page
 }) => {
   await page.goto('/compare')
@@ -91,12 +91,20 @@ test('guests can view one public library and compare an explicit multi-user sele
   await picker.click()
   await page.getByRole('option', { name: 'E2E Friend' }).click()
   await page.keyboard.press('Escape')
-  await expect(page.getByText('1 giochi nella libbreria di E2E Friend.')).toBeVisible()
-  await expect(page.getByText('Aqua Quest')).toBeVisible()
+  await expect(page.getByText(/Serve almeno un altro compare/)).toBeVisible()
+  await expect(page.getByText('Aqua Quest')).not.toBeVisible()
   await picker.click()
   await page.getByRole('option', { name: 'E2E Admin' }).click()
   await page.keyboard.press('Escape')
-  await expect(page.getByText('1 giochi in comune. Annamo a vede’.')).toBeVisible()
+  await expect(page.getByText(/1 giochi possibili/)).toBeVisible()
+  await expect(page.getByText('Aqua Quest')).toBeVisible()
+  await expect(page.getByText('E2E Friend, E2E Admin')).toBeVisible()
+  await expect(page.getByText(/Ce l’hanno 2 su 2/)).toHaveCount(0)
+  await page.getByRole('checkbox', { name: 'Solo multigiocatore' }).check()
+  await expect(page.getByText('Aqua Quest')).toBeVisible()
+  await page.getByRole('combobox', { name: 'MODALITÀ MULTIGIOCATORE' }).click()
+  await page.getByRole('option', { name: /Co-op/ }).click()
+  await page.keyboard.press('Escape')
   await expect(page.getByText('Aqua Quest')).toBeVisible()
   await expectNoHorizontalOverflow(page)
 })
