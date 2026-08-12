@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
   Autocomplete,
@@ -21,6 +21,7 @@ import {
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined'
 import { libraryApi } from '../services/api'
 import { useLoad } from '../hooks/useLoad'
+import useInfiniteScroll from '../hooks/useInfiniteScroll'
 
 const PAGE_SIZE = 24
 
@@ -173,6 +174,9 @@ export default function Compare() {
   }
   const showCount = selected.length > 2
   const hasFilters = genres.length || multiplayerOnly || multiplayerModes.length
+  const hasMore = Boolean(result?.page.hasMore)
+  const loadMore = useCallback(() => setPage((value) => value + 1), [])
+  const loadMoreRef = useInfiniteScroll({ hasMore, loading, onLoadMore: loadMore })
 
   return (
     <Stack spacing={{ xs: 2.5, md: 3.5 }}>
@@ -288,16 +292,10 @@ export default function Compare() {
               ))}
             </Grid>
           )}
-          {result.page.hasMore && (
-            <Button
-              variant="outlined"
-              disabled={loading}
-              onClick={() => setPage((value) => value + 1)}
-              sx={{ alignSelf: 'center' }}
-            >
-              {loading ? 'Sto a cercà…' : 'Caricane altri'}
-            </Button>
+          {loading && (
+            <CircularProgress aria-label="Caricamento altri confronti" sx={{ alignSelf: 'center' }} />
           )}
+          {hasMore && <div ref={loadMoreRef} aria-label="Carica altri confronti" />}
         </Stack>
       )}
     </Stack>

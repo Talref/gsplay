@@ -109,6 +109,60 @@ test('guests compare ownership coverage and filter multiplayer results', async (
   await expectNoHorizontalOverflow(page)
 })
 
+test('comparison loads the next ownership page while scrolling', async ({ page }) => {
+  const requestedPages = []
+  await page.route('**/api/v2/library-comparisons', async (route) => {
+    const requestBody = route.request().postDataJSON()
+    requestedPages.push(requestBody.page)
+    const start = requestBody.page === 1 ? 0 : 24
+    const count = requestBody.page === 1 ? 24 : 1
+    const owners = requestBody.userIds.map((id, index) => ({
+      id,
+      username: index === 0 ? 'E2E Friend' : 'E2E Admin'
+    }))
+    await route.fulfill({
+      json: {
+        users: owners,
+        games: [...Array(count)].map((_, index) => ({
+          id: `scroll-${start + index}`,
+          title: `Scroll Game ${String(start + index).padStart(2, '0')}`,
+          artwork: null,
+          igdbUrl: null,
+          genres: [],
+          multiplayerModes: [],
+          ownerIds: owners.map((owner) => owner.id),
+          owners,
+          ownerCount: 2,
+          selectedUserCount: 2
+        })),
+        page: {
+          number: requestBody.page,
+          size: 24,
+          total: 25,
+          hasMore: requestBody.page === 1
+        },
+        filters: {
+          genres: [],
+          multiplayerOnly: false,
+          multiplayerModes: []
+        },
+        facets: { genres: [], multiplayerModes: [] }
+      }
+    })
+  })
+  await page.goto('/compare')
+  const picker = page.getByLabel('Cerca compari')
+  await picker.click()
+  await page.getByRole('option', { name: 'E2E Friend' }).click()
+  await picker.click()
+  await page.getByRole('option', { name: 'E2E Admin' }).click()
+  await page.keyboard.press('Escape')
+  await expect(page.getByText('Scroll Game 00')).toBeVisible()
+  await page.getByLabel('Carica altri confronti').scrollIntoViewIfNeeded()
+  await expect(page.getByText('Scroll Game 24')).toBeVisible()
+  expect(requestedPages).toEqual([1, 2])
+})
+
 test('an admin can queue explicit IGDB catalogue maintenance actions', async ({ page }) => {
   await page.goto('/login')
   await page.getByLabel('Nome utente').fill('E2E Admin')
