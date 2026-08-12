@@ -18,6 +18,7 @@ const casualFridayRotationGameSchema = new mongoose.Schema(
       required: true,
       index: true
     },
+    votingEnabled: { type: Boolean, default: true, required: true, index: true },
     playerCountMin: { type: Number, required: true, min: 1, max: 999 },
     playerCountMax: { type: Number, required: true, min: 1, max: 999 },
     playerCountLabel: { type: String, trim: true, maxlength: 128 },

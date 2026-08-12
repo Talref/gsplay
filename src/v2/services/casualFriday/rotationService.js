@@ -45,6 +45,7 @@ const rotationDto = (rotation, game) => ({
   artwork: rotation.artworkOverride || game?.artwork || null,
   info: rotation.info || game?.summary || '',
   status: rotation.status,
+  votingEnabled: rotation.votingEnabled,
   playerCountMin: rotation.playerCountMin,
   playerCountMax: rotation.playerCountMax,
   playerCountLabel: rotation.playerCountLabel,
@@ -216,11 +217,26 @@ async function retireRotation(actor, id, reason) {
   await audit(actor, 'rotation_retired', { rotationGameId: rotation._id, details: { reason } });
 }
 
+async function setVotingEnabled(actor, id, votingEnabled) {
+  const rotation = await Rotation.findOneAndUpdate(
+    { _id: id, status: 'active' },
+    { $set: { votingEnabled, updatedBy: actor._id } },
+    { new: true, runValidators: true }
+  );
+  if (!rotation) throw new AppError(404, 'not_found', 'Active rotation game was not found');
+  await audit(actor, 'rotation_voting_updated', {
+    rotationGameId: rotation._id,
+    details: { votingEnabled }
+  });
+  return rotationDto(rotation, await CanonicalGame.findById(rotation.canonicalGameId));
+}
+
 module.exports = {
   createExternalRotation,
   createRotation,
   listRotation,
   recheckItad,
   retireRotation,
+  setVotingEnabled,
   updateRotation
 };

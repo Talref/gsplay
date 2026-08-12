@@ -3,6 +3,7 @@ const Rotation = require('../../models/CasualFridayRotationGame');
 const Playlist = require('../../models/CasualFridayPlaylist');
 const Entry = require('../../models/CasualFridayPlaylistEntry');
 const LibraryItem = require('../../models/LibraryItem');
+const Event = require('../../models/CasualFridayEvent');
 const { AppError } = require('../../http/errors');
 const {
   audit,
@@ -165,6 +166,14 @@ async function requireEditablePlaylist(playlistId, version, actor, now = new Dat
 async function addToPlaylist(actor, id, { now = new Date() } = {}) {
   const rotation = await Rotation.findOne({ _id: id, status: 'active' });
   if (!rotation) throw new AppError(404, 'not_found', 'Active rotation game was not found');
+  const window = nextFridayWindow(now);
+  const event = await Event.findOne({ weekKey: window.weekKey });
+  if (event && !['draft', 'published'].includes(event.status))
+    throw new AppError(
+      409,
+      'event_not_editable',
+      'Create the editorial draft before changing its playlist'
+    );
   const playlist = await upcomingPlaylist(actor, now);
   if (!playlistIsEditable(playlist, now)) {
     throw new AppError(
@@ -293,6 +302,10 @@ async function publishPlaylist(actor, id, version) {
     updatedBy: actor._id
   });
   await playlist.save();
+  await Event.updateOne(
+    { playlistId: playlist._id, status: 'draft' },
+    { $set: { status: 'published', updatedBy: actor._id }, $inc: { version: 1 } }
+  );
   await audit(actor, 'playlist_published', {
     playlistId: playlist._id,
     afterVersion: playlist.version
@@ -375,12 +388,18 @@ async function restoreCancelledPlaylist(actor, id, version, now = new Date()) {
 }
 
 async function completeElapsedPlaylists(now = new Date()) {
-  return (
-    await Playlist.updateMany(
-      { status: 'published', endsAt: { $lte: now } },
-      { $set: { status: 'completed', completedAt: now }, $inc: { version: 1 } }
-    )
-  ).modifiedCount;
+  const playlists = await Playlist.find({ status: 'published', endsAt: { $lte: now } }).select('_id');
+  if (!playlists.length) return 0;
+  const playlistIds = playlists.map((playlist) => playlist._id);
+  const result = await Playlist.updateMany(
+    { _id: { $in: playlistIds }, status: 'published' },
+    { $set: { status: 'completed', completedAt: now }, $inc: { version: 1 } }
+  );
+  await Event.updateMany(
+    { playlistId: { $in: playlistIds }, status: 'published' },
+    { $set: { status: 'completed', completedAt: now }, $inc: { version: 1 } }
+  );
+  return result.modifiedCount;
 }
 
 module.exports = {

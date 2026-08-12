@@ -405,3 +405,55 @@ test('Casual Friday member page shows the running lineup and its inactive placeh
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Per mo’ nun se gioca.' })).toBeVisible()
 })
+
+test('Casual Friday members can RSVP and select at most five locked candidates', async ({ page }) => {
+  await page.goto('/login')
+  await page.getByLabel('Nome utente').fill('E2E Admin')
+  await page.getByLabel('Password').fill('correct-horse-battery-staple')
+  await page.getByRole('button', { name: 'Entra' }).click()
+  await expect(page.getByRole('button', { name: 'Esci' })).toBeVisible()
+
+  const event = {
+    id: 'event-one',
+    weekKey: '2026-08-14',
+    status: 'open',
+    startsAt: '2026-08-14T17:00:00.000Z',
+    endsAt: '2026-08-15T04:00:00.000Z',
+    votingClosesAt: '2026-08-14T13:00:00.000Z',
+    open: true,
+    maxVotes: 5,
+    response: { rsvp: null, voteRotationGameIds: [] },
+    candidates: [...Array(6)].map((_, index) => ({
+      rotationGameId: `rotation-${index}`,
+      canonicalGameId: `game-${index}`,
+      displayTitle: `Candidato ${index + 1}`,
+      artwork: null,
+      playerCountMin: 2,
+      playerCountMax: 8,
+      playerCountLabel: ''
+    }))
+  }
+  await page.route('**/api/v2/casual-friday/events/**', async (route) => {
+    const body = route.request().postDataJSON()
+    if (route.request().url().endsWith('/rsvp'))
+      event.response = { ...event.response, rsvp: body.rsvp }
+    if (route.request().url().endsWith('/votes'))
+      event.response = { ...event.response, voteRotationGameIds: body.rotationGameIds }
+    await route.fulfill({ json: { event: { ...event, response: { ...event.response } } } })
+  })
+  await page.route('**/api/v2/casual-friday', (route) =>
+    route.fulfill({ json: { event, playlist: null } })
+  )
+  await page.goto('/casual-friday')
+  await page.getByRole('button', { name: 'Ce sto', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Ce sto', exact: true })).toHaveAttribute(
+    'class',
+    /MuiButton-contained/
+  )
+  for (let index = 1; index <= 5; index += 1)
+    await page.getByText(`Candidato ${index}`, { exact: true }).click()
+  await expect(page.getByText('5/5 scelti')).toBeVisible()
+  await page.getByText('Candidato 6', { exact: true }).click()
+  await expect(page.getByText(/Massimo 5 giochi/)).toBeVisible()
+  await expectNoHorizontalOverflow(page)
+})

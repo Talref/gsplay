@@ -37,7 +37,7 @@ const itadMessage = (item) => {
 const modeLabel = (mode) =>
   mode === 'host_runs' ? 'Remote Play' : mode === 'streamable' ? 'Streaming' : 'Client'
 
-function RotationGame({ item, playlistEditable, onAddToPlaylist, onEdit, onRecheck, onRetire }) {
+function RotationGame({ item, playlistEditable, canManageVoting, onVotingChange, onAddToPlaylist, onEdit, onRecheck, onRetire }) {
   const title = item.displayTitle || item.game?.title || 'Untitled game'
   const info = item.info || 'No player information supplied.'
 
@@ -131,6 +131,16 @@ function RotationGame({ item, playlistEditable, onAddToPlaylist, onEdit, onReche
           </Alert>
         )}
         <Stack direction="row" flexWrap="wrap" gap={1}>
+          {canManageVoting && (
+            <Button
+              size="small"
+              color={item.votingEnabled === false ? 'inherit' : 'success'}
+              variant="outlined"
+              onClick={() => onVotingChange(item, item.votingEnabled === false)}
+            >
+              {item.votingEnabled === false ? 'Enable voting' : 'Voting enabled'}
+            </Button>
+          )}
           <Button
             size="small"
             variant="contained"
@@ -168,6 +178,8 @@ export default function RotationPool({
   onAdd,
   active,
   playlistEditable,
+  canManageVoting,
+  onVotingChange,
   onAddToPlaylist,
   onEdit,
   onRecheck,
@@ -235,6 +247,8 @@ export default function RotationPool({
             key={item.id}
             item={item}
             playlistEditable={playlistEditable}
+            canManageVoting={canManageVoting}
+            onVotingChange={onVotingChange}
             onAddToPlaylist={onAddToPlaylist}
             onEdit={onEdit}
             onRecheck={onRecheck}
