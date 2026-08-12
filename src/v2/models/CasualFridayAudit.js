@@ -14,6 +14,11 @@ const casualFridayAuditSchema = new mongoose.Schema(
       ref: 'CasualFridayPlaylistV2',
       index: true
     },
+    eventId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CasualFridayEventV2',
+      index: true
+    },
     beforeVersion: Number,
     afterVersion: Number,
     details: { type: mongoose.Schema.Types.Mixed, default: undefined }

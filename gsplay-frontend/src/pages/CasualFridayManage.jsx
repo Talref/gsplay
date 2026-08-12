@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, Stack, Typography } from '@mui/material'
 import { Navigate } from 'react-router'
 import ManageDialogs from '../components/casualFriday/ManageDialogs'
+import EventManagePanel from '../components/casualFriday/EventManagePanel'
 import PlaylistPanel from '../components/casualFriday/PlaylistPanel'
 import ProposalPanel from '../components/casualFriday/ProposalPanel'
 import RotationPool from '../components/casualFriday/RotationPool'
@@ -61,6 +62,7 @@ export default function CasualFridayManage() {
   const [rotation, setRotation] = useState([])
   const [proposals, setProposals] = useState([])
   const [playlist, setPlaylist] = useState(null)
+  const [event, setEvent] = useState(null)
   const [game, setGame] = useState(null)
   const [form, setForm] = useState(blank)
   const [tab, setTab] = useState(0)
@@ -71,6 +73,9 @@ export default function CasualFridayManage() {
   const [keyOfferForm, setKeyOfferForm] = useState({ price: '', url: '' })
   const [savingKeyOffer, setSavingKeyOffer] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+  const [cancellationWarning, setCancellationWarning] = useState(
+    'Members will no longer see this playlist. A helper or admin can restore it as a draft and publish it again before the event deadline.'
+  )
   const [cancellationReason, setCancellationReason] = useState('')
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
@@ -89,11 +94,13 @@ export default function CasualFridayManage() {
       Promise.all([
         casualFridayApi.proposals(),
         casualFridayApi.rotation(),
+        casualFridayApi.event(),
         casualFridayApi.playlist()
       ])
-        .then(([pending, rotations, current]) => {
+        .then(([pending, rotations, weeklyEvent, current]) => {
           setProposals(pending.proposals)
           setRotation(rotations.rotation)
+          setEvent(weeklyEvent.event)
           replacePlaylist(current.playlist)
         })
         .catch((err) => setError(err.message)),
@@ -137,6 +144,24 @@ export default function CasualFridayManage() {
       setError(requestMessage(err))
     }
   }
+  const cancelEvent = async () => {
+    setError('')
+    setNotice('')
+    try {
+      const result = await casualFridayApi.cancelEvent(
+        event.id,
+        event.version,
+        cancellationReason
+      )
+      setEvent(result.event)
+      setCancelling(false)
+      setCancellationReason('')
+      setNotice('This week’s Casual Friday event was cancelled.')
+      await reload()
+    } catch (err) {
+      setError(requestMessage(err))
+    }
+  }
   const cancelPlaylist = async () => {
     setError('')
     setNotice('')
@@ -149,7 +174,7 @@ export default function CasualFridayManage() {
       replacePlaylist(result.playlist)
       setCancelling(false)
       setCancellationReason('')
-      setNotice('This week’s Casual Friday event was cancelled.')
+      setNotice('This week’s Casual Friday playlist was cancelled.')
     } catch (err) {
       setError(requestMessage(err))
     }
@@ -170,6 +195,55 @@ export default function CasualFridayManage() {
     }
   }
   const active = rotation.filter((item) => item.status === 'active')
+  const enabledCandidates = active.filter((item) => item.votingEnabled !== false)
+  const startEvent = async () => {
+    if (
+      !window.confirm(
+        `Start Casual Friday with ${enabledCandidates.length} locked voting candidates? RSVPs and voting will open immediately.`
+      )
+    ) return
+    setError('')
+    try {
+      const result = await casualFridayApi.startEvent()
+      setEvent(result.event)
+      setNotice('RSVPs and voting are now open.')
+    } catch (err) {
+      setError(requestMessage(err))
+    }
+  }
+  const createDraft = async () => {
+    setError('')
+    try {
+      const result = await casualFridayApi.createDraft(event.id, event.version)
+      setEvent(result.event)
+      setNotice('The editorial draft is ready.')
+      await reload()
+    } catch (err) {
+      setError(requestMessage(err))
+    }
+  }
+  const completeEvent = async () => {
+    if (!window.confirm('Mark this Casual Friday event and its playlist as completed?')) return
+    setError('')
+    try {
+      const result = await casualFridayApi.completeEvent(event.id, event.version)
+      setEvent(result.event)
+      setNotice('The event was marked completed.')
+      await reload()
+    } catch (err) {
+      setError(requestMessage(err))
+    }
+  }
+  const setVotingEnabled = async (item, enabled) => {
+    setError('')
+    try {
+      await casualFridayApi.setVotingEnabled(item.id, enabled)
+      setNotice(`${item.displayTitle} ${enabled ? 'will be' : 'will not be'} available in the next voting pool.`)
+      await reload()
+    } catch (err) {
+      setError(requestMessage(err))
+    }
+  }
   const removeEntry = async (entry) => {
     setError('')
     try {
@@ -376,6 +450,7 @@ export default function CasualFridayManage() {
       setNotice(
         'The Casual Friday playlist is now published and remains editable until Saturday at 06:00.'
       )
+      await reload()
     } catch (err) {
       setError(requestMessage(err))
     }
@@ -396,6 +471,17 @@ export default function CasualFridayManage() {
         onAccept={acceptProposal}
         onReject={rejectProposal}
       />
+      <EventManagePanel
+        event={event}
+        enabledCandidates={enabledCandidates}
+        onStart={startEvent}
+        onCreateDraft={createDraft}
+        onCancel={(warning) => {
+          setCancellationWarning(warning)
+          setCancelling(true)
+        }}
+        onComplete={completeEvent}
+      />
       <RotationPool
         tab={tab}
         onTabChange={setTab}
@@ -409,7 +495,13 @@ export default function CasualFridayManage() {
         onFormChange={setForm}
         onAdd={addRotation}
         active={active}
-        playlistEditable={playlist ? playlist.editable : true}
+        playlistEditable={
+          event
+            ? ['draft', 'published'].includes(event.status) && Boolean(playlist?.editable)
+            : Boolean(playlist?.editable)
+        }
+        canManageVoting={user.role === 'admin'}
+        onVotingChange={setVotingEnabled}
         onAddToPlaylist={addToPlaylist}
         onEdit={setEdit}
         onRecheck={recheckRotation}
@@ -428,8 +520,8 @@ export default function CasualFridayManage() {
         onRemove={removeEntry}
         onInfo={setInfoEntry}
         onKeyOffer={openKeyOffer}
-        onRestore={requestRestore}
-        onCancel={() => setCancelling(true)}
+        onRestore={event ? null : requestRestore}
+        onCancel={event ? null : () => setCancelling(true)}
         onPublish={publishPlaylist}
       />
       <ManageDialogs
@@ -447,9 +539,10 @@ export default function CasualFridayManage() {
         onSaveKeyOffer={saveKeyOffer}
         cancelling={cancelling}
         cancellationReason={cancellationReason}
+        cancellationWarning={cancellationWarning}
         onCancellationReasonChange={setCancellationReason}
         onCloseCancellation={() => setCancelling(false)}
-        onCancelPlaylist={cancelPlaylist}
+        onCancelPlaylist={event ? cancelEvent : cancelPlaylist}
       />
     </Stack>
   )

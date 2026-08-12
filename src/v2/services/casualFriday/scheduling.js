@@ -55,6 +55,7 @@ function nextFridayWindow(now = new Date()) {
   return {
     weekKey,
     startsAt: zonedDateTimeToUtc({ ...friday, hour: 19 }),
+    votingClosesAt: zonedDateTimeToUtc({ ...friday, hour: 15 }),
     endsAt: zonedDateTimeToUtc({ ...saturday, hour: 6 })
   };
 }

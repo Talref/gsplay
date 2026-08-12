@@ -1,8 +1,9 @@
 const { exactKeys, object, string } = require('../../http/validate');
+const { AppError } = require('../../http/errors');
 const service = require('../../services/casualFridayService');
 const { id, rotationBody } = require('./validation');
 
-function registerRotationRoutes(router, manage, { igdb, itad }) {
+function registerRotationRoutes(router, manage, admin, { igdb, itad }) {
   router.get('/casual-friday/tools/rotation', ...manage, async (req, res, next) => {
     try {
       res.json({ rotation: await service.listRotation({ itadClient: itad, includeOffer: true }) });
@@ -89,6 +90,24 @@ function registerRotationRoutes(router, manage, { igdb, itad }) {
         string(value.reason, 'reason', { max: 1000 })
       );
       res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.put('/casual-friday/tools/rotation/:id/voting', ...admin, async (req, res, next) => {
+    try {
+      const value = object(req.body);
+      exactKeys(value, ['enabled']);
+      if (typeof value.enabled !== 'boolean')
+        throw new AppError(400, 'invalid_request', 'enabled must be a boolean');
+      res.json({
+        rotation: await service.setVotingEnabled(
+          req.user,
+          id(req.params.id, 'id'),
+          value.enabled
+        )
+      });
     } catch (error) {
       next(error);
     }

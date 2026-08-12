@@ -102,6 +102,12 @@ export const serverStatusApi = {
 }
 export const casualFridayApi = {
   current: () => request('get', '/casual-friday'),
+  setRsvp: (eventId, rsvp) =>
+    request('put', `/casual-friday/events/${encodeURIComponent(eventId)}/rsvp`, { rsvp }),
+  setVotes: (eventId, rotationGameIds) =>
+    request('put', `/casual-friday/events/${encodeURIComponent(eventId)}/votes`, {
+      rotationGameIds
+    }),
   proposal: (gameId) => request('get', `/casual-friday/proposals/${encodeURIComponent(gameId)}`),
   propose: (gameId) =>
     request('post', `/casual-friday/proposals/${encodeURIComponent(gameId)}`, {}),
@@ -111,6 +117,23 @@ export const casualFridayApi = {
       adminNote
     }),
   rotation: () => request('get', '/casual-friday/tools/rotation'),
+  event: () => request('get', '/casual-friday/tools/event'),
+  startEvent: () => request('post', '/casual-friday/tools/event/start', {}),
+  createDraft: (eventId, version) =>
+    request('post', `/casual-friday/tools/event/${encodeURIComponent(eventId)}/draft`, { version }),
+  cancelEvent: (eventId, version, reason) =>
+    request('post', `/casual-friday/tools/event/${encodeURIComponent(eventId)}/cancel`, {
+      version,
+      reason
+    }),
+  completeEvent: (eventId, version) =>
+    request('post', `/casual-friday/tools/event/${encodeURIComponent(eventId)}/complete`, {
+      version
+    }),
+  setVotingEnabled: (rotationId, enabled) =>
+    request('put', `/casual-friday/tools/rotation/${encodeURIComponent(rotationId)}/voting`, {
+      enabled
+    }),
   playlist: () => request('get', '/casual-friday/tools/playlist'),
   fromCatalogue: (data) => request('post', '/casual-friday/tools/rotation/from-catalogue', data),
   fromIgdb: (data) => request('post', '/casual-friday/tools/rotation/from-igdb-url', data),

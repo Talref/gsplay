@@ -518,11 +518,13 @@ describe('Casual Friday core workflow', () => {
     expect(nextFridayWindow(new Date('2026-07-30T12:00:00Z'))).toMatchObject({
       weekKey: '2026-07-31',
       startsAt: new Date('2026-07-31T17:00:00Z'),
+      votingClosesAt: new Date('2026-07-31T13:00:00Z'),
       endsAt: new Date('2026-08-01T04:00:00Z')
     });
     expect(nextFridayWindow(new Date('2026-01-08T12:00:00Z'))).toMatchObject({
       weekKey: '2026-01-09',
       startsAt: new Date('2026-01-09T18:00:00Z'),
+      votingClosesAt: new Date('2026-01-09T14:00:00Z'),
       endsAt: new Date('2026-01-10T05:00:00Z')
     });
     expect(nextFridayWindow(new Date('2026-08-01T03:30:00Z')).weekKey).toBe('2026-07-31');

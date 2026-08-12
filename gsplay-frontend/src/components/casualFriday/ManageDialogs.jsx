@@ -27,6 +27,7 @@ export default function ManageDialogs({
   onSaveKeyOffer,
   cancelling,
   cancellationReason,
+  cancellationWarning,
   onCancellationReasonChange,
   onCloseCancellation,
   onCancelPlaylist
@@ -139,8 +140,7 @@ export default function ManageDialogs({
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Alert severity="warning">
-              Members will no longer see this playlist. A helper or admin can restore it as a draft
-              and publish it again before the event deadline.
+              {cancellationWarning}
             </Alert>
             <TextField
               autoFocus

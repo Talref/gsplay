@@ -15,6 +15,7 @@ import LocalOfferRoundedIcon from '@mui/icons-material/LocalOfferRounded'
 import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded'
 import SportsEsportsRoundedIcon from '@mui/icons-material/SportsEsportsRounded'
 import VpnKeyRoundedIcon from '@mui/icons-material/VpnKeyRounded'
+import MemberEventPanel from '../components/casualFriday/MemberEventPanel'
 import { casualFridayApi } from '../services/api'
 import { useLoad } from '../hooks/useLoad'
 
@@ -210,6 +211,7 @@ function GameCard({ entry }) {
 export default function CasualFriday() {
   const current = useLoad(casualFridayApi.current, [])
   const playlist = current.data?.playlist
+  const event = current.data?.event
   return (
     <Stack spacing={{ xs: 2.5, md: 3.5 }} sx={{ maxWidth: 980, mx: 'auto' }}>
       <Stack spacing={1} textAlign="center" alignItems="center">
@@ -234,7 +236,8 @@ export default function CasualFriday() {
           Aò, la scaletta s’è incartata. Riprova tra poco, che magari se vergogna.
         </Alert>
       )}
-      {!current.loading && !current.error && !playlist && (
+      {!current.loading && !current.error && <MemberEventPanel initialEvent={event} />}
+      {!current.loading && !current.error && !playlist && !event && (
         <Card>
           <CardContent sx={{ py: { xs: 5, sm: 8 }, textAlign: 'center' }}>
             <Typography variant="h4">Per mo’ nun se gioca.</Typography>
@@ -244,6 +247,16 @@ export default function CasualFriday() {
             </Typography>
           </CardContent>
         </Card>
+      )}
+      {!current.loading && !current.error && !playlist && event?.status === 'cancelled' && (
+        <Alert severity="warning">
+          Er console ha annullato i giochi de venerdì: {event.cancellationReason || 'gli auspici erano contrari.'}
+        </Alert>
+      )}
+      {!current.loading && !current.error && !playlist && event?.status === 'completed' && (
+        <Alert severity="success">
+          Er venerdì è compiuto. Le legioni so’ tornate a casa, li controller pure — più o meno.
+        </Alert>
       )}
       {playlist && (
         <>

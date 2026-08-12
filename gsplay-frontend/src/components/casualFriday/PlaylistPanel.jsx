@@ -123,12 +123,12 @@ export default function PlaylistPanel({
                       : 'Add at least one game to publish.'}
             </Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} gap={1}>
-              {playlist.status === 'cancelled' && (
+              {playlist.status === 'cancelled' && onRestore && (
                 <Button variant="outlined" onClick={onRestore}>
                   Restore as draft
                 </Button>
               )}
-              {playlist.status === 'published' && (
+              {playlist.status === 'published' && onCancel && (
                 <Button color="error" variant="outlined" onClick={onCancel}>
                   Cancel event
                 </Button>

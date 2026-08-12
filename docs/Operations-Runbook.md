@@ -46,6 +46,12 @@ longer current. The default is three minutes, comfortably above the 30-second n8
 The Casual Friday proposal feature adds `casual_friday_game_proposals_v2`; the standard deployment
 bootstrap creates its unique game index. It requires no additional environment settings.
 
+The RSVP and voting lifecycle adds `casual_friday_events_v2` and
+`casual_friday_responses_v2`, plus the `votingEnabled` field on existing rotation games. The
+standard deployment bootstrap creates their indexes. Existing rotation documents remain compatible
+and are voting-enabled unless explicitly disabled; no data migration or new environment setting is
+required.
+
 Initial Caddy routing should proxy the API namespace and serve the built SPA:
 
 ```caddy
