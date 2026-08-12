@@ -14,7 +14,7 @@ import { casualFridayApi } from '../../services/api'
 
 const rsvpOptions = [
   ['yes', 'Ce sto'],
-  ['maybe', 'Forse, si li pianeti'],
+  ['maybe', 'Forse, se me gira'],
   ['no', 'Nun ce sto']
 ]
 
