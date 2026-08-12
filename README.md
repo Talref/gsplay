@@ -9,6 +9,7 @@ GSPlay is a self-hosted shared PC-game library: members can sync Steam ownership
 - Server-side library comparison; complete user libraries are never aggregated in the browser.
 - Canonical catalogue, official IGDB enrichment jobs, ambiguity review, merge stewardship, and manual ownership.
 - Responsive React/MUI interface with Home, Library, Compare, Catalogue, Game Detail, and Admin workflows.
+- Playful Roman-flavoured member copy, with deliberately direct admin and helper tooling.
 - Isolated MongoMemoryServer backend tests and responsive Playwright release smoke checks.
 
 ## Local development

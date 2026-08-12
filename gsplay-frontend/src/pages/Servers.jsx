@@ -180,7 +180,7 @@ export default function Servers() {
             SERVER LIVE
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 1 }}>
-            Stato dei server della community.
+            Vedemo chi sta in piedi e chi s’è sdraiato senza avvertì nessuno.
           </Typography>
         </Box>
         <Button
@@ -189,7 +189,7 @@ export default function Servers() {
           onClick={() => load()}
           disabled={state.loading || state.refreshing}
         >
-          Aggiorna
+          Ricontrolla
         </Button>
       </Stack>
 
@@ -197,12 +197,14 @@ export default function Servers() {
       {state.loading ? (
         <CircularProgress aria-label="Caricamento stato server" />
       ) : !snapshot ? (
-        <Alert severity="info">Lo stato dei server non è attualmente disponibile.</Alert>
+        <Alert severity="info">
+          Nun c’è ancora niente da spià. Appena arrivano notizie dai server, ve le spifferamo qua.
+        </Alert>
       ) : (
         <Stack spacing={2.5}>
           {snapshot.stale && (
             <Alert severity="warning">
-              Questi dati non sono aggiornati. Lo stato reale dei server potrebbe essere cambiato.
+              Questi dati c’hanno preso sonno. Nel frattempo i server potrebbero avé cambiato idea.
             </Alert>
           )}
           <Stack
@@ -212,13 +214,13 @@ export default function Servers() {
             gap={1}
           >
             <Typography color="text.secondary" variant="body2">
-              Ultimo aggiornamento ricevuto: {new Date(snapshot.receivedAt).toLocaleString('it-IT')}
+              Ultima soffiata ricevuta: {new Date(snapshot.receivedAt).toLocaleString('it-IT')}
             </Typography>
             <Chip
               size="small"
               color={snapshot.stale ? 'warning' : 'success'}
               variant="outlined"
-              label={snapshot.stale ? 'Dati non aggiornati' : 'Dati aggiornati'}
+              label={snapshot.stale ? 'Notizie vecchiotte' : 'Notizie fresche'}
             />
           </Stack>
           <Stack spacing={2}>

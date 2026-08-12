@@ -28,7 +28,7 @@ export default function PlaylistPanel({
   const status = playlistStatus(playlist)
 
   return (
-    <Card sx={{ overflow: 'hidden' }}>
+    <Card component="section" aria-label="Weekly playlist" sx={{ overflow: 'hidden' }}>
       <Box
         sx={{
           position: 'relative',

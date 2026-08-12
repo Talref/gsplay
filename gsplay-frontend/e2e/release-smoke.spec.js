@@ -29,6 +29,20 @@ test('a member can sign up, reach the library, and log out', async ({ page }, te
 test('catalogue search and member Steam validation expose safe UI feedback', async ({
   page
 }, testInfo) => {
+  let proposed = false
+  await page.route('**/api/v2/casual-friday/proposals/*', async (route) => {
+    if (route.request().method() === 'POST') proposed = true
+    await route.fulfill({
+      json: {
+        proposal: {
+          status: proposed ? 'pending' : null,
+          proposerCount: proposed ? 1 : 0,
+          proposedByMe: proposed,
+          inRotation: false
+        }
+      }
+    })
+  })
   const username = `workflow-${testInfo.project.name}-${Date.now()}`
   await page.goto('/signup')
   await page.getByLabel('Nome utente').fill(username)
@@ -49,6 +63,9 @@ test('catalogue search and member Steam validation expose safe UI feedback', asy
   )
   await expect(page.getByText('2 disgraziati ce l’hanno già')).toHaveCount(2)
   await expect(page.getByText('E2E Admin')).toBeVisible()
+  await page.getByRole('button', { name: 'Buttalo ner Casual Friday' }).click()
+  await expect(page.getByRole('button', { name: 'Già proposto pe’ Casual Friday' })).toBeDisabled()
+  await expect(page.getByText('1 compare interessato')).toBeVisible()
   await page.getByRole('button', { name: 'Ce l’ho — aggiungi alla libbreria' }).click()
   await expect(page.getByRole('button', { name: 'Rimuovi dalla mia libbreria' })).toBeVisible()
   await page.getByRole('button', { name: 'Rimuovi dalla mia libbreria' }).click()
@@ -169,7 +186,7 @@ test('members see fresh server groups and safe stale and empty states', async ({
   )
   await expect(page.getByText('Giocatori: 0/24')).toBeVisible()
   await expect(page.getByRole('region', { name: 'Jam GS server' })).not.toContainText('Uptime:')
-  await expect(page.getByText('Dati aggiornati')).toBeVisible()
+  await expect(page.getByText('Notizie fresche')).toBeVisible()
   await expect(page.getByText(/amp|pterodactyl/i)).toHaveCount(0)
 
   let mockedSnapshot = {
@@ -189,19 +206,44 @@ test('members see fresh server groups and safe stale and empty states', async ({
   await page.route('**/api/v2/server-status', (route) =>
     route.fulfill({ json: { snapshot: mockedSnapshot } })
   )
-  await page.getByRole('button', { name: 'Aggiorna' }).click()
-  await expect(page.getByText('Questi dati non sono aggiornati.')).toBeVisible()
+  await page.getByRole('button', { name: 'Ricontrolla' }).click()
+  await expect(page.getByText('Questi dati c’hanno preso sonno.')).toBeVisible()
   await expect(page.getByLabel('Vecchio server: Sconosciuto')).toBeVisible()
 
   mockedSnapshot = null
-  await page.getByRole('button', { name: 'Aggiorna' }).click()
-  await expect(page.getByText('Lo stato dei server non è attualmente disponibile.')).toBeVisible()
+  await page.getByRole('button', { name: 'Ricontrolla' }).click()
+  await expect(page.getByText('Nun c’è ancora niente da spià.')).toBeVisible()
   await expectNoHorizontalOverflow(page)
 })
 
 test('Casual Friday tools show responsive reorderable cards and cached ITAD offers', async ({
   page
 }) => {
+  await page.route('**/api/v2/casual-friday/tools/proposals', (route) =>
+    route.fulfill({
+      json: {
+        proposals: [
+          {
+            id: 'proposal-one',
+            status: 'pending',
+            proposerCount: 2,
+            proposers: [
+              { id: 'one', username: 'E2E Friend' },
+              { id: 'two', username: 'Proposal Fan' }
+            ],
+            game: {
+              id: 'game-proposal',
+              title: 'Community Choice',
+              artwork: null,
+              summary: 'A community-proposed party game.',
+              genres: ['Party'],
+              igdbUrl: null
+            }
+          }
+        ]
+      }
+    })
+  )
   await page.goto('/login')
   await page.getByLabel('Nome utente').fill('E2E Admin')
   await page.getByLabel('Password').fill('correct-horse-battery-staple')
@@ -209,6 +251,13 @@ test('Casual Friday tools show responsive reorderable cards and cached ITAD offe
   await expect(page.getByRole('button', { name: 'Esci' })).toBeVisible()
   await page.goto('/casual-friday/tools')
   await expect(page.getByRole('heading', { name: 'Weekly playlist' })).toBeVisible()
+  await expect(page.getByText('Community Choice')).toBeHidden()
+  await page.getByRole('button', { name: 'Expand proposals' }).click()
+  await expect(page.getByText('Community Choice')).toBeVisible()
+  await expect(page.getByText('E2E Friend')).toBeVisible()
+  await page.getByRole('button', { name: 'Review and accept' }).click()
+  await expect(page.getByText('Selected: Community Choice')).toBeVisible()
+  await expect(page.getByLabel('Info for players')).toHaveValue('A community-proposed party game.')
   await expect(page.getByText('2 selected')).toBeVisible()
   await expect(page.getByRole('link', { name: /Buy at E2E Games for €11\.99/i })).toHaveCount(2)
   const aqua = page.getByRole('article').filter({ hasText: 'Aqua Quest' })
@@ -236,7 +285,7 @@ test('Casual Friday tools show responsive reorderable cards and cached ITAD offe
   await editDialog.getByRole('button', { name: 'Save' }).click()
   await expect(editDialog).not.toBeVisible()
   await expect(page.getByText(/was updated\.$/)).toBeVisible()
-  const cards = page.getByRole('article')
+  const cards = page.getByRole('region', { name: 'Weekly playlist' }).getByRole('article')
   const secondTitle = (await cards.nth(1).textContent()).includes('Budget Brawlers')
     ? 'Budget Brawlers'
     : 'Aqua Quest'

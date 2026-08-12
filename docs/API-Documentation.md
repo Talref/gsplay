@@ -82,6 +82,19 @@ Discord mentions are not returned.
 
 ## Games API
 
+Authenticated members can propose a catalogue game for Casual Friday with
+`POST /api/v2/casual-friday/proposals/:gameId` and read their current proposal state with the
+matching `GET` endpoint. Repeated proposals add unique member interest rather than duplicate
+records.
+
+Helpers and administrators list pending proposals with `GET /api/v2/casual-friday/tools/proposals`.
+Creating the catalogue game through the existing rotation endpoint approves its pending proposal.
+Only administrators may reject one with
+`POST /api/v2/casual-friday/tools/proposals/:proposalId/reject`.
+
+Proposals are stored in `casual_friday_game_proposals_v2`. The normal schema bootstrap creates or
+verifies the unique `canonicalGameId` index.
+
 ### Search Games
 
 Search and filter games in the database.

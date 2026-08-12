@@ -4,6 +4,7 @@ const { createIgdbClient } = require('../providers/igdbClient');
 const { createItadClient } = require('../providers/itadClient');
 const { registerMemberRoutes } = require('./casualFriday/memberRoutes');
 const { registerPlaylistRoutes } = require('./casualFriday/playlistRoutes');
+const { registerProposalRoutes } = require('./casualFriday/proposalRoutes');
 const { registerRotationRoutes } = require('./casualFriday/rotationRoutes');
 
 function createCasualFridayRouter(config, dependencies = {}) {
@@ -18,6 +19,7 @@ function createCasualFridayRouter(config, dependencies = {}) {
     });
 
   registerMemberRoutes(router, config);
+  registerProposalRoutes(router, config, manage);
   registerRotationRoutes(router, manage, { igdb, itad });
   registerPlaylistRoutes(router, manage, { itad });
 

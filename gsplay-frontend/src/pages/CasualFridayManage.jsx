@@ -3,6 +3,7 @@ import { Alert, Stack, Typography } from '@mui/material'
 import { Navigate } from 'react-router'
 import ManageDialogs from '../components/casualFriday/ManageDialogs'
 import PlaylistPanel from '../components/casualFriday/PlaylistPanel'
+import ProposalPanel from '../components/casualFriday/ProposalPanel'
 import RotationPool from '../components/casualFriday/RotationPool'
 import { catalogueApi, casualFridayApi } from '../services/api'
 import { useAuth } from '../context/useAuth'
@@ -58,6 +59,7 @@ const rotationPayload = (value) => ({
 export default function CasualFridayManage() {
   const { user } = useAuth()
   const [rotation, setRotation] = useState([])
+  const [proposals, setProposals] = useState([])
   const [playlist, setPlaylist] = useState(null)
   const [game, setGame] = useState(null)
   const [form, setForm] = useState(blank)
@@ -84,8 +86,13 @@ export default function CasualFridayManage() {
   }, [])
   const reload = useCallback(
     () =>
-      Promise.all([casualFridayApi.rotation(), casualFridayApi.playlist()])
-        .then(([rotations, current]) => {
+      Promise.all([
+        casualFridayApi.proposals(),
+        casualFridayApi.rotation(),
+        casualFridayApi.playlist()
+      ])
+        .then(([pending, rotations, current]) => {
+          setProposals(pending.proposals)
           setRotation(rotations.rotation)
           replacePlaylist(current.playlist)
         })
@@ -291,6 +298,37 @@ export default function CasualFridayManage() {
     setGame(selected)
     setForm((value) => ({ ...value, displayTitle: selected.title }))
   }
+  const acceptProposal = (proposal) => {
+    setTab(0)
+    setGame(proposal.game)
+    setForm({
+      ...blank,
+      displayTitle: proposal.game.title,
+      info: proposal.game.summary || ''
+    })
+    setNotice(
+      `Complete the rotation details for ${proposal.game.title}, then select Add to rotation.`
+    )
+    setError('')
+    window.requestAnimationFrame(() =>
+      document
+        .getElementById('rotation-pool')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    )
+  }
+  const rejectProposal = async (proposal) => {
+    const adminNote = window.prompt(`Why reject ${proposal.game.title}?`, '')
+    if (adminNote === null) return
+    setError('')
+    setNotice('')
+    try {
+      await casualFridayApi.rejectProposal(proposal.id, adminNote)
+      setNotice(`${proposal.game.title} was rejected.`)
+      await reload()
+    } catch (err) {
+      setError(requestMessage(err))
+    }
+  }
   const addToPlaylist = async (item) => {
     setError('')
     try {
@@ -352,6 +390,12 @@ export default function CasualFridayManage() {
       </Stack>
       {notice && <Alert severity="success">{notice}</Alert>}
       {error && <Alert severity="error">{error}</Alert>}
+      <ProposalPanel
+        proposals={proposals}
+        canReject={user.role === 'admin'}
+        onAccept={acceptProposal}
+        onReject={rejectProposal}
+      />
       <RotationPool
         tab={tab}
         onTabChange={setTab}
