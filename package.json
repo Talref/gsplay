@@ -18,6 +18,7 @@
     "dev:frontend": "npm --prefix gsplay-frontend run dev",
     "worker": "node src/v2/worker.js",
     "bootstrap": "node scripts/bootstrap-v2-schema.js",
+    "maintenance:remove-cancelled-legacy-playlist": "node scripts/remove-cancelled-legacy-playlist.js",
     "test:v2": "npm test",
     "docs": "jsdoc -c jsdoc.conf.json"
   },

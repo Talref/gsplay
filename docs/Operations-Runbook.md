@@ -152,6 +152,32 @@ ALLOW_DETACHED_RELEASE=true ./scripts/deploy.sh
 
 After recovery, return the checkout to `master` deliberately. Database restores should be a separate, reviewed incident operation using a tested archive.
 
+### One-time cancelled legacy playlist cleanup
+
+Use this only when a playlist created before the RSVP/voting lifecycle was cancelled and now blocks
+starting that lifecycle for the same week. The script refuses to act unless exactly one cancelled
+playlist and no lifecycle event exist for the supplied week.
+
+First complete and verify the MongoDB backup above. Then inspect the exact record without changing
+it:
+
+```bash
+sudo bash -c 'set -a; source "$1"; set +a; exec npm --prefix "$2" run maintenance:remove-cancelled-legacy-playlist -- --week "$3"' bash /etc/gsplay/v2.env /srv/gsplay YYYY-MM-DD
+```
+
+Copy the printed playlist ID. Stop both services to prevent concurrent playlist changes, execute
+the guarded deletion, and start them again:
+
+```bash
+sudo systemctl stop gsplay-v2-api.service gsplay-v2-worker.service
+sudo bash -c 'set -a; source "$1"; set +a; exec npm --prefix "$2" run maintenance:remove-cancelled-legacy-playlist -- --week "$3" --playlist-id "$4" --execute' bash /etc/gsplay/v2.env /srv/gsplay YYYY-MM-DD PLAYLIST_ID
+sudo systemctl start gsplay-v2-api.service gsplay-v2-worker.service
+curl --fail http://127.0.0.1:3000/health/ready
+```
+
+The operation permanently removes only that cancelled playlist and its playlist entries. It does
+not change rotation games, catalogue games, audits, users, or any other week.
+
 ## Diagnostics
 
 ```bash
