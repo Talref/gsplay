@@ -18,6 +18,13 @@ describe('v2 environment configuration', () => {
     });
   });
 
+  test('requires a web URL for public absolute links', () => {
+    expect(() => loadEnvironment({ ...valid, PUBLIC_APP_URL: 'not-a-url' })).toThrow();
+    expect(() => loadEnvironment({ ...valid, PUBLIC_APP_URL: 'ftp://gsplay.example' })).toThrow(
+      'PUBLIC_APP_URL must use HTTP or HTTPS'
+    );
+  });
+
   test('validates guide image storage and upload limits', () => {
     expect(() => loadEnvironment({ ...valid, GUIDE_UPLOAD_DIR: 'relative/path' })).toThrow(
       'GUIDE_UPLOAD_DIR'
