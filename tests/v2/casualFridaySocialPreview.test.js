@@ -57,7 +57,7 @@ describe('Casual Friday lifecycle social previews', () => {
     const response = await preview();
 
     expect(response.text).toContain('<title>Casual Friday — 14 agosto — Vota ora</title>');
-    expect(response.text).toContain('Le votazioni sono aperte fino alle 15:00');
+    expect(response.text).toContain('Le votazioni sono aperte fino alle 15:00 di venerdì');
     expect(response.text).toContain('scegli fino a cinque giochi');
     expect(response.text).toContain(
       'property="og:url" content="https://gsplay.example/casual-friday"'

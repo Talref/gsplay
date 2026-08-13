@@ -75,7 +75,7 @@ function votingDescription(event) {
     minute: '2-digit',
     timeZone: EVENT_TIME_ZONE
   }).format(event.votingClosesAt);
-  return `Le votazioni sono aperte fino alle ${deadline}: entra, dai la disponibilità e scegli fino a cinque giochi. Daje, che er Senato aspetta er voto tuo.`;
+  return `Le votazioni sono aperte fino alle ${deadline} di venerdì: entra, dai la disponibilità e scegli fino a cinque giochi. Daje, che er Senato aspetta er voto tuo.`;
 }
 
 function playlistEntryTitle(entry) {
