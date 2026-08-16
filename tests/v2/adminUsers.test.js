@@ -8,6 +8,7 @@ const RefreshSession = require('../../src/v2/models/RefreshSession');
 const SyncJob = require('../../src/v2/models/SyncJob');
 const GameAlias = require('../../src/v2/models/GameAlias');
 const AdminUserAction = require('../../src/v2/models/AdminUserAction');
+const MostWantedSnapshot = require('../../src/v2/models/MostWantedSnapshot');
 
 const config = loadEnvironment({
   NODE_ENV: 'test',
@@ -74,6 +75,72 @@ describe('v2 admin user management', () => {
       .send({ username: member.usernameDisplay, password })
       .expect(200);
     await memberAgent.get('/api/v2/admin/users?q=hel').expect(403);
+  });
+
+  test('reports account and Steam coverage only to admins', async () => {
+    const { agent } = await adminAgent();
+    const [available, unavailable] = await Promise.all([
+      createUser('PublicWishlist', 'member', {
+        steamAccount: {
+          steamId: '76561198000000001',
+          lastSyncedAt: new Date('2026-08-15T12:00:00.000Z')
+        }
+      }),
+      createUser('PrivateWishlist', 'member', {
+        steamAccount: { steamId: '76561198000000002' }
+      }),
+      createUser('NoSteam')
+    ]);
+    await MostWantedSnapshot.create({
+      key: 'current',
+      lastAttemptAt: new Date('2026-08-16T12:00:00.000Z'),
+      profileDiagnostics: [
+        {
+          userId: available._id,
+          steamId: available.steamAccount.steamId,
+          outcome: 'accessible',
+          itemCount: 12,
+          checkedAt: new Date('2026-08-16T12:00:00.000Z')
+        },
+        {
+          userId: unavailable._id,
+          steamId: unavailable.steamAccount.steamId,
+          outcome: 'unavailable',
+          itemCount: 0,
+          libraryAccessible: false,
+          errorCode: 'steam_game_details_unavailable',
+          checkedAt: new Date('2026-08-16T12:00:00.000Z')
+        }
+      ]
+    });
+
+    const response = await agent.get('/api/v2/admin/account-coverage').expect(200);
+    expect(response.body).toMatchObject({
+      totalUsers: 4,
+      steam: {
+        linked: 2,
+        librariesVerified: 1,
+        wishlistsWithGames: 1,
+        emptyWishlists: 0,
+        unavailableWishlists: 1,
+        cachedWishlists: 0,
+        unchecked: 0
+      },
+      attention: [
+        expect.objectContaining({
+          username: 'PrivateWishlist',
+          steamId: '76561198000000002',
+          errorCode: 'steam_game_details_unavailable'
+        })
+      ]
+    });
+    const member = await createUser('CoverageDenied');
+    const memberAgent = request.agent(app);
+    await memberAgent
+      .post('/api/v2/auth/login')
+      .send({ username: member.usernameDisplay, password })
+      .expect(200);
+    await memberAgent.get('/api/v2/admin/account-coverage').expect(403);
   });
 
   test('deletes private account records, protects admins, retains shared metadata history, and hides unaliased orphaned provider games', async () => {

@@ -60,13 +60,6 @@ function createMostWantedRouter(config) {
         available,
         stale,
         generatedAt: available ? snapshot.generatedAt : null,
-        coverage: {
-          included: snapshot?.profilesIncluded || 0,
-          eligible: snapshot?.profilesEligible || 0,
-          unavailable:
-            snapshot?.profilesUnavailable ?? (available ? 0 : snapshot?.profilesEligible || 0),
-          cached: snapshot?.profilesCached || 0
-        },
         games: available
           ? snapshot.games.map((game, index) => ({
               id: game.canonicalGameId.toString(),

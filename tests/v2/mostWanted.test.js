@@ -36,7 +36,6 @@ describe('Most Wanted API', () => {
       available: false,
       stale: false,
       generatedAt: null,
-      coverage: { included: 0, eligible: 0, unavailable: 0, cached: 0 },
       games: [],
       page: { number: 1, size: 24, total: 0, hasMore: false }
     });
@@ -73,7 +72,6 @@ describe('Most Wanted API', () => {
     expect(response.body).toMatchObject({
       available: true,
       stale: true,
-      coverage: { included: 1, eligible: 2, unavailable: 1 },
       page: { number: 2, size: 2, total: 3, hasMore: false }
     });
     expect(response.body.games).toEqual([

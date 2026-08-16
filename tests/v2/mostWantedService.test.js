@@ -180,6 +180,55 @@ describe('Most Wanted aggregation', () => {
     expect(snapshot.profilesCached).toBe(1);
   });
 
+  test('classifies ambiguous responses using current game-details privacy', async () => {
+    const linked = await Promise.all([
+      user('Empty Public', '76561198000000001'),
+      user('Has Wishes', '76561198000000002'),
+      user('Private Profile', '76561198000000003')
+    ]);
+    const wanted = await game('Wanted Game');
+    await GameAlias.create({
+      provider: 'steam',
+      providerGameId: '10',
+      normalizedProviderTitle: 'wanted game',
+      canonicalGameId: wanted._id,
+      matchType: 'provider_id',
+      confidence: 1
+    });
+    const steamClient = {
+      inspectWishlist: jest.fn(async (steamId) =>
+        steamId.endsWith('2')
+          ? { outcome: 'accessible', appIds: ['10'] }
+          : { outcome: 'ambiguous', appIds: [] }
+      ),
+      probeGameDetails: jest.fn(async (steamId) => steamId.endsWith('1'))
+    };
+    const now = new Date('2026-08-16T12:00:00.000Z');
+
+    await expect(refreshMostWanted({ steamClient, now, log: { warn: jest.fn() } })).resolves.toEqual(
+      {
+        updated: true,
+        profilesEligible: 3,
+        profilesIncluded: 2,
+        profilesCached: 0,
+        games: 1,
+        unmatchedAppCount: 0
+      }
+    );
+    const snapshot = await MostWantedSnapshot.findOne({ key: 'current' }).lean();
+    expect(snapshot.profileDiagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ userId: linked[0]._id, outcome: 'empty', itemCount: 0 }),
+        expect.objectContaining({ userId: linked[1]._id, outcome: 'accessible', itemCount: 1 }),
+        expect.objectContaining({
+          userId: linked[2]._id,
+          outcome: 'unavailable',
+          errorCode: 'steam_game_details_unavailable'
+        })
+      ])
+    );
+  });
+
   test('discovers unowned wishlist games, reuses exact catalogue titles, and queues enrichment', async () => {
     await user('Aurelia', '76561198000000001');
     const existing = await game('Known Upcoming Game');

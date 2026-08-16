@@ -9,6 +9,7 @@ const CatalogueReassignment = require('../models/CatalogueReassignment');
 const RetroChallenge = require('../models/RetroChallenge');
 const CasualFridayGameProposal = require('../models/CasualFridayGameProposal');
 const AdminUserAction = require('../models/AdminUserAction');
+const MostWantedSnapshot = require('../models/MostWantedSnapshot');
 const { AppError } = require('../http/errors');
 
 const userDto = (user) => ({
@@ -35,6 +36,54 @@ async function searchUsers(query, limit = 10) {
     .sort({ usernameNormalized: 1 })
     .limit(limit);
   return users.map(userDto);
+}
+
+async function accountCoverage() {
+  const [users, snapshot] = await Promise.all([
+    User.find({})
+      .select('_id usernameDisplay steamAccount.steamId steamAccount.lastSyncedAt')
+      .sort({ usernameNormalized: 1 })
+      .lean(),
+    MostWantedSnapshot.findOne({ key: 'current' })
+      .select('lastAttemptAt profileDiagnostics')
+      .lean()
+  ]);
+  const linked = users.filter((user) => /^\d{17}$/.test(user.steamAccount?.steamId || ''));
+  const userById = new Map(linked.map((user) => [user._id.toString(), user]));
+  const diagnostics = (snapshot?.profileDiagnostics || []).filter((entry) =>
+    userById.has(entry.userId.toString())
+  );
+  const usable = diagnostics.filter((entry) => entry.outcome !== 'unavailable');
+  const attention = diagnostics
+    .filter((entry) => ['cached', 'unavailable'].includes(entry.outcome))
+    .map((entry) => {
+      const user = userById.get(entry.userId.toString());
+      return {
+        id: user._id.toString(),
+        username: user.usernameDisplay,
+        steamId: user.steamAccount.steamId,
+        lastLibrarySyncAt: user.steamAccount.lastSyncedAt || null,
+        wishlistOutcome: entry.outcome,
+        wishlistItemCount: entry.itemCount,
+        libraryAccessible: entry.libraryAccessible,
+        errorCode: entry.errorCode || null,
+        checkedAt: entry.checkedAt
+      };
+    });
+  return {
+    totalUsers: users.length,
+    steam: {
+      linked: linked.length,
+      librariesVerified: linked.filter((user) => user.steamAccount.lastSyncedAt).length,
+      wishlistsWithGames: usable.filter((entry) => entry.itemCount > 0).length,
+      emptyWishlists: usable.filter((entry) => entry.itemCount === 0).length,
+      unavailableWishlists: diagnostics.filter((entry) => entry.outcome === 'unavailable').length,
+      cachedWishlists: diagnostics.filter((entry) => entry.outcome === 'cached').length,
+      unchecked: Math.max(0, linked.length - diagnostics.length),
+      lastCheckedAt: snapshot?.lastAttemptAt || null
+    },
+    attention
+  };
 }
 
 async function updateUserRole({ actor, subjectId, role }) {
@@ -172,4 +221,4 @@ async function deleteUser({ actor, subjectId, confirmation, reason }) {
   };
 }
 
-module.exports = { deleteUser, searchUsers, updateUserRole, userDto };
+module.exports = { accountCoverage, deleteUser, searchUsers, updateUserRole, userDto };

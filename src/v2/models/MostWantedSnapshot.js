@@ -31,7 +31,25 @@ const profileCacheSchema = new mongoose.Schema(
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'UserV2', required: true },
     steamId: { type: String, required: true, match: /^\d{17}$/ },
     appIds: [{ type: String, required: true, trim: true, maxlength: 32 }],
+    wishlistStatus: { type: String, enum: ['accessible', 'empty'] },
     fetchedAt: { type: Date, required: true }
+  },
+  { _id: false }
+);
+
+const profileDiagnosticSchema = new mongoose.Schema(
+  {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'UserV2', required: true },
+    steamId: { type: String, required: true, match: /^\d{17}$/ },
+    outcome: {
+      type: String,
+      enum: ['accessible', 'empty', 'cached', 'unavailable'],
+      required: true
+    },
+    itemCount: { type: Number, default: 0, min: 0 },
+    libraryAccessible: { type: Boolean, default: null },
+    errorCode: { type: String, maxlength: 64 },
+    checkedAt: { type: Date, required: true }
   },
   { _id: false }
 );
@@ -39,7 +57,7 @@ const profileCacheSchema = new mongoose.Schema(
 const mostWantedSnapshotSchema = new mongoose.Schema(
   {
     key: { type: String, enum: ['current'], default: 'current', required: true, unique: true },
-    aggregationVersion: { type: Number, default: 4, min: 1, required: true },
+    aggregationVersion: { type: Number, default: 5, min: 1, required: true },
     generatedAt: { type: Date, default: null },
     lastAttemptAt: { type: Date, default: null },
     lastError: {
@@ -52,6 +70,7 @@ const mostWantedSnapshotSchema = new mongoose.Schema(
     profilesCached: { type: Number, default: 0, min: 0 },
     unmatchedAppCount: { type: Number, default: 0, min: 0 },
     profileCaches: { type: [profileCacheSchema], default: [] },
+    profileDiagnostics: { type: [profileDiagnosticSchema], default: [] },
     games: { type: [gameSchema], default: [] }
   },
   { timestamps: true, collection: 'most_wanted_snapshots_v2' }

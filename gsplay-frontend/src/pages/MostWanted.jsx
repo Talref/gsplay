@@ -24,8 +24,7 @@ export default function MostWanted() {
       setMetadata({
         available: response.available,
         stale: response.stale,
-        generatedAt: response.generatedAt,
-        coverage: response.coverage
+        generatedAt: response.generatedAt
       })
     } catch (requestError) {
       setError(requestError.message)
@@ -42,8 +41,6 @@ export default function MostWanted() {
 
   const loadMore = useCallback(() => load(page.number + 1), [load, page.number])
   const sentinel = useInfiniteScroll({ hasMore: page.hasMore, loading, onLoadMore: loadMore })
-  const coverage = metadata?.coverage
-
   return (
     <Stack spacing={3} sx={{ maxWidth: 1100, mx: 'auto' }}>
       <Box>
@@ -56,17 +53,6 @@ export default function MostWanted() {
         </Typography>
       </Box>
 
-      {coverage?.eligible > 0 && (
-        <Typography variant="body2" color="text.secondary">
-          Basato su {coverage.included} wishlist accessibil
-          {coverage.included === 1 ? 'e' : 'i'}, su {coverage.eligible}{' '}
-          {coverage.eligible === 1 ? 'compare collegato' : 'compari collegati'} a Steam.
-          {coverage.unavailable > 0 &&
-            (coverage.unavailable === 1
-              ? ' L’altra è privata o momentaneamente indisponibile.'
-              : ` Le altre ${coverage.unavailable} so’ private o momentaneamente indisponibili.`)}
-        </Typography>
-      )}
       {metadata?.stale && (
         <Alert severity="warning">
           Steam oggi fa er prezioso: questa è l’ultima classificona buona che c’avemo.

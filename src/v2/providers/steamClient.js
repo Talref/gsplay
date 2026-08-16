@@ -47,6 +47,65 @@ function createSteamClient({ apiKey, http = axios }) {
     );
   };
   return {
+    async inspectWishlist(steamId) {
+      validateSteamId(steamId);
+      try {
+        const response = await http.get(
+          'https://api.steampowered.com/IWishlistService/GetWishlist/v1/',
+          { params: { steamid: steamId }, timeout: 10_000 }
+        );
+        const payload = response.data?.response;
+        const items = payload?.items;
+        if (items === undefined && payload && typeof payload === 'object')
+          return { outcome: 'ambiguous', appIds: [] };
+        if (!Array.isArray(items))
+          throw new SteamProviderError(
+            'Steam wishlist is private, unavailable, or returned an unsupported response.',
+            false,
+            'steam_wishlist_unavailable'
+          );
+        if (items.some((item) => !item || !Number.isInteger(item.appid) || item.appid <= 0))
+          throw new SteamProviderError(
+            'Steam returned an unsupported wishlist response.',
+            false,
+            'steam_wishlist_invalid_response'
+          );
+        const appIds = [...new Set(items.map((item) => String(item.appid)))];
+        return { outcome: appIds.length ? 'accessible' : 'empty', appIds };
+      } catch (error) {
+        throw providerFailure(error, 'wishlist');
+      }
+    },
+    async probeGameDetails(steamId) {
+      validateSteamId(steamId);
+      if (!apiKey)
+        throw new SteamProviderError(
+          'Steam privacy verification is unavailable because STEAM_API_KEY is not configured',
+          false,
+          'steam_not_configured'
+        );
+      try {
+        const response = await http.get(
+          'https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/',
+          {
+            params: {
+              key: apiKey,
+              steamid: steamId,
+              include_appinfo: 0,
+              include_played_free_games: 0
+            },
+            timeout: 10_000
+          }
+        );
+        const payload = response.data?.response;
+        return Boolean(
+          payload &&
+            (Number.isInteger(payload.game_count) || Array.isArray(payload.games))
+        );
+      } catch (error) {
+        throw providerFailure(error, 'game details');
+      }
+    },
     async listOwnedGames(steamId) {
       validateSteamId(steamId);
       if (!apiKey)
@@ -81,34 +140,14 @@ function createSteamClient({ apiKey, http = axios }) {
       }
     },
     async listWishlist(steamId) {
-      validateSteamId(steamId);
-      try {
-        const response = await http.get(
-          'https://api.steampowered.com/IWishlistService/GetWishlist/v1/',
-          { params: { steamid: steamId }, timeout: 10_000 }
+      const result = await this.inspectWishlist(steamId);
+      if (result.outcome === 'ambiguous')
+        throw new SteamProviderError(
+          'Steam wishlist is empty, private, or unavailable.',
+          false,
+          'steam_wishlist_ambiguous'
         );
-        const items = response.data?.response?.items;
-        if (!Array.isArray(items))
-          throw new SteamProviderError(
-            'Steam wishlist is private, unavailable, or returned an unsupported response.',
-            false,
-            'steam_wishlist_unavailable'
-          );
-        if (
-          items.some(
-            (item) =>
-              !item || !Number.isInteger(item.appid) || item.appid <= 0
-          )
-        )
-          throw new SteamProviderError(
-            'Steam returned an unsupported wishlist response.',
-            false,
-            'steam_wishlist_invalid_response'
-          );
-        return [...new Set(items.map((item) => String(item.appid)))];
-      } catch (error) {
-        throw providerFailure(error, 'wishlist');
-      }
+      return result.appIds;
     },
     async listAppNames(appIds) {
       if (!apiKey)

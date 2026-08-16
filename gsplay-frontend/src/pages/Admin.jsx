@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   CardContent,
+  Collapse,
   Divider,
   Stack,
   TextField,
@@ -20,10 +21,12 @@ const AdminUsers = lazy(() => import('./AdminUsers'))
 export default function Admin() {
   const { user } = useAuth()
   const jobs = useLoad(adminApi.jobs, [])
+  const coverage = useLoad(adminApi.accountCoverage, [])
   const [enrichmentVersion, setEnrichmentVersion] = useState(0)
   const enrichment = useLoad(adminApi.enrichmentStatus, [enrichmentVersion])
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
+  const [coverageExpanded, setCoverageExpanded] = useState(false)
   const [retroGameId, setRetroGameId] = useState('')
   const [retroDescription, setRetroDescription] = useState('')
 
@@ -90,7 +93,78 @@ export default function Admin() {
     <Stack spacing={3}>
       <Typography variant="h2">Admin operations</Typography>
       {notice && <Alert severity="success">{notice}</Alert>}
-      <ErrorNotice value={error || jobs.error || enrichment.error} />
+      <ErrorNotice value={error || jobs.error || coverage.error || enrichment.error} />
+      <Card>
+        <CardContent>
+          <Typography variant="h6">Users and Steam coverage</Typography>
+          <Stack direction="row" flexWrap="wrap" gap={2} sx={{ mt: 1 }}>
+            <Typography color="text.secondary">
+              Users {coverage.data?.totalUsers ?? '—'}
+            </Typography>
+            <Typography color="text.secondary">
+              Steam linked {coverage.data?.steam?.linked ?? '—'}
+            </Typography>
+            <Typography color="text.secondary">
+              Libraries verified {coverage.data?.steam?.librariesVerified ?? '—'}
+            </Typography>
+            <Typography color="text.secondary">
+              Wishlists with games {coverage.data?.steam?.wishlistsWithGames ?? '—'}
+            </Typography>
+            <Typography color="text.secondary">
+              Empty wishlists {coverage.data?.steam?.emptyWishlists ?? '—'}
+            </Typography>
+            <Typography color="text.secondary">
+              Unavailable {coverage.data?.steam?.unavailableWishlists ?? '—'}
+            </Typography>
+            <Typography color="text.secondary">
+              Cached {coverage.data?.steam?.cachedWishlists ?? '—'}
+            </Typography>
+            <Typography color="text.secondary">
+              Not checked {coverage.data?.steam?.unchecked ?? '—'}
+            </Typography>
+          </Stack>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+            Last wishlist check:{' '}
+            {coverage.data?.steam?.lastCheckedAt
+              ? new Date(coverage.data.steam.lastCheckedAt).toLocaleString()
+              : 'never'}
+          </Typography>
+          {coverage.data?.attention?.length > 0 && (
+            <>
+              <Button
+                size="small"
+                variant="outlined"
+                sx={{ mt: 2 }}
+                onClick={() => setCoverageExpanded((expanded) => !expanded)}
+              >
+                {coverageExpanded ? 'Hide' : 'Show'} profiles requiring attention (
+                {coverage.data.attention.length})
+              </Button>
+              <Collapse in={coverageExpanded}>
+                <Stack spacing={0.75} sx={{ mt: 1.5 }}>
+                  {coverage.data.attention.map((profile) => (
+                    <Typography key={profile.id} variant="body2" color="text.secondary">
+                      {profile.username} · {profile.wishlistOutcome} ·{' '}
+                      {profile.errorCode || 'cached data'} · library sync{' '}
+                      {profile.lastLibrarySyncAt
+                        ? new Date(profile.lastLibrarySyncAt).toLocaleString()
+                        : 'never'}{' '}
+                      ·{' '}
+                      <a
+                        href={`https://steamcommunity.com/profiles/${profile.steamId}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Steam profile
+                      </a>
+                    </Typography>
+                  ))}
+                </Stack>
+              </Collapse>
+            </>
+          )}
+        </CardContent>
+      </Card>
       <AdminUsers />
       <Card>
         <CardContent>

@@ -7,7 +7,7 @@ const { ensureMetadataJob } = require('../jobs/jobService');
 const { resolveSteamAppTitles } = require('./steamAppResolution');
 const { normalizeTitle } = require('./titleNormalization');
 
-const AGGREGATION_VERSION = 4;
+const AGGREGATION_VERSION = 5;
 const LEGACY_STEAM_ARTWORK =
   /^https:\/\/cdn\.akamai\.steamstatic\.com\/steam\/apps\/\d+\/header\.jpg$/;
 
@@ -102,27 +102,55 @@ async function ownerMap(gameIds) {
   return new Map(rows.map((row) => [row._id.toString(), row.users]));
 }
 
-async function recordFailure({ attemptedAt, profilesEligible, code, message }) {
+async function recordFailure({ attemptedAt, profilesEligible, diagnostics, code, message }) {
+  const cached = diagnostics.filter((entry) => entry.outcome === 'cached').length;
+  const included = diagnostics.filter((entry) => entry.outcome !== 'unavailable').length;
   await MostWantedSnapshot.findOneAndUpdate(
     { key: 'current' },
     {
       $set: {
         lastAttemptAt: attemptedAt,
-        lastError: { code, message }
+        lastError: { code, message },
+        profilesEligible,
+        profilesIncluded: included,
+        profilesUnavailable: profilesEligible - included,
+        profilesCached: cached,
+        profileDiagnostics: diagnostics
       },
       $setOnInsert: {
         key: 'current',
         games: [],
-        profileCaches: [],
-        profilesEligible,
-        profilesIncluded: 0,
-        profilesUnavailable: profilesEligible,
-        profilesCached: 0
+        profileCaches: []
       }
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
-  return { updated: false, profilesEligible, profilesIncluded: 0 };
+  return { updated: false, profilesEligible, profilesIncluded: included, profilesCached: cached };
+}
+
+async function fetchWishlist({ steamClient, steamId }) {
+  if (typeof steamClient.inspectWishlist !== 'function') {
+    const appIds = await steamClient.listWishlist(steamId);
+    return { appIds, wishlistStatus: appIds.length ? 'accessible' : 'empty' };
+  }
+  const result = await steamClient.inspectWishlist(steamId);
+  if (result.outcome !== 'ambiguous')
+    return { appIds: result.appIds, wishlistStatus: result.outcome };
+  if (typeof steamClient.probeGameDetails !== 'function') {
+    const error = new Error('Steam returned an ambiguous empty wishlist response.');
+    error.code = 'steam_wishlist_ambiguous';
+    error.retryable = false;
+    throw error;
+  }
+  const libraryAccessible = await steamClient.probeGameDetails(steamId);
+  if (!libraryAccessible) {
+    const error = new Error('Steam game details and wishlist are private or unavailable.');
+    error.code = 'steam_game_details_unavailable';
+    error.retryable = false;
+    error.libraryAccessible = false;
+    throw error;
+  }
+  return { appIds: [], wishlistStatus: 'empty', libraryAccessible: true };
 }
 
 async function refreshMostWanted({ steamClient, now = new Date(), log = console }) {
@@ -145,7 +173,10 @@ async function refreshMostWanted({ steamClient, now = new Date(), log = console 
   );
   const fetched = await mapWithConcurrency(users, 3, async (user) => {
     try {
-      return { user, appIds: await steamClient.listWishlist(user.steamAccount.steamId) };
+      return {
+        user,
+        ...(await fetchWishlist({ steamClient, steamId: user.steamAccount.steamId }))
+      };
     } catch (error) {
       log.warn(
         `Steam wishlist unavailable for GSPlay user ${user._id}: ${error.code || 'steam_error'}`
@@ -156,22 +187,40 @@ async function refreshMostWanted({ steamClient, now = new Date(), log = console 
           user,
           appIds: cached.appIds,
           cached: true,
-          fetchedAt: cached.fetchedAt
+          fetchedAt: cached.fetchedAt,
+          wishlistStatus:
+            cached.wishlistStatus || (cached.appIds.length ? 'accessible' : 'empty'),
+          error
         };
       return { user, error };
     }
   });
   const available = fetched.filter((result) => !result.error);
+  const usable = fetched.filter((result) => !result.error || result.cached);
+  const profileDiagnostics = fetched.map((result) => ({
+    userId: result.user._id,
+    steamId: result.user.steamAccount.steamId,
+    outcome: result.cached
+      ? 'cached'
+      : result.error
+        ? 'unavailable'
+        : result.wishlistStatus,
+    itemCount: result.appIds?.length || 0,
+    libraryAccessible: result.libraryAccessible ?? result.error?.libraryAccessible ?? null,
+    errorCode: result.error?.code,
+    checkedAt: now
+  }));
   const fresh = available.filter((result) => !result.cached);
   if (users.length && !fresh.length)
     return recordFailure({
       attemptedAt: now,
       profilesEligible: users.length,
+      diagnostics: profileDiagnostics,
       code: 'no_accessible_profiles',
       message: 'Steam returned no accessible wishlist profiles; the previous snapshot was preserved.'
     });
 
-  const allAppIds = [...new Set(available.flatMap((result) => result.appIds))];
+  const allAppIds = [...new Set(usable.flatMap((result) => result.appIds))];
   const aliases = allAppIds.length
     ? await GameAlias.find({ provider: 'steam', providerGameId: { $in: allAppIds } }).lean()
     : [];
@@ -237,7 +286,7 @@ async function refreshMostWanted({ steamClient, now = new Date(), log = console 
     candidateMappings.filter(([, gameId]) => gamesById.has(gameId))
   );
   const demand = new Map();
-  for (const result of available) {
+  for (const result of usable) {
     const userGames = new Map();
     for (const appId of result.appIds) {
       const gameId = gameIdByAppId.get(appId);
@@ -287,16 +336,18 @@ async function refreshMostWanted({ steamClient, now = new Date(), log = console 
         lastAttemptAt: now,
         lastError: null,
         profilesEligible: users.length,
-        profilesIncluded: available.length,
-        profilesUnavailable: users.length - available.length,
-        profilesCached: available.filter((result) => result.cached).length,
+        profilesIncluded: usable.length,
+        profilesUnavailable: users.length - usable.length,
+        profilesCached: usable.filter((result) => result.cached).length,
         unmatchedAppCount,
-        profileCaches: available.map((result) => ({
+        profileCaches: usable.map((result) => ({
           userId: result.user._id,
           steamId: result.user.steamAccount.steamId,
           appIds: result.appIds,
+          wishlistStatus: result.wishlistStatus,
           fetchedAt: result.cached ? result.fetchedAt : now
         })),
+        profileDiagnostics,
         games: snapshotGames
       },
       $setOnInsert: { key: 'current' }
@@ -306,8 +357,8 @@ async function refreshMostWanted({ steamClient, now = new Date(), log = console 
   return {
     updated: true,
     profilesEligible: users.length,
-    profilesIncluded: available.length,
-    profilesCached: available.filter((result) => result.cached).length,
+    profilesIncluded: usable.length,
+    profilesCached: usable.filter((result) => result.cached).length,
     games: snapshotGames.length,
     unmatchedAppCount
   };

@@ -86,16 +86,16 @@ export default function AdminUsers() {
   const canDelete = selected && confirmation === `DELETE ${selected.username}` && reason.trim()
   return (
     <Stack spacing={3}>
-      <Typography variant="h2">Manage users</Typography>
-      <Typography color="text.secondary">
-        Find members, grant trusted Helpers access for Casual Friday, or remove accounts that left
-        the group.
-      </Typography>
       {notice && <Alert severity="success">{notice}</Alert>}
       {error && <Alert severity="error">{error}</Alert>}
       <Card>
         <CardContent>
           <Stack spacing={2}>
+            <Typography variant="h6">Manage users</Typography>
+            <Typography color="text.secondary">
+              Find members, grant trusted Helpers access for Casual Friday, or remove accounts that
+              left the group.
+            </Typography>
             <TextField
               label="Search a user"
               value={query}

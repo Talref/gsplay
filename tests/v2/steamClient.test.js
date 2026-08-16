@@ -64,13 +64,32 @@ describe('v2 Steam provider client', () => {
         apiKey: null,
         http: { get: jest.fn().mockResolvedValue({ data: { response: {} } }) }
       }).listWishlist('76561198000000000')
-    ).rejects.toMatchObject({ code: 'steam_wishlist_unavailable', retryable: false });
+    ).rejects.toMatchObject({ code: 'steam_wishlist_ambiguous', retryable: false });
     await expect(
       createSteamClient({
         apiKey: null,
         http: { get: jest.fn().mockResolvedValue({ data: { response: { items: [{}] } } }) }
       }).listWishlist('76561198000000000')
     ).rejects.toMatchObject({ code: 'steam_wishlist_invalid_response', retryable: false });
+  });
+  test('separates ambiguous empty wishlists from current game-details privacy', async () => {
+    const get = jest
+      .fn()
+      .mockResolvedValueOnce({ data: { response: {} } })
+      .mockResolvedValueOnce({ data: { response: { game_count: 0 } } });
+    const steam = createSteamClient({ apiKey: 'test-key', http: { get } });
+    await expect(steam.inspectWishlist('76561198000000000')).resolves.toEqual({
+      outcome: 'ambiguous',
+      appIds: []
+    });
+    await expect(steam.probeGameDetails('76561198000000000')).resolves.toBe(true);
+    expect(get).toHaveBeenNthCalledWith(
+      2,
+      'https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/',
+      expect.objectContaining({
+        params: expect.objectContaining({ include_appinfo: 0, include_played_free_games: 0 })
+      })
+    );
   });
   test('resolves requested Steam app names across the official paginated app list', async () => {
     const get = jest

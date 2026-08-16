@@ -53,7 +53,6 @@ test('catalogue search and member Steam validation expose safe UI feedback', asy
         available: true,
         stale: true,
         generatedAt: '2026-08-15T12:00:00.000Z',
-        coverage: { included: 1, eligible: 2, unavailable: 1 },
         games: [
           {
             id: firstPage ? '64e0cec540ae43699af217c7' : '64e0cec540ae43699af217c8',
@@ -84,7 +83,7 @@ test('catalogue search and member Steam validation expose safe UI feedback', asy
   await expect(page.getByRole('button', { name: 'Esci' })).toBeVisible()
   await page.goto('/most-wanted')
   await expect(page.getByRole('heading', { name: 'MOST WANTED' })).toBeVisible()
-  await expect(page.getByText(/wishlist pubbliche de 1 compari su 2/)).toBeVisible()
+  await expect(page.getByText(/wishlist pubbliche de 1 compari su 2/)).toHaveCount(0)
   await expect(page.getByText(/ultima classificona buona/)).toBeVisible()
   const wantedLink = page.getByRole('link', { name: 'Aqua Quest' })
   await expect(wantedLink).toBeVisible()
@@ -233,6 +232,8 @@ test('an admin can queue explicit IGDB catalogue maintenance actions', async ({ 
   await page.getByRole('button', { name: 'Entra' }).click()
   await expect(page.getByRole('button', { name: 'Esci' })).toBeVisible()
   await page.goto('/admin')
+  await expect(page.getByRole('heading', { name: 'Users and Steam coverage', level: 6 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Manage users', level: 6 })).toBeVisible()
   await expect(
     page.getByRole('button', { name: 'Queue missing or pending IGDB metadata' })
   ).toBeVisible()

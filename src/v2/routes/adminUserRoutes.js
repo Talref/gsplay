@@ -3,10 +3,27 @@ const mongoose = require('mongoose');
 const { requireAuth, requireRole } = require('../http/auth');
 const { AppError } = require('../http/errors');
 const { exactKeys, object, string } = require('../http/validate');
-const { deleteUser, searchUsers, updateUserRole } = require('../services/adminUserService');
+const {
+  accountCoverage,
+  deleteUser,
+  searchUsers,
+  updateUserRole
+} = require('../services/adminUserService');
 
 function createAdminUserRouter(config) {
   const router = express.Router();
+  router.get(
+    '/admin/account-coverage',
+    requireAuth(config),
+    requireRole('admin'),
+    async (req, res, next) => {
+      try {
+        res.json(await accountCoverage());
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
   router.get('/admin/users', requireAuth(config), requireRole('admin'), async (req, res, next) => {
     try {
       const query = string(req.query.q, 'q', { min: 3, max: 32 });

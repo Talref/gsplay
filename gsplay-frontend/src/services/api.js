@@ -171,6 +171,7 @@ export const casualFridayApi = {
 }
 export const adminApi = {
   jobs: () => request('get', '/admin/jobs'),
+  accountCoverage: () => request('get', '/admin/account-coverage'),
   users: (query) => request('get', `/admin/users?q=${encodeURIComponent(query)}`),
   setUserRole: (userId, role) =>
     request('put', `/admin/users/${encodeURIComponent(userId)}/role`, { role }),
