@@ -7,7 +7,9 @@ const { ensureMetadataJob } = require('../jobs/jobService');
 const { resolveSteamAppTitles } = require('./steamAppResolution');
 const { normalizeTitle } = require('./titleNormalization');
 
-const AGGREGATION_VERSION = 3;
+const AGGREGATION_VERSION = 4;
+const LEGACY_STEAM_ARTWORK =
+  /^https:\/\/cdn\.akamai\.steamstatic\.com\/steam\/apps\/\d+\/header\.jpg$/;
 
 async function mapWithConcurrency(items, limit, mapper) {
   const results = new Array(items.length);
@@ -57,7 +59,6 @@ async function discoverWishlistMappings({ appIds, steamClient, now, userId, log 
       (await CanonicalGame.create({
         canonicalTitle: apps[0].providerTitle,
         normalizedTitle,
-        artwork: `https://cdn.akamai.steamstatic.com/steam/apps/${apps[0].providerGameId}/header.jpg`,
         origin: 'provider_discovery',
         metadata: { status: 'pending' }
       }));
@@ -125,6 +126,14 @@ async function recordFailure({ attemptedAt, profilesEligible, code, message }) {
 }
 
 async function refreshMostWanted({ steamClient, now = new Date(), log = console }) {
+  await CanonicalGame.updateMany(
+    {
+      artwork: LEGACY_STEAM_ARTWORK,
+      origin: 'provider_discovery',
+      igdbId: { $exists: false }
+    },
+    { $unset: { artwork: 1 } }
+  );
   const [users, previous] = await Promise.all([
     User.find({ 'steamAccount.steamId': /^\d{17}$/ })
       .select('_id usernameDisplay steamAccount.steamId')

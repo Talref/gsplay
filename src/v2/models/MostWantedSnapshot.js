@@ -39,7 +39,7 @@ const profileCacheSchema = new mongoose.Schema(
 const mostWantedSnapshotSchema = new mongoose.Schema(
   {
     key: { type: String, enum: ['current'], default: 'current', required: true, unique: true },
-    aggregationVersion: { type: Number, default: 3, min: 1, required: true },
+    aggregationVersion: { type: Number, default: 4, min: 1, required: true },
     generatedAt: { type: Date, default: null },
     lastAttemptAt: { type: Date, default: null },
     lastError: {

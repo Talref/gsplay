@@ -203,9 +203,9 @@ describe('Most Wanted aggregation', () => {
     const discovered = await CanonicalGame.findOne({ normalizedTitle: 'brand new game' });
     expect(discovered).toMatchObject({
       canonicalTitle: 'Brand New Game',
-      origin: 'provider_discovery',
-      artwork: 'https://cdn.akamai.steamstatic.com/steam/apps/40/header.jpg'
+      origin: 'provider_discovery'
     });
+    expect(discovered.artwork).toBeUndefined();
     expect(await GameAlias.countDocuments({ provider: 'steam' })).toBe(2);
     expect(
       await SyncJob.exists({

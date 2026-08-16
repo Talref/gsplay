@@ -47,7 +47,8 @@ describe('Most Wanted API', () => {
     const games = await CanonicalGame.create(
       ['Alpha', 'Beta', 'Gamma'].map((title) => ({
         canonicalTitle: title,
-        normalizedTitle: title.toLowerCase()
+        normalizedTitle: title.toLowerCase(),
+        artwork: `https://images.example/${title.toLowerCase()}-current.jpg`
       }))
     );
     await MostWantedSnapshot.create({
@@ -61,6 +62,7 @@ describe('Most Wanted API', () => {
       games: games.map((game, index) => ({
         canonicalGameId: game._id,
         title: game.canonicalTitle,
+        artwork: `https://images.example/${game.canonicalTitle.toLowerCase()}-stale.jpg`,
         wishlistCount: 3 - index,
         ownerCount: index,
         wishlistedBy: [{ userId: user._id, username: user.usernameDisplay }],
@@ -79,11 +81,40 @@ describe('Most Wanted API', () => {
         id: games[2]._id.toString(),
         rank: 3,
         title: 'Gamma',
+        artwork: 'https://images.example/gamma-current.jpg',
         wishlistCount: 1,
         ownerCount: 2,
         wishlistedBy: [{ id: user._id.toString(), username: 'Wanted Member' }],
         ownedBy: [{ id: user._id.toString(), username: 'Wanted Member' }]
       })
     ]);
+  });
+
+  test('does not expose the obsolete guessed Steam artwork fallback', async () => {
+    const { agent, user } = await authenticate();
+    const game = await CanonicalGame.create({
+      canonicalTitle: 'Upcoming Game',
+      normalizedTitle: 'upcoming game',
+      artwork: 'https://cdn.akamai.steamstatic.com/steam/apps/123/header.jpg'
+    });
+    await MostWantedSnapshot.create({
+      key: 'current',
+      generatedAt: new Date(),
+      profilesEligible: 1,
+      profilesIncluded: 1,
+      games: [
+        {
+          canonicalGameId: game._id,
+          title: game.canonicalTitle,
+          artwork: game.artwork,
+          wishlistCount: 1,
+          ownerCount: 0,
+          wishlistedBy: [{ userId: user._id, username: user.usernameDisplay }]
+        }
+      ]
+    });
+
+    const response = await agent.get('/api/v2/most-wanted').expect(200);
+    expect(response.body.games[0].artwork).toBeNull();
   });
 });

@@ -1,9 +1,12 @@
 const express = require('express');
 const { requireAuth } = require('../http/auth');
+const CanonicalGame = require('../models/CanonicalGame');
 const MostWantedSnapshot = require('../models/MostWantedSnapshot');
 
 const pageOf = (value, fallback, maximum) =>
   Math.min(Math.max(Number.parseInt(value || fallback, 10) || fallback, 1), maximum);
+const LEGACY_STEAM_ARTWORK =
+  /^https:\/\/cdn\.akamai\.steamstatic\.com\/steam\/apps\/\d+\/header\.jpg$/;
 
 function createMostWantedRouter(config) {
   const router = express.Router();
@@ -43,6 +46,16 @@ function createMostWantedRouter(config) {
             Date.now() - snapshot.generatedAt.getTime() > config.mostWanted.staleAfterMs)
       );
       const total = available ? snapshot.total : 0;
+      const canonicalGames = available
+        ? await CanonicalGame.find({
+            _id: { $in: snapshot.games.map((game) => game.canonicalGameId) }
+          })
+            .select('_id canonicalTitle artwork')
+            .lean()
+        : [];
+      const canonicalById = new Map(
+        canonicalGames.map((game) => [game._id.toString(), game])
+      );
       res.json({
         available,
         stale,
@@ -58,8 +71,15 @@ function createMostWantedRouter(config) {
           ? snapshot.games.map((game, index) => ({
               id: game.canonicalGameId.toString(),
               rank: skip + index + 1,
-              title: game.title,
-              artwork: game.artwork,
+              title:
+                canonicalById.get(game.canonicalGameId.toString())?.canonicalTitle || game.title,
+              artwork:
+                canonicalById.get(game.canonicalGameId.toString())?.artwork &&
+                !LEGACY_STEAM_ARTWORK.test(
+                  canonicalById.get(game.canonicalGameId.toString()).artwork
+                )
+                  ? canonicalById.get(game.canonicalGameId.toString()).artwork
+                  : null,
               wishlistCount: game.wishlistCount,
               ownerCount: game.ownerCount,
               wishlistedBy: game.wishlistedBy.map((user) => ({
