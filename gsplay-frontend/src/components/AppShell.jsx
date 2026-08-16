@@ -24,6 +24,7 @@ import SportsEsportsOutlinedIcon from '@mui/icons-material/SportsEsportsOutlined
 import CelebrationOutlinedIcon from '@mui/icons-material/CelebrationOutlined'
 import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined'
 import DnsOutlinedIcon from '@mui/icons-material/DnsOutlined'
+import FavoriteBorderRoundedIcon from '@mui/icons-material/FavoriteBorderRounded'
 import { useAuth } from '../context/useAuth'
 
 const memberLinks = [
@@ -31,6 +32,11 @@ const memberLinks = [
   ['Libreria', '/library', <GamesOutlinedIcon key="library" color="primary" />],
   ['Confronta', '/compare', <CompareArrowsOutlinedIcon key="compare" color="primary" />],
   ['Catalogo', '/catalogue', <TravelExploreOutlinedIcon key="catalogue" color="primary" />],
+  [
+    'Most Wanted',
+    '/most-wanted',
+    <FavoriteBorderRoundedIcon key="most-wanted" color="primary" />
+  ],
   [
     'Casual Friday',
     '/casual-friday',
@@ -43,7 +49,7 @@ const memberLinks = [
 
 function Navigation({ user, pathname, closeDrawer }) {
   const visibleLinks = memberLinks.filter(
-    ([, to]) => user || !['/library', '/casual-friday'].includes(to)
+    ([, to]) => user || !['/library', '/most-wanted', '/casual-friday'].includes(to)
   )
 
   return (

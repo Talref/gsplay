@@ -133,7 +133,7 @@ describe('Casual Friday RSVP and voting lifecycle', () => {
     expect(draft.status).toBe('draft');
     const playlist = await Playlist.findById(draft.playlistId);
     await service.addToPlaylist(helper, rotation._id, { now: closesAt });
-    await service.publishPlaylist(helper, playlist._id, 2);
+    await service.publishPlaylist(helper, playlist._id, 2, { now: closesAt });
     const publishedEvent = await Event.findById(started.id);
     expect(publishedEvent.status).toBe('published');
     const completed = await service.completeEvent(
@@ -154,7 +154,9 @@ describe('Casual Friday RSVP and voting lifecycle', () => {
     const event = await Event.findById(started.id);
     await service.addToPlaylist(helper, rotation._id, { now: new Date(event.votingClosesAt) });
     const playlist = await Playlist.findById(event.playlistId);
-    await service.publishPlaylist(helper, playlist._id, 2);
+    await service.publishPlaylist(helper, playlist._id, 2, {
+      now: new Date(event.votingClosesAt)
+    });
 
     expect(await service.completeElapsedPlaylists(new Date('2026-08-15T04:00:00Z'))).toBe(1);
     expect((await Event.findById(event._id)).status).toBe('completed');
@@ -171,7 +173,9 @@ describe('Casual Friday RSVP and voting lifecycle', () => {
       if (['published', 'completed'].includes(state)) {
         await service.addToPlaylist(helper, rotation._id, { now: new Date(event.votingClosesAt) });
         const playlist = await Playlist.findById(event.playlistId);
-        await service.publishPlaylist(helper, playlist._id, 2);
+        await service.publishPlaylist(helper, playlist._id, 2, {
+          now: new Date(event.votingClosesAt)
+        });
         event = await Event.findById(event._id);
         if (state === 'completed') {
           await service.completeEvent(

@@ -44,6 +44,7 @@ libraryItemSchema.index(
   }
 );
 libraryItemSchema.index({ userId: 1, removedAt: 1, provider: 1 });
+libraryItemSchema.index({ canonicalGameId: 1, removedAt: 1, userId: 1 });
 
 module.exports =
   mongoose.models.LibraryItemV2 || mongoose.model('LibraryItemV2', libraryItemSchema);

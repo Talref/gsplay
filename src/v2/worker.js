@@ -12,10 +12,12 @@ const { createJobHandlers } = require('./jobs/handlers');
 const { createIgdbGate, reconcileIgdbMetadata } = require('./jobs/igdbScheduler');
 const CanonicalGame = require('./models/CanonicalGame');
 const { createItadClient } = require('./providers/itadClient');
+const { createSteamClient } = require('./providers/steamClient');
 const {
   completeElapsedPlaylists,
   refreshRotationOffers
 } = require('./services/casualFridayService');
+const { refreshMostWantedIfDue } = require('./services/mostWantedService');
 
 async function startWorker({ pollMs = 1_000 } = {}) {
   const config = loadEnvironment();
@@ -24,6 +26,7 @@ async function startWorker({ pollMs = 1_000 } = {}) {
   const workerId = createWorkerId();
   const igdbGate = createIgdbGate(config.igdb);
   const itadClient = createItadClient({ apiKey: config.providers.itadApiKey });
+  const steamClient = createSteamClient({ apiKey: config.providers.steamApiKey });
   const handlers = createJobHandlers(config, { igdbGate });
   let stopping = false;
   let draining = false;
@@ -140,6 +143,26 @@ async function startWorker({ pollMs = 1_000 } = {}) {
       )
       .catch((error) => console.error('ITAD price refresh failed', error));
   const priceTimer = setInterval(priceMaintenance, config.itad.priceRefreshMs);
+  let mostWantedRunning = false;
+  const mostWantedMaintenance = async () => {
+    if (mostWantedRunning) return;
+    mostWantedRunning = true;
+    try {
+      const result = await refreshMostWantedIfDue({ config, steamClient });
+      if (result.due && result.updated)
+        console.info(
+          `🔥 Most Wanted refreshed: ${result.games} games from ${result.profilesIncluded}/${result.profilesEligible} Steam profiles`
+        );
+      if (result.due && !result.updated)
+        console.warn('Most Wanted refresh produced no valid profile data; cached data preserved');
+    } catch (error) {
+      console.error('Most Wanted refresh failed', error);
+    } finally {
+      mostWantedRunning = false;
+    }
+  };
+  const mostWantedTimer = setInterval(mostWantedMaintenance, config.mostWanted.refreshMs);
+  void mostWantedMaintenance();
   await priceMaintenance();
   await tick();
   const shutdown = async () => {
@@ -147,6 +170,7 @@ async function startWorker({ pollMs = 1_000 } = {}) {
     clearInterval(timer);
     clearInterval(maintenanceTimer);
     clearInterval(priceTimer);
+    clearInterval(mostWantedTimer);
     await disconnectDatabase();
   };
   process.once('SIGINT', shutdown);

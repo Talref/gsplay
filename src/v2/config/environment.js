@@ -127,6 +127,22 @@ function loadEnvironment(environment = process.env) {
         24 * 60 * 60 * 1000
       )
     },
+    mostWanted: {
+      refreshMs: asInteger(
+        environment.MOST_WANTED_REFRESH_MS,
+        24 * 60 * 60 * 1000,
+        'MOST_WANTED_REFRESH_MS',
+        60 * 60 * 1000,
+        7 * 24 * 60 * 60 * 1000
+      ),
+      staleAfterMs: asInteger(
+        environment.MOST_WANTED_STALE_AFTER_MS,
+        72 * 60 * 60 * 1000,
+        'MOST_WANTED_STALE_AFTER_MS',
+        60 * 60 * 1000,
+        30 * 24 * 60 * 60 * 1000
+      )
+    },
     igdb: {
       minIntervalMs: asInteger(
         environment.IGDB_MIN_INTERVAL_MS,

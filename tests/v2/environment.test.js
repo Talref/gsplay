@@ -7,6 +7,7 @@ describe('v2 environment configuration', () => {
     expect(config.port).toBe(3000);
     expect(config.auth.cookieSecure).toBe(false);
     expect(config.itad.priceRefreshMs).toBe(3600000);
+    expect(config.mostWanted).toEqual({ refreshMs: 86400000, staleAfterMs: 259200000 });
     expect(config.guide).toMatchObject({ imageMaxBytes: 5 * 1024 * 1024 });
     expect(config.guide.uploadDir).toContain('gsplay-guide-images');
     expect(config.serverStatus).toMatchObject({
@@ -48,6 +49,15 @@ describe('v2 environment configuration', () => {
     expect(
       loadEnvironment({ ...valid, ITAD_PRICE_REFRESH_MS: '7200000' }).itad.priceRefreshMs
     ).toBe(7200000);
+  });
+
+  test('validates Most Wanted refresh and stale intervals', () => {
+    expect(() => loadEnvironment({ ...valid, MOST_WANTED_REFRESH_MS: '30000' })).toThrow(
+      'MOST_WANTED_REFRESH_MS'
+    );
+    expect(() => loadEnvironment({ ...valid, MOST_WANTED_STALE_AFTER_MS: '30000' })).toThrow(
+      'MOST_WANTED_STALE_AFTER_MS'
+    );
   });
 
   test('validates bounded authentication rate-limit configuration', () => {
