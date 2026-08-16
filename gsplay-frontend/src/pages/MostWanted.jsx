@@ -58,8 +58,13 @@ export default function MostWanted() {
 
       {coverage?.eligible > 0 && (
         <Typography variant="body2" color="text.secondary">
-          Basato sulle wishlist pubbliche de {coverage.included} compari su {coverage.eligible}
-          collegati a Steam.
+          Basato su {coverage.included} wishlist accessibil
+          {coverage.included === 1 ? 'e' : 'i'}, su {coverage.eligible}{' '}
+          {coverage.eligible === 1 ? 'compare collegato' : 'compari collegati'} a Steam.
+          {coverage.unavailable > 0 &&
+            (coverage.unavailable === 1
+              ? ' L’altra è privata o momentaneamente indisponibile.'
+              : ` Le altre ${coverage.unavailable} so’ private o momentaneamente indisponibili.`)}
         </Typography>
       )}
       {metadata?.stale && (
