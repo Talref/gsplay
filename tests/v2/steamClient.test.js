@@ -72,4 +72,36 @@ describe('v2 Steam provider client', () => {
       }).listWishlist('76561198000000000')
     ).rejects.toMatchObject({ code: 'steam_wishlist_invalid_response', retryable: false });
   });
+  test('resolves requested Steam app names across the official paginated app list', async () => {
+    const get = jest
+      .fn()
+      .mockResolvedValueOnce({
+        data: {
+          response: {
+            apps: [{ appid: 10, name: 'First Game' }, { appid: 20, name: 'Ignore Me' }],
+            have_more_results: true,
+            last_appid: 20
+          }
+        }
+      })
+      .mockResolvedValueOnce({
+        data: {
+          response: {
+            apps: [{ appid: 30, name: 'Upcoming Game' }],
+            have_more_results: false
+          }
+        }
+      });
+    await expect(
+      createSteamClient({ apiKey: 'test-key', http: { get } }).listAppNames(['10', '30'])
+    ).resolves.toEqual([
+      { providerGameId: '10', providerTitle: 'First Game' },
+      { providerGameId: '30', providerTitle: 'Upcoming Game' }
+    ]);
+    expect(get).toHaveBeenNthCalledWith(
+      2,
+      'https://api.steampowered.com/IStoreService/GetAppList/v1/',
+      expect.objectContaining({ params: expect.objectContaining({ last_appid: 20 }) })
+    );
+  });
 });

@@ -3,6 +3,11 @@ const GameAlias = require('../models/GameAlias');
 const LibraryItem = require('../models/LibraryItem');
 const MostWantedSnapshot = require('../models/MostWantedSnapshot');
 const User = require('../models/User');
+const { ensureMetadataJob } = require('../jobs/jobService');
+const { resolveSteamAppTitles } = require('./steamAppResolution');
+const { normalizeTitle } = require('./titleNormalization');
+
+const AGGREGATION_VERSION = 3;
 
 async function mapWithConcurrency(items, limit, mapper) {
   const results = new Array(items.length);
@@ -19,6 +24,62 @@ async function mapWithConcurrency(items, limit, mapper) {
 }
 
 const member = (user) => ({ userId: user._id, username: user.usernameDisplay });
+
+async function discoverWishlistMappings({ appIds, steamClient, now, userId, log }) {
+  const titlesByAppId = await resolveSteamAppTitles({ appIds, steamClient, now, log });
+  const appsByTitle = new Map();
+  for (const [providerGameId, providerTitle] of titlesByAppId) {
+    const normalizedTitle = normalizeTitle(providerTitle);
+    if (!normalizedTitle) continue;
+    if (!appsByTitle.has(normalizedTitle)) appsByTitle.set(normalizedTitle, []);
+    appsByTitle.get(normalizedTitle).push({ providerGameId, providerTitle });
+  }
+  if (!appsByTitle.size) return [];
+
+  const existing = await CanonicalGame.find({
+    normalizedTitle: { $in: [...appsByTitle.keys()] },
+    hiddenAt: null,
+    archivedAt: null,
+    mergedIntoId: null
+  });
+  const gamesByTitle = new Map();
+  for (const game of existing) {
+    if (!gamesByTitle.has(game.normalizedTitle)) gamesByTitle.set(game.normalizedTitle, []);
+    gamesByTitle.get(game.normalizedTitle).push(game);
+  }
+
+  const mappings = [];
+  for (const [normalizedTitle, apps] of appsByTitle) {
+    const candidates = gamesByTitle.get(normalizedTitle) || [];
+    if (candidates.length > 1) continue;
+    const canonical =
+      candidates[0] ||
+      (await CanonicalGame.create({
+        canonicalTitle: apps[0].providerTitle,
+        normalizedTitle,
+        artwork: `https://cdn.akamai.steamstatic.com/steam/apps/${apps[0].providerGameId}/header.jpg`,
+        origin: 'provider_discovery',
+        metadata: { status: 'pending' }
+      }));
+    await ensureMetadataJob(canonical, { userId, reason: 'steam_wishlist_discovery' });
+    for (const app of apps) {
+      await GameAlias.findOneAndUpdate(
+        { provider: 'steam', providerGameId: app.providerGameId },
+        {
+          $setOnInsert: {
+            normalizedProviderTitle: normalizedTitle,
+            canonicalGameId: canonical._id,
+            matchType: candidates.length ? 'exact_alias' : 'provider_id',
+            confidence: candidates.length ? 1 : 0.75
+          }
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+      mappings.push([app.providerGameId, canonical._id.toString()]);
+    }
+  }
+  return mappings;
+}
 
 async function ownerMap(gameIds) {
   if (!gameIds.length) return new Map();
@@ -105,7 +166,53 @@ async function refreshMostWanted({ steamClient, now = new Date(), log = console 
   const aliases = allAppIds.length
     ? await GameAlias.find({ provider: 'steam', providerGameId: { $in: allAppIds } }).lean()
     : [];
-  const gameIds = [...new Set(aliases.map((alias) => alias.canonicalGameId.toString()))];
+  const aliasAppIds = new Set(aliases.map((alias) => alias.providerGameId));
+  const fallbackMappings = allAppIds.length
+    ? await LibraryItem.aggregate([
+        {
+          $match: {
+            provider: 'steam',
+            providerGameId: { $in: allAppIds.filter((appId) => !aliasAppIds.has(appId)) },
+            canonicalGameId: { $ne: null },
+            removedAt: null
+          }
+        },
+        {
+          $group: {
+            _id: '$providerGameId',
+            canonicalGameIds: { $addToSet: '$canonicalGameId' }
+          }
+        },
+        { $match: { 'canonicalGameIds.1': { $exists: false } } },
+        {
+          $project: {
+            _id: 0,
+            providerGameId: '$_id',
+            canonicalGameId: { $arrayElemAt: ['$canonicalGameIds', 0] }
+          }
+        }
+      ])
+    : [];
+  const alreadyMappedAppIds = new Set([
+    ...aliasAppIds,
+    ...fallbackMappings.map((mapping) => mapping.providerGameId)
+  ]);
+  const discoveredMappings = await discoverWishlistMappings({
+    appIds: allAppIds.filter((appId) => !alreadyMappedAppIds.has(appId)),
+    steamClient,
+    now,
+    userId: available[0]?.user._id,
+    log
+  });
+  const candidateMappings = [
+    ...aliases.map((alias) => [alias.providerGameId, alias.canonicalGameId.toString()]),
+    ...fallbackMappings.map((mapping) => [
+      mapping.providerGameId,
+      mapping.canonicalGameId.toString()
+    ]),
+    ...discoveredMappings
+  ];
+  const gameIds = [...new Set(candidateMappings.map(([, gameId]) => gameId))];
   const games = gameIds.length
     ? await CanonicalGame.find({
         _id: { $in: gameIds },
@@ -117,16 +224,14 @@ async function refreshMostWanted({ steamClient, now = new Date(), log = console 
         .lean()
     : [];
   const gamesById = new Map(games.map((game) => [game._id.toString(), game]));
-  const aliasByAppId = new Map(
-    aliases
-      .filter((alias) => gamesById.has(alias.canonicalGameId.toString()))
-      .map((alias) => [alias.providerGameId, alias.canonicalGameId.toString()])
+  const gameIdByAppId = new Map(
+    candidateMappings.filter(([, gameId]) => gamesById.has(gameId))
   );
   const demand = new Map();
   for (const result of available) {
     const userGames = new Map();
     for (const appId of result.appIds) {
-      const gameId = aliasByAppId.get(appId);
+      const gameId = gameIdByAppId.get(appId);
       if (!gameId) continue;
       if (!userGames.has(gameId)) userGames.set(gameId, new Set());
       userGames.get(gameId).add(appId);
@@ -162,13 +267,14 @@ async function refreshMostWanted({ steamClient, now = new Date(), log = console 
         left.title.localeCompare(right.title, 'it', { sensitivity: 'base' }) ||
         left.canonicalGameId.toString().localeCompare(right.canonicalGameId.toString())
     );
-  const matchedAppIds = new Set(aliasByAppId.keys());
+  const matchedAppIds = new Set(gameIdByAppId.keys());
   const unmatchedAppCount = allAppIds.filter((appId) => !matchedAppIds.has(appId)).length;
   await MostWantedSnapshot.findOneAndUpdate(
     { key: 'current' },
     {
       $set: {
         generatedAt: now,
+        aggregationVersion: AGGREGATION_VERSION,
         lastAttemptAt: now,
         lastError: null,
         profilesEligible: users.length,
@@ -200,12 +306,14 @@ async function refreshMostWanted({ steamClient, now = new Date(), log = console 
 
 async function refreshMostWantedIfDue({ config, steamClient, now = new Date(), log = console }) {
   const snapshot = await MostWantedSnapshot.findOne({ key: 'current' })
-    .select('lastAttemptAt generatedAt')
+    .select('aggregationVersion lastAttemptAt generatedAt')
     .lean();
+  if (snapshot?.aggregationVersion !== AGGREGATION_VERSION)
+    return { due: true, ...(await refreshMostWanted({ steamClient, now, log })) };
   const lastRun = snapshot?.lastAttemptAt || snapshot?.generatedAt;
   if (lastRun && now.getTime() - lastRun.getTime() < config.mostWanted.refreshMs)
     return { due: false };
   return { due: true, ...(await refreshMostWanted({ steamClient, now, log })) };
 }
 
-module.exports = { refreshMostWanted, refreshMostWantedIfDue };
+module.exports = { AGGREGATION_VERSION, refreshMostWanted, refreshMostWantedIfDue };

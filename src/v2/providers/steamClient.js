@@ -109,6 +109,50 @@ function createSteamClient({ apiKey, http = axios }) {
       } catch (error) {
         throw providerFailure(error, 'wishlist');
       }
+    },
+    async listAppNames(appIds) {
+      if (!apiKey)
+        throw new SteamProviderError(
+          'Steam app lookup is unavailable because STEAM_API_KEY is not configured',
+          false,
+          'steam_not_configured'
+        );
+      const requested = new Set(appIds.map(String));
+      const resolved = [];
+      let lastAppId;
+      try {
+        while (requested.size) {
+          const params = {
+            key: apiKey,
+            include_games: true,
+            max_results: 50_000,
+            ...(lastAppId ? { last_appid: lastAppId } : {})
+          };
+          const response = await http.get(
+            'https://api.steampowered.com/IStoreService/GetAppList/v1/',
+            { params, timeout: 30_000 }
+          );
+          const page = response.data?.response;
+          if (!Array.isArray(page?.apps))
+            throw new SteamProviderError(
+              'Steam returned an unsupported app-list response.',
+              true,
+              'steam_app_list_invalid_response'
+            );
+          for (const app of page.apps) {
+            const providerGameId = String(app.appid);
+            if (!requested.has(providerGameId) || typeof app.name !== 'string' || !app.name.trim())
+              continue;
+            resolved.push({ providerGameId, providerTitle: app.name.trim() });
+            requested.delete(providerGameId);
+          }
+          if (!page.have_more_results || !page.last_appid) break;
+          lastAppId = page.last_appid;
+        }
+        return resolved;
+      } catch (error) {
+        throw providerFailure(error, 'app list');
+      }
     }
   };
 }
