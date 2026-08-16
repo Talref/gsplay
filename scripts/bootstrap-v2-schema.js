@@ -20,7 +20,8 @@ const models = [
   require('../src/v2/models/CasualFridayEvent'),
   require('../src/v2/models/CasualFridayResponse'),
   require('../src/v2/models/Guide'),
-  require('../src/v2/models/ServerStatusSnapshot')
+  require('../src/v2/models/ServerStatusSnapshot'),
+  require('../src/v2/models/MostWantedSnapshot')
 ];
 const ignoreMissingIndex = (error) => {
   if (!['IndexNotFound', 'NamespaceNotFound'].includes(error.codeName)) throw error;

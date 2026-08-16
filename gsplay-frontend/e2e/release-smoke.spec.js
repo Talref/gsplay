@@ -30,6 +30,7 @@ test('catalogue search and member Steam validation expose safe UI feedback', asy
   page
 }, testInfo) => {
   let proposed = false
+  const mostWantedPages = []
   await page.route('**/api/v2/casual-friday/proposals/*', async (route) => {
     if (route.request().method() === 'POST') proposed = true
     await route.fulfill({
@@ -43,12 +44,57 @@ test('catalogue search and member Steam validation expose safe UI feedback', asy
       }
     })
   })
+  await page.route('**/api/v2/most-wanted?*', async (route) => {
+    const requestedPage = Number(new URL(route.request().url()).searchParams.get('page'))
+    mostWantedPages.push(requestedPage)
+    const firstPage = requestedPage === 1
+    await route.fulfill({
+      json: {
+        available: true,
+        stale: true,
+        generatedAt: '2026-08-15T12:00:00.000Z',
+        coverage: { included: 1, eligible: 2, unavailable: 1 },
+        games: [
+          {
+            id: firstPage ? '64e0cec540ae43699af217c7' : '64e0cec540ae43699af217c8',
+            rank: firstPage ? 1 : 2,
+            title: firstPage ? 'Aqua Quest' : 'Budget Brawlers',
+            wishlistCount: firstPage ? 2 : 1,
+            ownerCount: firstPage ? 1 : 0,
+            wishlistedBy: [{ id: '64e0cec540ae43699af217c1', username: 'E2E Admin' }],
+            ownedBy: firstPage
+              ? [{ id: '64e0cec540ae43699af217c2', username: 'E2E Friend' }]
+              : []
+          }
+        ],
+        page: {
+          number: requestedPage,
+          size: 1,
+          total: 2,
+          hasMore: firstPage
+        }
+      }
+    })
+  })
   const username = `workflow-${testInfo.project.name}-${Date.now()}`
   await page.goto('/signup')
   await page.getByLabel('Nome utente').fill(username)
   await page.getByLabel('Password').fill('correct-horse-battery-staple')
   await page.getByRole('button', { name: 'Crea account' }).click()
   await expect(page.getByRole('button', { name: 'Esci' })).toBeVisible()
+  await page.goto('/most-wanted')
+  await expect(page.getByRole('heading', { name: 'MOST WANTED' })).toBeVisible()
+  await expect(page.getByText(/wishlist pubbliche de 1 compari su 2/)).toBeVisible()
+  await expect(page.getByText(/ultima classificona buona/)).toBeVisible()
+  const wantedLink = page.getByRole('link', { name: 'Aqua Quest' })
+  await expect(wantedLink).toBeVisible()
+  const wantedCard = page.getByRole('article').filter({ has: wantedLink })
+  await wantedCard.getByRole('button', { name: 'Vedi i compari' }).click()
+  await expect(wantedCard.getByText('E2E Admin')).toBeVisible()
+  await expect(wantedCard.getByText('E2E Friend')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Budget Brawlers' })).toBeVisible()
+  expect(mostWantedPages).toEqual([1, 2])
+  await expectNoHorizontalOverflow(page)
   await page.goto('/catalogue')
   await page.getByLabel('Cerca un gioco').fill('Aqua')
   await expect(page.getByText('5 DRITTE, POI DECIDI TU')).toBeVisible()

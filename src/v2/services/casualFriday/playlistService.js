@@ -274,10 +274,10 @@ async function reorderPlaylist(actor, playlistId, entryIds, version, { now = new
   return buildPlaylistDto(playlist, actor._id);
 }
 
-async function publishPlaylist(actor, id, version) {
+async function publishPlaylist(actor, id, version, { now = new Date() } = {}) {
   const playlist = await Playlist.findById(id);
   if (!playlist) throw new AppError(404, 'not_found', 'Playlist was not found');
-  if (playlist.status !== 'draft' || !playlistIsEditable(playlist)) {
+  if (playlist.status !== 'draft' || !playlistIsEditable(playlist, now)) {
     throw new AppError(409, 'playlist_not_editable', 'Only an active draft can be published');
   }
   if (playlist.version !== version) {
@@ -298,7 +298,7 @@ async function publishPlaylist(actor, id, version) {
     status: 'published',
     version: playlist.version + 1,
     publishedBy: actor._id,
-    publishedAt: new Date(),
+    publishedAt: now,
     updatedBy: actor._id
   });
   await playlist.save();

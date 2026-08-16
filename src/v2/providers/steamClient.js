@@ -10,16 +10,51 @@ class SteamProviderError extends Error {
 }
 
 function createSteamClient({ apiKey, http = axios }) {
-  if (!apiKey)
-    throw new SteamProviderError(
-      'Steam sync is unavailable because STEAM_API_KEY is not configured',
-      false,
-      'steam_not_configured'
+  const validateSteamId = (steamId) => {
+    if (!/^\d{17}$/.test(String(steamId)))
+      throw new SteamProviderError('Steam ID must be a 17-digit SteamID64');
+  };
+  const providerFailure = (error, operation) => {
+    if (error instanceof SteamProviderError) return error;
+    const status = error.response?.status;
+    if (status === 401 || status === 403)
+      return new SteamProviderError(
+        `Steam denied access to this ${operation}.`,
+        false,
+        'steam_access_denied'
+      );
+    if (status === 429)
+      return new SteamProviderError(
+        'Steam rate-limited this request. It will be retried automatically.',
+        true,
+        'steam_rate_limited'
+      );
+    if (status >= 500)
+      return new SteamProviderError(
+        'Steam is temporarily unavailable. The request will be retried automatically.',
+        true,
+        'steam_unavailable'
+      );
+    if (!error.response)
+      return new SteamProviderError(
+        'Steam could not be reached. Check this server’s network connection.',
+        true,
+        'steam_network_error'
+      );
+    return new SteamProviderError(
+      `Steam ${operation} request failed with status ${status}`,
+      false
     );
+  };
   return {
     async listOwnedGames(steamId) {
-      if (!/^\d{17}$/.test(String(steamId)))
-        throw new SteamProviderError('Steam ID must be a 17-digit SteamID64');
+      validateSteamId(steamId);
+      if (!apiKey)
+        throw new SteamProviderError(
+          'Steam sync is unavailable because STEAM_API_KEY is not configured',
+          false,
+          'steam_not_configured'
+        );
       try {
         const response = await http.get(
           'https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/',
@@ -42,42 +77,37 @@ function createSteamClient({ apiKey, http = axios }) {
           )
           .map((game) => ({ providerGameId: String(game.appid), providerTitle: game.name.trim() }));
       } catch (error) {
-        if (error instanceof SteamProviderError) throw error;
-        const status = error.response?.status;
-        if (status === 401 || status === 403) {
-          throw new SteamProviderError(
-            'Steam rejected this request. Check that STEAM_API_KEY is valid and that the Steam profile is public.',
-            false,
-            'steam_access_denied'
-          );
-        }
-        if (status === 429) {
-          throw new SteamProviderError(
-            'Steam rate-limited this sync. It will be retried automatically.',
-            true,
-            'steam_rate_limited'
-          );
-        }
-        if (status >= 500) {
-          throw new SteamProviderError(
-            'Steam is temporarily unavailable. The sync will be retried automatically.',
-            true,
-            'steam_unavailable'
-          );
-        }
-        if (!error.response) {
-          throw new SteamProviderError(
-            'Steam could not be reached. Check this server’s network connection; the sync will be retried automatically.',
-            true,
-            'steam_network_error'
-          );
-        }
-        const retryable =
-          !error.response || error.response.status >= 500 || error.response.status === 429;
-        throw new SteamProviderError(
-          `Steam library request failed with status ${status}`,
-          retryable
+        throw providerFailure(error, 'library');
+      }
+    },
+    async listWishlist(steamId) {
+      validateSteamId(steamId);
+      try {
+        const response = await http.get(
+          'https://api.steampowered.com/IWishlistService/GetWishlist/v1/',
+          { params: { steamid: steamId }, timeout: 10_000 }
         );
+        const items = response.data?.response?.items;
+        if (!Array.isArray(items))
+          throw new SteamProviderError(
+            'Steam wishlist is private, unavailable, or returned an unsupported response.',
+            false,
+            'steam_wishlist_unavailable'
+          );
+        if (
+          items.some(
+            (item) =>
+              !item || !Number.isInteger(item.appid) || item.appid <= 0
+          )
+        )
+          throw new SteamProviderError(
+            'Steam returned an unsupported wishlist response.',
+            false,
+            'steam_wishlist_invalid_response'
+          );
+        return [...new Set(items.map((item) => String(item.appid)))];
+      } catch (error) {
+        throw providerFailure(error, 'wishlist');
       }
     }
   };

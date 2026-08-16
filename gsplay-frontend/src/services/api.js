@@ -82,6 +82,10 @@ export const catalogueApi = {
   owners: (gameId) => request('get', `/games/${encodeURIComponent(gameId)}/owners`),
   filters: () => request('get', '/game-filters')
 }
+export const mostWantedApi = {
+  list: (page = 1, pageSize = 24) =>
+    request('get', `/most-wanted?page=${page}&pageSize=${pageSize}`)
+}
 export const communityApi = { topGames: () => request('get', '/community/games/top?limit=20') }
 export const retroApi = {
   link: (username) => request('put', '/me/retroachievements', { username }),
