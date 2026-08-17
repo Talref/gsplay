@@ -106,6 +106,10 @@ test('catalogue search and member Steam validation expose safe UI feedback', asy
     'src',
     /youtube-nocookie\.com\/embed\/dQw4w9WgXcQ/
   )
+  await expect(page.locator('iframe[title="Aqua Quest video 1"]')).toHaveAttribute(
+    'referrerpolicy',
+    'strict-origin-when-cross-origin'
+  )
   await expect(page.getByText('2 disgraziati ce l’hanno già')).toHaveCount(2)
   await expect(page.getByText('E2E Admin')).toBeVisible()
   await page.getByRole('button', { name: 'Buttalo ner Casual Friday' }).click()

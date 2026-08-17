@@ -274,6 +274,7 @@ export default function GameDetail() {
                         title={`${game.title} video ${activeVideo + 1}`}
                         src={`${video.embedUrl}?rel=0&modestbranding=1`}
                         loading="lazy"
+                        referrerPolicy="strict-origin-when-cross-origin"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                         allowFullScreen
                       />

@@ -103,6 +103,7 @@ describe('v2 catalogue and administrative APIs', () => {
     expect(response.headers['content-security-policy']).toContain(
       "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com"
     );
+    expect(response.headers['referrer-policy']).toBe('strict-origin-when-cross-origin');
   });
   test('searches the full active catalogue server-side rather than only a client page', async () => {
     const agent = await login((await createUser('Search User')).usernameDisplay);
