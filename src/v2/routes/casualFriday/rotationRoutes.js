@@ -3,7 +3,7 @@ const { AppError } = require('../../http/errors');
 const service = require('../../services/casualFridayService');
 const { id, rotationBody } = require('./validation');
 
-function registerRotationRoutes(router, manage, admin, { igdb, itad }) {
+function registerRotationRoutes(router, manage, { igdb, itad }) {
   router.get('/casual-friday/tools/rotation', ...manage, async (req, res, next) => {
     try {
       res.json({ rotation: await service.listRotation({ itadClient: itad, includeOffer: true }) });
@@ -95,7 +95,7 @@ function registerRotationRoutes(router, manage, admin, { igdb, itad }) {
     }
   });
 
-  router.put('/casual-friday/tools/rotation/:id/voting', ...admin, async (req, res, next) => {
+  router.put('/casual-friday/tools/rotation/:id/voting', ...manage, async (req, res, next) => {
     try {
       const value = object(req.body);
       exactKeys(value, ['enabled']);

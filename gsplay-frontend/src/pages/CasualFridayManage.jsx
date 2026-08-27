@@ -500,7 +500,7 @@ export default function CasualFridayManage() {
             ? ['draft', 'published'].includes(event.status) && Boolean(playlist?.editable)
             : Boolean(playlist?.editable)
         }
-        canManageVoting={user.role === 'admin'}
+        canManageVoting={['helper', 'admin'].includes(user.role)}
         onVotingChange={setVotingEnabled}
         onAddToPlaylist={addToPlaylist}
         onEdit={setEdit}

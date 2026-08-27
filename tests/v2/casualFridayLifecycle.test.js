@@ -54,18 +54,28 @@ async function createRotation(actor, index, votingEnabled = true) {
 describe('Casual Friday RSVP and voting lifecycle', () => {
   beforeEach(() => global.testUtils.cleanupDatabase());
 
-  test('locks the enabled pool and restricts voting controls to administrators', async () => {
+  test('locks the enabled pool and lets helpers and administrators manage voting eligibility', async () => {
     const admin = await createUser('VotingAdmin', 'admin');
     const helper = await createUser('VotingHelper', 'helper');
+    const member = await createUser('VotingMember');
     const rotations = await Promise.all([0, 1, 2].map((index) => createRotation(admin, index)));
     const adminAgent = await agentFor(admin);
     const helperAgent = await agentFor(helper);
+    const memberAgent = await agentFor(member);
 
     await helperAgent
       .put(`/api/v2/casual-friday/tools/rotation/${rotations[2]._id}/voting`)
       .send({ enabled: false })
+      .expect(200);
+    await memberAgent
+      .put(`/api/v2/casual-friday/tools/rotation/${rotations[2]._id}/voting`)
+      .send({ enabled: true })
       .expect(403);
     await adminAgent
+      .put(`/api/v2/casual-friday/tools/rotation/${rotations[2]._id}/voting`)
+      .send({ enabled: true })
+      .expect(200);
+    await helperAgent
       .put(`/api/v2/casual-friday/tools/rotation/${rotations[2]._id}/voting`)
       .send({ enabled: false })
       .expect(200);

@@ -24,7 +24,7 @@ function createCasualFridayRouter(config, dependencies = {}) {
   registerMemberRoutes(router, config);
   registerEventRoutes(router, member, manage);
   registerProposalRoutes(router, config, manage);
-  registerRotationRoutes(router, manage, admin, { igdb, itad });
+  registerRotationRoutes(router, manage, { igdb, itad });
   registerPlaylistRoutes(router, manage, { itad });
 
   return router;
