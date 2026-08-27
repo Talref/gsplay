@@ -31,6 +31,63 @@ test('a member can sign up, reach the library, and log out', async ({ page }, te
   await expect(page.getByRole('button', { name: 'Esci' })).not.toBeVisible()
 })
 
+test('Retroclub keeps achievement spoilers inside its horizontal badge strip', async ({
+  page
+}, testInfo) => {
+  const achievements = [...Array(10)].map((_, index) => ({
+    achievementId: index + 1,
+    badgeUrl: '/gslogo.png',
+    title: `Trofeo segreto ${index + 1}`,
+    description: `Descrizione segreta ${index + 1}`,
+    points: (index + 1) * 5,
+    displayOrder: index,
+    playerCount: index % 3
+  }))
+  await page.route('**/api/v2/retroachievements', (route) =>
+    route.fulfill({
+      json: {
+        lastMonth: null,
+        active: {
+          id: 'retro-one',
+          title: 'Aqua Quest',
+          consoleName: 'SNES',
+          description: 'La sfida scelta dalla comitiva.',
+          imageUrl: null,
+          achievements,
+          leaderboard: [
+            {
+              rank: 1,
+              userId: 'player-one',
+              username: 'E2E Player',
+              score: 15,
+              completionPercentage: 20,
+              hardcoreCount: 1,
+              achievementIds: [1, 2]
+            }
+          ],
+          summary: { averageCompletion: 20 }
+        }
+      }
+    })
+  )
+  const username = `retro-${testInfo.project.name}-${Date.now()}`
+  await page.goto('/signup')
+  await page.getByLabel('Nome utente').fill(username)
+  await page.getByLabel('Password').fill('correct-horse-battery-staple')
+  await page.getByRole('button', { name: 'Crea account' }).click()
+  await expect(page.getByRole('button', { name: 'Esci' })).toBeVisible()
+  await page.goto('/retro')
+  await expect(page.getByRole('heading', { name: 'Aqua Quest' })).toBeVisible()
+  await expect(page.getByText('Descrizione segreta 1')).toHaveCount(0)
+  await page
+    .getByRole('button', { name: 'Mostra dettagli trofeo: Trofeo segreto 1', exact: true })
+    .click()
+  await expect(page.getByText('Descrizione segreta 1')).toBeVisible()
+  await expect(page.getByText('COMPLETAMENTO MEDIO')).toBeVisible()
+  await expect(page.getByText('20%')).toHaveCount(2)
+  await expectNoHorizontalOverflow(page)
+})
+
 test('catalogue search and member Steam validation expose safe UI feedback', async ({
   page
 }, testInfo) => {

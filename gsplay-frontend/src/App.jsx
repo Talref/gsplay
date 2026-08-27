@@ -5,7 +5,6 @@ import AppShell from './components/AppShell'
 import ProtectedRoute from './components/ProtectedRoute'
 import Admin from './pages/Admin'
 import Auth from './pages/Auth'
-import Retro from './pages/Retro'
 
 const Home = lazy(() => import('./pages/Home'))
 const Library = lazy(() => import('./pages/Library'))
@@ -21,6 +20,7 @@ const AdminGuide = lazy(() => import('./pages/AdminGuide'))
 const AdminRetroclub = lazy(() => import('./pages/AdminRetroclub'))
 const Servers = lazy(() => import('./pages/Servers'))
 const MostWanted = lazy(() => import('./pages/MostWanted'))
+const Retro = lazy(() => import('./pages/Retro'))
 
 function protectedPage(page) {
   return <ProtectedRoute>{page}</ProtectedRoute>
