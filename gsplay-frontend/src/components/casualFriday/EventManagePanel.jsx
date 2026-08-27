@@ -31,6 +31,7 @@ export default function EventManagePanel({
   enabledCandidates,
   onStart,
   onCreateDraft,
+  onRestart,
   onCancel,
   onComplete
 }) {
@@ -102,7 +103,27 @@ export default function EventManagePanel({
             </Stack>
           )}
           {event.status === 'cancelled' && (
-            <Alert severity="error">Cancelled: {event.cancellationReason}</Alert>
+            <>
+              <Alert severity="error">Cancelled: {event.cancellationReason}</Alert>
+              <Button
+                variant="contained"
+                disabled={!event.restartable || !enabledCandidates.length}
+                onClick={onRestart}
+                sx={{ alignSelf: 'flex-start' }}
+              >
+                Restart voting process
+              </Button>
+              {!event.restartable && (
+                <Typography variant="body2" color="text.secondary">
+                  Voting can no longer be restarted because the Friday 15:00 deadline has passed.
+                </Typography>
+              )}
+              {event.restartable && !enabledCandidates.length && (
+                <Typography variant="body2" color="text.secondary">
+                  Enable at least one rotation game before restarting.
+                </Typography>
+              )}
+            </>
           )}
           {event.status === 'open' && event.open && (
             <Alert severity="warning">

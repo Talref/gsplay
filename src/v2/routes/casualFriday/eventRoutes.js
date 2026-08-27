@@ -92,6 +92,22 @@ function registerEventRoutes(router, member, manage) {
     }
   });
 
+  router.post('/casual-friday/tools/event/:id/restart', ...manage, async (req, res, next) => {
+    try {
+      const value = object(req.body);
+      exactKeys(value, ['version']);
+      res.json({
+        event: await service.restartEvent(
+          req.user,
+          id(req.params.id, 'id'),
+          integer(value.version, 'version')
+        )
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.post('/casual-friday/tools/event/:id/complete', ...manage, async (req, res, next) => {
     try {
       const value = object(req.body);

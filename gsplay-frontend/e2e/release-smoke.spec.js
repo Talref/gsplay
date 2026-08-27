@@ -491,6 +491,67 @@ test('Casual Friday managers can explicitly end voting and create the draft earl
   await expectNoHorizontalOverflow(page)
 })
 
+test('Casual Friday managers can restart a cancelled voting process', async ({ page }) => {
+  const event = {
+    id: 'cancelled-event',
+    weekKey: '2099-08-14',
+    status: 'cancelled',
+    startsAt: '2099-08-14T17:00:00.000Z',
+    endsAt: '2099-08-15T04:00:00.000Z',
+    votingClosesAt: '2099-08-14T13:00:00.000Z',
+    open: false,
+    restartable: true,
+    version: 4,
+    playlistId: 'playlist-one',
+    cancellationReason: 'Server unavailable',
+    candidates: [],
+    rsvps: { totals: { yes: 1, maybe: 0, no: 0 }, names: { yes: [], maybe: [], no: [] } },
+    votingResults: []
+  }
+  let requestBody = null
+
+  await page.route('**/api/v2/casual-friday/tools/event', (route) =>
+    route.fulfill({ json: { event } })
+  )
+  await page.route('**/api/v2/casual-friday/tools/event/cancelled-event/restart', async (route) => {
+    requestBody = route.request().postDataJSON()
+    Object.assign(event, {
+      status: 'open',
+      open: true,
+      restartable: false,
+      version: 5,
+      cancellationReason: null,
+      rsvps: { totals: { yes: 0, maybe: 0, no: 0 }, names: { yes: [], maybe: [], no: [] } }
+    })
+    await route.fulfill({ json: { event } })
+  })
+
+  await page.goto('/login')
+  await page.getByLabel('Nome utente').fill('E2E Admin')
+  await page.getByLabel('Password').fill('correct-horse-battery-staple')
+  await page.getByRole('button', { name: 'Entra' }).click()
+  await expect(page.getByRole('button', { name: 'Esci' })).toBeVisible()
+  await page.goto('/casual-friday/tools')
+
+  await expect(page.getByText('Cancelled: Server unavailable')).toBeVisible()
+  const restartButton = page.getByRole('button', { name: 'Restart voting process' })
+  await expect(restartButton).toBeEnabled()
+  page.once('dialog', async (dialog) => {
+    expect(dialog.message()).toContain(
+      'Existing RSVPs, votes, and playlist entries will be permanently deleted'
+    )
+    await dialog.accept()
+  })
+  await restartButton.click()
+
+  await expect(
+    page.getByText('The previous responses and playlist were cleared. RSVPs and voting are open again.')
+  ).toBeVisible()
+  expect(requestBody).toEqual({ version: 4 })
+  await expect(page.getByText('Cancelled: Server unavailable')).toHaveCount(0)
+  await expectNoHorizontalOverflow(page)
+})
+
 test('Casual Friday member page shows the running lineup and its inactive placeholder', async ({
   page
 }) => {

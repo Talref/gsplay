@@ -6,6 +6,8 @@ const User = require('../../src/v2/models/User');
 const Game = require('../../src/v2/models/CanonicalGame');
 const Event = require('../../src/v2/models/CasualFridayEvent');
 const Playlist = require('../../src/v2/models/CasualFridayPlaylist');
+const PlaylistEntry = require('../../src/v2/models/CasualFridayPlaylistEntry');
+const Response = require('../../src/v2/models/CasualFridayResponse');
 const Rotation = require('../../src/v2/models/CasualFridayRotationGame');
 const Audit = require('../../src/v2/models/CasualFridayAudit');
 const service = require('../../src/v2/services/casualFridayService');
@@ -237,5 +239,154 @@ describe('Casual Friday RSVP and voting lifecycle', () => {
     expect(cancelled.status).toBe('cancelled');
     if (cancelled.playlistId)
       expect((await Playlist.findById(cancelled.playlistId)).status).toBe('cancelled');
+  });
+
+  test('restarts a cancelled event from the current voting pool and clears prior work', async () => {
+    const helper = await createUser('RestartHelper', 'helper');
+    const member = await createUser('RestartMember');
+    const originalRotation = await createRotation(helper, 1);
+    const startedAt = new Date('2026-08-12T10:00:00Z');
+    const started = await service.startEvent(helper, startedAt);
+
+    await service.setRsvp(member, started.id, 'yes', new Date('2026-08-12T10:01:00Z'));
+    await service.setVotes(
+      member,
+      started.id,
+      [String(originalRotation._id)],
+      new Date('2026-08-12T10:01:00Z')
+    );
+    const drafted = await service.createDraft(
+      helper,
+      started.id,
+      started.version,
+      new Date('2026-08-12T10:02:00Z'),
+      { endVotingEarly: true }
+    );
+    await service.addToPlaylist(helper, originalRotation._id, {
+      now: new Date('2026-08-12T10:03:00Z')
+    });
+    let playlist = await Playlist.findById(drafted.playlistId);
+    await service.publishPlaylist(helper, playlist._id, playlist.version, {
+      now: new Date('2026-08-12T10:04:00Z')
+    });
+    const published = await Event.findById(started.id);
+    const cancelled = await service.cancelEvent(
+      helper,
+      published._id,
+      published.version,
+      'Starting over',
+      new Date('2026-08-12T10:05:00Z')
+    );
+
+    await Rotation.updateOne({ _id: originalRotation._id }, { $set: { votingEnabled: false } });
+    const replacementRotation = await createRotation(helper, 2);
+    const restarted = await service.restartEvent(
+      helper,
+      cancelled.id,
+      cancelled.version,
+      new Date('2026-08-12T10:06:00Z')
+    );
+
+    expect(restarted).toMatchObject({
+      id: started.id,
+      status: 'open',
+      open: true,
+      restartable: false,
+      playlistId: drafted.playlistId,
+      rsvps: { totals: { yes: 0, maybe: 0, no: 0 } }
+    });
+    expect(restarted.candidates.map((candidate) => candidate.rotationGameId)).toEqual([
+      String(replacementRotation._id)
+    ]);
+    expect(await Response.countDocuments({ eventId: started.id })).toBe(0);
+    expect(await PlaylistEntry.countDocuments({ playlistId: drafted.playlistId })).toBe(0);
+
+    playlist = await Playlist.findById(drafted.playlistId);
+    expect(playlist).toMatchObject({ status: 'draft' });
+    expect(playlist.cancellationReason).toBeUndefined();
+    expect(playlist.cancelledAt).toBeUndefined();
+    expect(playlist.publishedAt).toBeUndefined();
+    const storedEvent = await Event.findById(started.id);
+    expect(storedEvent.cancellationReason).toBeUndefined();
+    expect(storedEvent.cancelledAt).toBeUndefined();
+    expect(await Audit.findOne({ kind: 'event_restarted' })).toMatchObject({
+      details: {
+        candidateCount: 1,
+        removedResponseCount: 1,
+        removedPlaylistEntryCount: 1
+      }
+    });
+  });
+
+  test('does not restart a cancelled event after its voting deadline', async () => {
+    const helper = await createUser('LateRestartHelper', 'helper');
+    await createRotation(helper, 1);
+    const started = await service.startEvent(helper, new Date('2026-08-12T10:00:00Z'));
+    const cancelled = await service.cancelEvent(
+      helper,
+      started.id,
+      started.version,
+      'Too late',
+      new Date('2026-08-12T10:01:00Z')
+    );
+
+    await expect(
+      service.restartEvent(
+        helper,
+        cancelled.id,
+        cancelled.version,
+        new Date(cancelled.votingClosesAt)
+      )
+    ).rejects.toMatchObject({ code: 'restart_window_closed' });
+    expect((await Event.findById(cancelled.id)).status).toBe('cancelled');
+  });
+
+  test('allows Helpers and Admins, but not Members, to restart cancelled voting', async () => {
+    const helper = await createUser('RouteRestartHelper', 'helper');
+    const admin = await createUser('RouteRestartAdmin', 'admin');
+    const member = await createUser('RouteRestartMember');
+    const rotation = await createRotation(helper, 1);
+    const eventData = (weekKey, actor) => {
+      const startsAt = new Date(`${weekKey}T17:00:00Z`);
+      return {
+        weekKey,
+        status: 'cancelled',
+        startsAt,
+        endsAt: new Date(startsAt.getTime() + 11 * 60 * 60 * 1000),
+        votingClosesAt: new Date(startsAt.getTime() - 4 * 60 * 60 * 1000),
+        candidates: [
+          {
+            rotationGameId: rotation._id,
+            canonicalGameId: rotation.canonicalGameId,
+            displayTitle: rotation.displayTitle,
+            playerCountMin: 2,
+            playerCountMax: 8
+          }
+        ],
+        createdBy: actor._id,
+        updatedBy: actor._id,
+        cancelledBy: actor._id,
+        cancelledAt: new Date(),
+        cancellationReason: 'Retry route'
+      };
+    };
+    const helperEvent = await Event.create(eventData('2099-08-14', helper));
+    const adminEvent = await Event.create(eventData('2099-08-21', admin));
+    const helperAgent = await agentFor(helper);
+    const adminAgent = await agentFor(admin);
+    const memberAgent = await agentFor(member);
+
+    await memberAgent
+      .post(`/api/v2/casual-friday/tools/event/${helperEvent._id}/restart`)
+      .send({ version: helperEvent.version })
+      .expect(403);
+    await helperAgent
+      .post(`/api/v2/casual-friday/tools/event/${helperEvent._id}/restart`)
+      .send({ version: helperEvent.version })
+      .expect(200);
+    await adminAgent
+      .post(`/api/v2/casual-friday/tools/event/${adminEvent._id}/restart`)
+      .send({ version: adminEvent.version })
+      .expect(200);
   });
 });

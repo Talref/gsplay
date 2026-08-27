@@ -162,6 +162,24 @@ export default function CasualFridayManage() {
       setError(requestMessage(err))
     }
   }
+  const restartEvent = async () => {
+    if (
+      !window.confirm(
+        `Restart Casual Friday with ${enabledCandidates.length} currently enabled games? Existing RSVPs, votes, and playlist entries will be permanently deleted, then voting will reopen.`
+      )
+    ) return
+    setError('')
+    setNotice('')
+    try {
+      const result = await casualFridayApi.restartEvent(event.id, event.version)
+      setEvent(result.event)
+      setNotice('The previous responses and playlist were cleared. RSVPs and voting are open again.')
+      await reload()
+    } catch (err) {
+      setError(requestMessage(err))
+      await reload()
+    }
+  }
   const cancelPlaylist = async () => {
     setError('')
     setNotice('')
@@ -486,6 +504,7 @@ export default function CasualFridayManage() {
         enabledCandidates={enabledCandidates}
         onStart={startEvent}
         onCreateDraft={createDraft}
+        onRestart={restartEvent}
         onCancel={(warning) => {
           setCancellationWarning(warning)
           setCancelling(true)

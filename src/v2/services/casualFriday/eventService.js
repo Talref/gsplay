@@ -1,6 +1,7 @@
 const CanonicalGame = require('../../models/CanonicalGame');
 const Event = require('../../models/CasualFridayEvent');
 const Playlist = require('../../models/CasualFridayPlaylist');
+const PlaylistEntry = require('../../models/CasualFridayPlaylistEntry');
 const Response = require('../../models/CasualFridayResponse');
 const Rotation = require('../../models/CasualFridayRotationGame');
 const User = require('../../models/User');
@@ -37,6 +38,7 @@ async function memberEventDto(event, userId, now = new Date()) {
     endsAt: event.endsAt,
     votingClosesAt: event.votingClosesAt,
     open: eventIsOpen(event, now),
+    restartable: event.status === 'cancelled' && event.votingClosesAt > now,
     maxVotes: MAX_VOTES,
     candidates: event.candidates.map(candidateDto),
     response: {
@@ -87,6 +89,29 @@ async function upcomingEvent() {
   return Event.findOne({ weekKey: nextFridayWindow().weekKey });
 }
 
+async function votingCandidates() {
+  const rotations = await Rotation.find({
+    status: 'active',
+    votingEnabled: { $ne: false }
+  }).sort({ displayTitle: 1 });
+  if (!rotations.length)
+    throw new AppError(400, 'empty_voting_pool', 'Enable at least one rotation game before starting');
+  const games = await CanonicalGame.find({
+    _id: { $in: rotations.map((rotation) => rotation.canonicalGameId) }
+  });
+  const gameMap = new Map(games.map((game) => [String(game._id), game]));
+  return rotations.map((rotation) => ({
+    rotationGameId: rotation._id,
+    canonicalGameId: rotation.canonicalGameId,
+    displayTitle: rotation.displayTitle,
+    artwork:
+      rotation.artworkOverride || gameMap.get(String(rotation.canonicalGameId))?.artwork || null,
+    playerCountMin: rotation.playerCountMin,
+    playerCountMax: rotation.playerCountMax,
+    playerCountLabel: rotation.playerCountLabel || ''
+  }));
+}
+
 async function startEvent(actor, now = new Date()) {
   const window = nextFridayWindow(now);
   if (window.votingClosesAt <= now)
@@ -99,26 +124,17 @@ async function startEvent(actor, now = new Date()) {
       'legacy_playlist_exists',
       'A playlist already exists for this week and must use the existing workflow'
     );
-  const rotations = await Rotation.find({ status: 'active', votingEnabled: { $ne: false } }).sort({ displayTitle: 1 });
-  if (!rotations.length)
-    throw new AppError(400, 'empty_voting_pool', 'Enable at least one rotation game before starting');
-  const games = await CanonicalGame.find({ _id: { $in: rotations.map((rotation) => rotation.canonicalGameId) } });
-  const gameMap = new Map(games.map((game) => [String(game._id), game]));
+  const candidates = await votingCandidates();
   const event = await Event.create({
     ...window,
-    candidates: rotations.map((rotation) => ({
-      rotationGameId: rotation._id,
-      canonicalGameId: rotation.canonicalGameId,
-      displayTitle: rotation.displayTitle,
-      artwork: rotation.artworkOverride || gameMap.get(String(rotation.canonicalGameId))?.artwork || null,
-      playerCountMin: rotation.playerCountMin,
-      playerCountMax: rotation.playerCountMax,
-      playerCountLabel: rotation.playerCountLabel || ''
-    })),
+    candidates,
     createdBy: actor._id,
     updatedBy: actor._id
   });
-  await audit(actor, 'event_started', { eventId: event._id, details: { candidateCount: rotations.length } });
+  await audit(actor, 'event_started', {
+    eventId: event._id,
+    details: { candidateCount: candidates.length }
+  });
   return manageEventDto(event, now);
 }
 
@@ -218,6 +234,91 @@ async function cancelEvent(actor, id, version, reason, now = new Date()) {
   return manageEventDto(event, now);
 }
 
+async function restartEvent(actor, id, version, now = new Date()) {
+  const event = await Event.findOne({ _id: id, status: 'cancelled', version });
+  if (!event)
+    throw new AppError(
+      409,
+      'event_not_restartable',
+      'Only the current cancelled event can be restarted'
+    );
+  if (event.votingClosesAt <= now)
+    throw new AppError(
+      409,
+      'restart_window_closed',
+      'Voting cannot be restarted after Friday at 15:00 Europe/Rome'
+    );
+
+  const candidates = await votingCandidates();
+  const playlist = event.playlistId ? await Playlist.findById(event.playlistId) : null;
+  if (event.playlistId && (!playlist || playlist.status !== 'cancelled'))
+    throw new AppError(
+      409,
+      'playlist_not_restartable',
+      'The linked playlist is missing or is no longer cancelled'
+    );
+
+  const [responses, entries] = await Promise.all([
+    Response.deleteMany({ eventId: event._id }),
+    playlist
+      ? PlaylistEntry.deleteMany({ playlistId: playlist._id })
+      : Promise.resolve({ deletedCount: 0 })
+  ]);
+
+  if (playlist) {
+    playlist.status = 'draft';
+    playlist.updatedBy = actor._id;
+    playlist.version += 1;
+    playlist.notes = undefined;
+    playlist.publishedBy = undefined;
+    playlist.publishedAt = undefined;
+    playlist.completedAt = undefined;
+    playlist.cancelledBy = undefined;
+    playlist.cancelledAt = undefined;
+    playlist.cancellationReason = undefined;
+    await playlist.save();
+  }
+
+  const restarted = await Event.findOneAndUpdate(
+    { _id: event._id, status: 'cancelled', version },
+    {
+      $set: {
+        status: 'open',
+        candidates,
+        updatedBy: actor._id
+      },
+      $unset: {
+        cancelledBy: 1,
+        cancelledAt: 1,
+        cancellationReason: 1,
+        completedBy: 1,
+        completedAt: 1
+      },
+      $inc: { version: 1 }
+    },
+    { new: true, runValidators: true }
+  );
+  if (!restarted)
+    throw new AppError(
+      409,
+      'event_version_conflict',
+      'This event changed. Reload it before restarting.'
+    );
+
+  await audit(actor, 'event_restarted', {
+    eventId: restarted._id,
+    playlistId: playlist?._id,
+    beforeVersion: version,
+    afterVersion: restarted.version,
+    details: {
+      candidateCount: candidates.length,
+      removedResponseCount: responses.deletedCount,
+      removedPlaylistEntryCount: entries.deletedCount
+    }
+  });
+  return manageEventDto(restarted, now);
+}
+
 async function completeEvent(actor, id, version, now = new Date()) {
   const event = await Event.findOne({ _id: id, status: 'published', version });
   if (!event) throw new AppError(409, 'event_not_completable', 'Only a published event can be completed');
@@ -243,6 +344,7 @@ module.exports = {
   eventIsOpen,
   manageEventDto,
   memberEventDto,
+  restartEvent,
   setRsvp,
   setVotes,
   startEvent,

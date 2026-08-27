@@ -133,6 +133,10 @@ export const casualFridayApi = {
       version,
       reason
     }),
+  restartEvent: (eventId, version) =>
+    request('post', `/casual-friday/tools/event/${encodeURIComponent(eventId)}/restart`, {
+      version
+    }),
   completeEvent: (eventId, version) =>
     request('post', `/casual-friday/tools/event/${encodeURIComponent(eventId)}/complete`, {
       version
