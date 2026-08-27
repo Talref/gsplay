@@ -1,167 +1,200 @@
 const express = require('express');
-const { requireAuth } = require('../http/auth');
+const { requireAuth, requireRole } = require('../http/auth');
 const { AppError } = require('../http/errors');
 const { exactKeys, object, string } = require('../http/validate');
 const {
   createRetroAchievementsClient,
   RetroAchievementsProviderError
 } = require('../providers/retroAchievementsClient');
+const {
+  activateChallenge,
+  adminOverview,
+  cancelChallenge,
+  pastEditions,
+  previewGame,
+  publicRetroclub,
+  refreshChallenge,
+  updateDescription
+} = require('../services/retroService');
 const RetroChallenge = require('../models/RetroChallenge');
-const { requireRole } = require('../http/auth');
 
 const USERNAME_PATTERN = /^[A-Za-z0-9_.-]{3,32}$/;
 
-function publicProfile(profile, username) {
+function providerFailure(error, fallback) {
+  return error instanceof AppError
+    ? error
+    : new AppError(
+        502,
+        'retroachievements_unavailable',
+        error instanceof RetroAchievementsProviderError ? error.message : fallback
+      );
+}
+
+function profileDto(profile, fallback) {
   return {
-    username: profile?.user || profile?.username || username,
-    displayName: profile?.user || profile?.username || username,
-    avatarUrl: profile?.userPic || profile?.avatarUrl || null,
-    points: Number.isFinite(profile?.totalPoints)
-      ? profile.totalPoints
-      : Number.isFinite(profile?.points)
-        ? profile.points
-        : null,
-    pointsSoftcore: Number.isFinite(profile?.totalSoftcorePoints)
-      ? profile.totalSoftcorePoints
-      : null,
-    memberSince: profile?.memberSince || null
+    userId: String(profile?.ID ?? profile?.id ?? ''),
+    username: profile?.User || profile?.user || profile?.username || fallback,
+    avatarUrl: profile?.UserPic || profile?.userPic || profile?.avatarUrl || null,
+    points: Number(profile?.TotalPoints ?? profile?.totalPoints ?? profile?.points) || 0,
+    memberSince: profile?.MemberSince || profile?.memberSince || null
   };
 }
 
-function publicChallenge(challenge, progress) {
-  return {
-    id: challenge._id.toString(),
-    retroGameId: challenge.retroGameId,
-    title: challenge.title,
-    consoleName: challenge.consoleName,
-    imageUrl: challenge.imageUrl,
-    description: challenge.description,
-    active: challenge.active,
-    progress: progress
-      ? {
-          earned: Number(progress.numAwardedToUser ?? progress.numAchievementsEarned ?? 0),
-          total: Number(progress.numAchievements ?? progress.totalAchievements ?? 0),
-          points: Number(progress.pointsEarned ?? progress.userPoints ?? 0)
-        }
-      : null
-  };
+function positiveInteger(value, field) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1)
+    throw new AppError(400, 'invalid_request', `${field} must be a positive integer`);
+  return parsed;
 }
 
 function createRetroRouter(config, { retroClient } = {}) {
   const router = express.Router();
-  const client =
+  const getClient = () =>
     retroClient ||
-    (() =>
-      createRetroAchievementsClient({
-        username: config.providers.retroAchievementsUsername,
-        apiKey: config.providers.retroAchievementsApiKey
-      }));
-  router.put('/me/retroachievements', requireAuth(config), async (req, res, next) => {
+    createRetroAchievementsClient({
+      username: config.providers.retroAchievementsUsername,
+      apiKey: config.providers.retroAchievementsApiKey
+    });
+  const authenticated = requireAuth(config);
+  const admin = [authenticated, requireRole('admin')];
+
+  router.put('/me/retroachievements', authenticated, async (req, res, next) => {
     try {
       object(req.body);
       exactKeys(req.body, ['username']);
-      const username = string(req.body.username, 'username', { min: 3, max: 32 });
-      if (!USERNAME_PATTERN.test(username))
+      const requested = string(req.body.username, 'username', { min: 3, max: 32 });
+      if (!USERNAME_PATTERN.test(requested))
         throw new AppError(400, 'invalid_request', 'username contains unsupported characters');
-      req.user.retroAchievements = { username, linkedAt: new Date() };
+      const profile = profileDto(await getClient().getProfile(requested), requested);
+      if (!profile.userId)
+        throw new AppError(502, 'retroachievements_unavailable', 'RetroAchievements returned no account ID');
+      const linkedElsewhere = await req.user.constructor.exists({
+        _id: { $ne: req.user._id },
+        'retroAchievements.userId': profile.userId
+      });
+      if (linkedElsewhere)
+        throw new AppError(409, 'retroachievements_already_linked', 'That RetroAchievements account is already linked');
+      req.user.retroAchievements = {
+        username: profile.username,
+        userId: profile.userId,
+        linkedAt: new Date()
+      };
       await req.user.save();
-      res.json({ retroAchievements: { username, linkedAt: req.user.retroAchievements.linkedAt } });
+      res.json({ retroAchievements: req.user.toPublic().retroAchievements, profile });
+    } catch (error) {
+      next(providerFailure(error, 'RetroAchievements profile request failed'));
+    }
+  });
+
+  router.delete('/me/retroachievements', authenticated, async (req, res, next) => {
+    try {
+      object(req.body);
+      exactKeys(req.body, ['confirmation']);
+      if (req.body.confirmation !== 'UNLINK RETROACHIEVEMENTS')
+        throw new AppError(400, 'confirmation_required', 'Account unlink confirmation is required');
+      req.user.retroAchievements = undefined;
+      await req.user.save();
+      res.status(204).end();
     } catch (error) {
       next(error);
     }
   });
-  router.get('/me/retroachievements/profile', requireAuth(config), async (req, res, next) => {
+
+  router.get('/me/retroachievements/profile', authenticated, async (req, res, next) => {
     try {
       const username = req.user.retroAchievements?.username;
       if (!username)
-        throw new AppError(
-          409,
-          'retroachievements_not_linked',
-          'Link a RetroAchievements account before requesting a profile'
-        );
-      const profile = await (typeof client === 'function' ? client() : client).getProfile(username);
-      res.json({ profile: publicProfile(profile, username) });
+        throw new AppError(409, 'retroachievements_not_linked', 'Link a RetroAchievements account first');
+      res.json({ profile: profileDto(await getClient().getProfile(username), username) });
     } catch (error) {
-      next(
-        error instanceof AppError
-          ? error
-          : new AppError(
-              502,
-              'retroachievements_unavailable',
-              error instanceof RetroAchievementsProviderError
-                ? error.message
-                : 'RetroAchievements profile request failed'
-            )
-      );
+      next(providerFailure(error, 'RetroAchievements profile request failed'));
     }
   });
-  router.get('/retroachievements/challenge', requireAuth(config), async (req, res, next) => {
+
+  router.get('/retroachievements', authenticated, async (req, res, next) => {
     try {
-      const challenge = await RetroChallenge.findOne({ active: true });
-      if (!challenge) return res.json({ challenge: null });
-      const username = req.user.retroAchievements?.username;
-      const progress = username
-        ? await (typeof client === 'function' ? client() : client).getGameProgress(
-            challenge.retroGameId,
-            username
-          )
-        : null;
-      res.json({ challenge: publicChallenge(challenge, progress) });
+      res.json(await publicRetroclub());
     } catch (error) {
-      next(
-        new AppError(
-          502,
-          'retroachievements_unavailable',
-          error instanceof RetroAchievementsProviderError
-            ? error.message
-            : 'RetroAchievements challenge request failed'
-        )
-      );
+      next(error);
     }
   });
-  router.put(
-    '/admin/retroachievements/challenge',
-    requireAuth(config),
-    requireRole('admin'),
-    async (req, res, next) => {
-      try {
-        object(req.body);
-        exactKeys(req.body, ['retroGameId', 'description']);
-        const retroGameId = Number(req.body.retroGameId);
-        if (!Number.isInteger(retroGameId) || retroGameId < 1)
-          throw new AppError(400, 'invalid_request', 'retroGameId must be a positive integer');
-        const description =
-          req.body.description === undefined
-            ? ''
-            : string(req.body.description, 'description', { max: 2000 });
-        const game = await (typeof client === 'function' ? client() : client).getGame(retroGameId);
-        if (!game?.title)
-          throw new AppError(
-            502,
-            'retroachievements_unavailable',
-            'RetroAchievements returned no game title'
-          );
-        await RetroChallenge.updateMany({ active: true }, { $set: { active: false } });
-        const challenge = await RetroChallenge.findOneAndUpdate(
-          { retroGameId },
-          {
-            $set: {
-              title: game.title,
-              consoleName: game.consoleName || '',
-              imageUrl: game.imageBoxArt || game.imageIcon || null,
-              description,
-              active: true,
-              activatedBy: req.user._id
-            }
-          },
-          { new: true, upsert: true, setDefaultsOnInsert: true }
-        );
-        res.json({ challenge: publicChallenge(challenge, null) });
-      } catch (error) {
-        next(error);
-      }
+
+  router.get('/retroachievements/editions', authenticated, async (req, res, next) => {
+    try {
+      res.json(await pastEditions(positiveInteger(req.query.page || 1, 'page')));
+    } catch (error) {
+      next(error);
     }
-  );
+  });
+
+  router.get('/retroachievements/challenge', authenticated, async (req, res, next) => {
+    try {
+      res.json({ challenge: (await publicRetroclub()).active });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get('/admin/retroachievements', ...admin, async (req, res, next) => {
+    try {
+      res.json(await adminOverview());
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post('/admin/retroachievements/preview', ...admin, async (req, res, next) => {
+    try {
+      object(req.body);
+      exactKeys(req.body, ['game']);
+      res.json({ game: await previewGame(string(req.body.game, 'game', { max: 512 }), getClient()) });
+    } catch (error) {
+      next(providerFailure(error, 'RetroAchievements game request failed'));
+    }
+  });
+
+  router.post('/admin/retroachievements/challenges', ...admin, async (req, res, next) => {
+    try {
+      object(req.body);
+      exactKeys(req.body, ['game', 'description']);
+      const game = string(req.body.game, 'game', { max: 512 });
+      const description = string(req.body.description, 'description', { min: 0, max: 2000 });
+      res.status(201).json({ challenge: await activateChallenge(req.user, game, description, getClient()) });
+    } catch (error) {
+      next(providerFailure(error, 'RetroAchievements game request failed'));
+    }
+  });
+
+  router.put('/admin/retroachievements/challenges/:id/description', ...admin, async (req, res, next) => {
+    try {
+      object(req.body);
+      exactKeys(req.body, ['version', 'description']);
+      res.json({ challenge: await updateDescription(req.user, req.params.id, positiveInteger(req.body.version, 'version'), string(req.body.description, 'description', { min: 0, max: 2000 })) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post('/admin/retroachievements/challenges/:id/cancel', ...admin, async (req, res, next) => {
+    try {
+      object(req.body);
+      exactKeys(req.body, ['version', 'reason']);
+      res.json({ challenge: await cancelChallenge(req.user, req.params.id, positiveInteger(req.body.version, 'version'), string(req.body.reason, 'reason', { max: 1000 })) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post('/admin/retroachievements/challenges/:id/refresh', ...admin, async (req, res, next) => {
+    try {
+      const challenge = await RetroChallenge.findOne({ _id: req.params.id, status: 'active', active: true });
+      if (!challenge) throw new AppError(404, 'retro_challenge_not_found', 'Active Retroclub edition not found');
+      res.json({ refresh: await refreshChallenge(challenge, getClient()) });
+    } catch (error) {
+      next(providerFailure(error, 'RetroAchievements refresh failed'));
+    }
+  });
+
   return router;
 }
 

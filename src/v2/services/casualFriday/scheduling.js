@@ -60,4 +60,4 @@ function nextFridayWindow(now = new Date()) {
   };
 }
 
-module.exports = { EVENT_TIME_ZONE, nextFridayWindow };
+module.exports = { EVENT_TIME_ZONE, nextFridayWindow, zonedDateTimeToUtc, zonedParts };

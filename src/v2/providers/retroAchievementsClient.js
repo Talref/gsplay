@@ -1,5 +1,6 @@
 const {
   buildAuthorization,
+  getAchievementsEarnedBetween,
   getUserProfile,
   getGameExtended,
   getGameInfoAndUserProgress
@@ -15,7 +16,13 @@ class RetroAchievementsProviderError extends Error {
 function createRetroAchievementsClient({
   username,
   apiKey,
-  api = { buildAuthorization, getUserProfile, getGameExtended, getGameInfoAndUserProgress }
+  api = {
+    buildAuthorization,
+    getUserProfile,
+    getGameExtended,
+    getGameInfoAndUserProgress,
+    getAchievementsEarnedBetween
+  }
 }) {
   if (!username || !apiKey)
     throw new RetroAchievementsProviderError(
@@ -45,6 +52,17 @@ function createRetroAchievementsClient({
         });
       } catch {
         throw new RetroAchievementsProviderError('RetroAchievements progress request failed');
+      }
+    },
+    async getAchievementsBetween(profileUsername, fromDate, toDate) {
+      try {
+        return await api.getAchievementsEarnedBetween(authorization, {
+          username: profileUsername,
+          fromDate,
+          toDate
+        });
+      } catch {
+        throw new RetroAchievementsProviderError('RetroAchievements achievement request failed');
       }
     }
   };

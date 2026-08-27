@@ -26,7 +26,7 @@ export default function Home() {
   const features = [
     ['La tua libbreria', 'Aggancia Steam o importa GOG, Epic e Amazon. Poi fai finta de giocarli.'],
     ['Confronta', 'Scova i giochi che c’avete tutti. Sì, proprio tutti.'],
-    ['Retro', 'Collega RetroAchievements e sfodera er curriculum da salagiochi. (lavori in corso)']
+    ['Retro', 'Er gioco der mese, trofei de gruppo e gloria eterna finché regge er cabinato.']
   ]
   const ownerCount =
     selectedGame?.ownerCount === 1

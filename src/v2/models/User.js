@@ -65,10 +65,22 @@ userSchema.methods.toPublic = function toPublic() {
         }
       : null,
     retroAchievements: this.retroAchievements
-      ? { username: this.retroAchievements.username, linkedAt: this.retroAchievements.linkedAt }
+      ? {
+          username: this.retroAchievements.username,
+          userId: this.retroAchievements.userId,
+          linkedAt: this.retroAchievements.linkedAt
+        }
       : null,
     createdAt: this.createdAt
   };
 };
+
+userSchema.index(
+  { 'retroAchievements.userId': 1 },
+  {
+    unique: true,
+    partialFilterExpression: { 'retroAchievements.userId': { $type: 'string' } }
+  }
+);
 
 module.exports = mongoose.models.UserV2 || mongoose.model('UserV2', userSchema);

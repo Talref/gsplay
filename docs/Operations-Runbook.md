@@ -52,6 +52,15 @@ standard deployment bootstrap creates their indexes. Existing rotation documents
 and are voting-enabled unless explicitly disabled; no data migration or new environment setting is
 required.
 
+Retroclub monthly scoring adds `retro_challenge_progress_v2`, new lifecycle fields and indexes on
+the existing `retro_challenges_v2` collection, and a unique linked RetroAchievements account index
+on `users_v2`. The standard deployment bootstrap removes the obsolete unique game index, backfills
+legacy challenge lifecycle dates without deleting them, and creates the new indexes. Back up MongoDB
+before the first deployment. Configure `RETROACHIEVEMENT_USERNAME` and
+`RETROACHIEVEMENT_API_KEY` to enable account verification and worker refreshes;
+`RETROACHIEVEMENT_REFRESH_MS` is optional and defaults to 300000. No Caddy route or persistent file
+storage change is required.
+
 Initial Caddy routing should proxy the API namespace, serve immutable frontend files directly, and
 send page navigation to the API so it can inject crawler-visible social metadata into the SPA HTML:
 

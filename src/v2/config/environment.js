@@ -143,6 +143,15 @@ function loadEnvironment(environment = process.env) {
         30 * 24 * 60 * 60 * 1000
       )
     },
+    retroAchievements: {
+      refreshMs: asInteger(
+        environment.RETROACHIEVEMENT_REFRESH_MS,
+        5 * 60 * 1000,
+        'RETROACHIEVEMENT_REFRESH_MS',
+        60_000,
+        24 * 60 * 60 * 1000
+      )
+    },
     igdb: {
       minIntervalMs: asInteger(
         environment.IGDB_MIN_INTERVAL_MS,

@@ -9,6 +9,7 @@ const models = [
   require('../src/v2/models/SyncJob'),
   require('../src/v2/models/RefreshSession'),
   require('../src/v2/models/RetroChallenge'),
+  require('../src/v2/models/RetroChallengeProgress'),
   require('../src/v2/models/CanonicalGameMerge'),
   require('../src/v2/models/CatalogueReassignment'),
   require('../src/v2/models/AdminUserAction'),
@@ -40,10 +41,17 @@ async function bootstrap() {
     (model) => model.collection.name === 'casual_friday_rotation_games_v2'
   ).collection;
   await rotationCollection.dropIndex('canonicalGameId_1').catch(ignoreMissingIndex);
+  const retroCollection = models.find(
+    (model) => model.collection.name === 'retro_challenges_v2'
+  ).collection;
+  await retroCollection.dropIndex('retroGameId_1').catch(ignoreMissingIndex);
+  const { backfillRetroChallenges } = require('../src/v2/services/retroCompatibility');
+  const retroBackfilled = await backfillRetroChallenges();
   await Promise.all(models.map((model) => model.createIndexes()));
   console.info(
     `Created or verified v2 indexes for: ${models.map((model) => model.collection.name).join(', ')}`
   );
+  if (retroBackfilled) console.info(`Backfilled ${retroBackfilled} Retroclub edition records`);
   await disconnectDatabase();
 }
 bootstrap().catch(async (error) => {

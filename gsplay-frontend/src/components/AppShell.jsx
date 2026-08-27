@@ -86,6 +86,14 @@ function Navigation({ user, pathname, closeDrawer }) {
           >
             <ListItemText primary="Modifica guida" />
           </ListItemButton>
+          <ListItemButton
+            component={Link}
+            to="/admin/retroclub"
+            selected={pathname === '/admin/retroclub'}
+            onClick={closeDrawer}
+          >
+            <ListItemText primary="Retroclub admin" />
+          </ListItemButton>
         </>
       )}
       {['helper', 'admin'].includes(user?.role) && (

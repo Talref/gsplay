@@ -1,5 +1,5 @@
 import { lazy, useState } from 'react'
-import { Navigate } from 'react-router'
+import { Link, Navigate } from 'react-router'
 import {
   Alert,
   Button,
@@ -8,7 +8,6 @@ import {
   Collapse,
   Divider,
   Stack,
-  TextField,
   Typography
 } from '@mui/material'
 import ErrorNotice from '../components/ErrorNotice'
@@ -27,21 +26,8 @@ export default function Admin() {
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const [coverageExpanded, setCoverageExpanded] = useState(false)
-  const [retroGameId, setRetroGameId] = useState('')
-  const [retroDescription, setRetroDescription] = useState('')
 
   if (user?.role !== 'admin') return <Navigate to="/" />
-
-  const activateChallenge = async () => {
-    try {
-      await adminApi.activateRetroChallenge(retroGameId, retroDescription)
-      setNotice('Retro challenge activated.')
-      setRetroGameId('')
-      setRetroDescription('')
-    } catch (err) {
-      setError(err.message)
-    }
-  }
 
   const recover = async () => {
     try {
@@ -200,24 +186,11 @@ export default function Admin() {
       </Card>
       <Card>
         <CardContent>
-          <Typography variant="h6">Activate Retro challenge</Typography>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} sx={{ mt: 2 }}>
-            <TextField
-              required
-              label="RetroAchievements game ID"
-              value={retroGameId}
-              onChange={(event) => setRetroGameId(event.target.value)}
-            />
-            <TextField
-              fullWidth
-              label="Challenge description (optional)"
-              value={retroDescription}
-              onChange={(event) => setRetroDescription(event.target.value)}
-            />
-            <Button variant="contained" disabled={!retroGameId} onClick={activateChallenge}>
-              Activate
-            </Button>
-          </Stack>
+          <Typography variant="h6">Retroclub</Typography>
+          <Typography color="text.secondary" sx={{ my: 1 }}>
+            Start, refresh, edit, and cancel monthly RetroAchievements editions from the dedicated page.
+          </Typography>
+          <Button component={Link} to="/admin/retroclub" variant="outlined">Open Retroclub administration</Button>
         </CardContent>
       </Card>
       <Card>

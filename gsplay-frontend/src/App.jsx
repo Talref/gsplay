@@ -18,6 +18,7 @@ const CasualFriday = lazy(() => import('./pages/CasualFriday'))
 const CasualFridayManage = lazy(() => import('./pages/CasualFridayManage'))
 const Guide = lazy(() => import('./pages/Guide'))
 const AdminGuide = lazy(() => import('./pages/AdminGuide'))
+const AdminRetroclub = lazy(() => import('./pages/AdminRetroclub'))
 const Servers = lazy(() => import('./pages/Servers'))
 const MostWanted = lazy(() => import('./pages/MostWanted'))
 
@@ -54,6 +55,7 @@ export default function App() {
             <Route path="/admin/users" element={protectedPage(<AdminUsers />)} />
             <Route path="/admin/catalogue" element={protectedPage(<AdminCatalogue />)} />
             <Route path="/admin/guide" element={protectedPage(<AdminGuide />)} />
+            <Route path="/admin/retroclub" element={protectedPage(<AdminRetroclub />)} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </Suspense>

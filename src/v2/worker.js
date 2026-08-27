@@ -13,11 +13,13 @@ const { createIgdbGate, reconcileIgdbMetadata } = require('./jobs/igdbScheduler'
 const CanonicalGame = require('./models/CanonicalGame');
 const { createItadClient } = require('./providers/itadClient');
 const { createSteamClient } = require('./providers/steamClient');
+const { createRetroAchievementsClient } = require('./providers/retroAchievementsClient');
 const {
   completeElapsedPlaylists,
   refreshRotationOffers
 } = require('./services/casualFridayService');
 const { refreshMostWantedIfDue } = require('./services/mostWantedService');
+const { refreshActiveChallenge } = require('./services/retroService');
 
 async function startWorker({ pollMs = 1_000 } = {}) {
   const config = loadEnvironment();
@@ -27,6 +29,13 @@ async function startWorker({ pollMs = 1_000 } = {}) {
   const igdbGate = createIgdbGate(config.igdb);
   const itadClient = createItadClient({ apiKey: config.providers.itadApiKey });
   const steamClient = createSteamClient({ apiKey: config.providers.steamApiKey });
+  const retroClient =
+    config.providers.retroAchievementsUsername && config.providers.retroAchievementsApiKey
+      ? createRetroAchievementsClient({
+          username: config.providers.retroAchievementsUsername,
+          apiKey: config.providers.retroAchievementsApiKey
+        })
+      : null;
   const handlers = createJobHandlers(config, { igdbGate });
   let stopping = false;
   let draining = false;
@@ -162,7 +171,25 @@ async function startWorker({ pollMs = 1_000 } = {}) {
     }
   };
   const mostWantedTimer = setInterval(mostWantedMaintenance, config.mostWanted.refreshMs);
+  let retroRunning = false;
+  const retroMaintenance = async () => {
+    if (!retroClient || retroRunning) return;
+    retroRunning = true;
+    try {
+      const result = await refreshActiveChallenge({ client: retroClient });
+      if (result.active)
+        console.info(
+          `👑 Retroclub refreshed: ${result.refreshed}/${result.linked} linked accounts${result.failed ? `, ${result.failed} failed` : ''}`
+        );
+    } catch (error) {
+      console.error('Retroclub refresh failed', error);
+    } finally {
+      retroRunning = false;
+    }
+  };
+  const retroTimer = setInterval(retroMaintenance, config.retroAchievements.refreshMs);
   void mostWantedMaintenance();
+  void retroMaintenance();
   await priceMaintenance();
   await tick();
   const shutdown = async () => {
@@ -171,6 +198,7 @@ async function startWorker({ pollMs = 1_000 } = {}) {
     clearInterval(maintenanceTimer);
     clearInterval(priceTimer);
     clearInterval(mostWantedTimer);
+    clearInterval(retroTimer);
     await disconnectDatabase();
   };
   process.once('SIGINT', shutdown);

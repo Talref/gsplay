@@ -89,7 +89,13 @@ export const mostWantedApi = {
 export const communityApi = { topGames: () => request('get', '/community/games/top?limit=20') }
 export const retroApi = {
   link: (username) => request('put', '/me/retroachievements', { username }),
+  unlink: () =>
+    request('delete', '/me/retroachievements', {
+      confirmation: 'UNLINK RETROACHIEVEMENTS'
+    }),
   profile: () => request('get', '/me/retroachievements/profile'),
+  club: () => request('get', '/retroachievements'),
+  editions: (page = 1) => request('get', `/retroachievements/editions?page=${page}`),
   challenge: () => request('get', '/retroachievements/challenge')
 }
 export const guideApi = {
@@ -216,9 +222,17 @@ export const adminApi = {
   archiveGame: (gameId, reason) => request('delete', `/admin/games/${gameId}`, { reason }),
   resolveMatch: (matchId, canonicalGameId) =>
     request('put', `/admin/matches/${matchId}`, { canonicalGameId }),
-  activateRetroChallenge: (retroGameId, description) =>
-    request('put', '/admin/retroachievements/challenge', {
-      retroGameId: Number(retroGameId),
+  retroclub: () => request('get', '/admin/retroachievements'),
+  previewRetroGame: (game) => request('post', '/admin/retroachievements/preview', { game }),
+  activateRetroChallenge: (game, description) =>
+    request('post', '/admin/retroachievements/challenges', { game, description }),
+  updateRetroDescription: (id, version, description) =>
+    request('put', `/admin/retroachievements/challenges/${id}/description`, {
+      version,
       description
-    })
+    }),
+  refreshRetroChallenge: (id) =>
+    request('post', `/admin/retroachievements/challenges/${id}/refresh`, {}),
+  cancelRetroChallenge: (id, version, reason) =>
+    request('post', `/admin/retroachievements/challenges/${id}/cancel`, { version, reason })
 }
