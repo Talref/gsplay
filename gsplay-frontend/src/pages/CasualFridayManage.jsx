@@ -212,11 +212,21 @@ export default function CasualFridayManage() {
     }
   }
   const createDraft = async () => {
+    if (
+      event.open &&
+      !window.confirm(
+        'Create the playlist draft now? This will end RSVPs and voting immediately, and members will no longer be able to change their responses.'
+      )
+    ) return
     setError('')
     try {
-      const result = await casualFridayApi.createDraft(event.id, event.version)
+      const result = await casualFridayApi.createDraft(event.id, event.version, event.open)
       setEvent(result.event)
-      setNotice('The editorial draft is ready.')
+      setNotice(
+        event.open
+          ? 'Voting has ended and the editorial draft is ready.'
+          : 'The editorial draft is ready.'
+      )
       await reload()
     } catch (err) {
       setError(requestMessage(err))

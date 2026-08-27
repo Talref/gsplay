@@ -123,8 +123,11 @@ export const casualFridayApi = {
   rotation: () => request('get', '/casual-friday/tools/rotation'),
   event: () => request('get', '/casual-friday/tools/event'),
   startEvent: () => request('post', '/casual-friday/tools/event/start', {}),
-  createDraft: (eventId, version) =>
-    request('post', `/casual-friday/tools/event/${encodeURIComponent(eventId)}/draft`, { version }),
+  createDraft: (eventId, version, endVotingEarly = false) =>
+    request('post', `/casual-friday/tools/event/${encodeURIComponent(eventId)}/draft`, {
+      version,
+      endVotingEarly
+    }),
   cancelEvent: (eventId, version, reason) =>
     request('post', `/casual-friday/tools/event/${encodeURIComponent(eventId)}/cancel`, {
       version,

@@ -440,6 +440,57 @@ test('Casual Friday tools show responsive reorderable cards and cached ITAD offe
   await expectNoHorizontalOverflow(page)
 })
 
+test('Casual Friday managers can explicitly end voting and create the draft early', async ({
+  page
+}) => {
+  const event = {
+    id: 'early-draft-event',
+    weekKey: '2099-08-14',
+    status: 'open',
+    startsAt: '2099-08-14T17:00:00.000Z',
+    endsAt: '2099-08-15T04:00:00.000Z',
+    votingClosesAt: '2099-08-14T13:00:00.000Z',
+    open: true,
+    version: 1,
+    playlistId: null,
+    candidates: [],
+    rsvps: { totals: { yes: 0, maybe: 0, no: 0 }, names: { yes: [], maybe: [], no: [] } },
+    votingResults: []
+  }
+  let requestBody = null
+
+  await page.route('**/api/v2/casual-friday/tools/event', (route) =>
+    route.fulfill({ json: { event } })
+  )
+  await page.route('**/api/v2/casual-friday/tools/event/early-draft-event/draft', async (route) => {
+    requestBody = route.request().postDataJSON()
+    Object.assign(event, { status: 'draft', open: false, version: 2, playlistId: 'playlist-one' })
+    await route.fulfill({ json: { event } })
+  })
+
+  await page.goto('/login')
+  await page.getByLabel('Nome utente').fill('E2E Admin')
+  await page.getByLabel('Password').fill('correct-horse-battery-staple')
+  await page.getByRole('button', { name: 'Entra' }).click()
+  await expect(page.getByRole('button', { name: 'Esci' })).toBeVisible()
+  await page.goto('/casual-friday/tools')
+
+  await expect(
+    page.getByText('Creating the playlist draft now will end RSVPs and voting immediately.')
+  ).toBeVisible()
+  const draftButton = page.getByRole('button', { name: 'Create draft playlist' })
+  await expect(draftButton).toBeEnabled()
+  page.once('dialog', async (dialog) => {
+    expect(dialog.message()).toContain('This will end RSVPs and voting immediately')
+    await dialog.accept()
+  })
+  await draftButton.click()
+
+  await expect(page.getByText('Voting has ended and the editorial draft is ready.')).toBeVisible()
+  expect(requestBody).toEqual({ version: 1, endVotingEarly: true })
+  await expectNoHorizontalOverflow(page)
+})
+
 test('Casual Friday member page shows the running lineup and its inactive placeholder', async ({
   page
 }) => {

@@ -104,10 +104,16 @@ export default function EventManagePanel({
           {event.status === 'cancelled' && (
             <Alert severity="error">Cancelled: {event.cancellationReason}</Alert>
           )}
+          {event.status === 'open' && event.open && (
+            <Alert severity="warning">
+              Creating the playlist draft now will end RSVPs and voting immediately. Members will
+              no longer be able to change their responses.
+            </Alert>
+          )}
           {event.status !== 'cancelled' && <Divider />}
           <Stack direction={{ xs: 'column', sm: 'row' }} gap={1}>
             {event.status === 'open' && (
-              <Button variant="contained" disabled={event.open} onClick={onCreateDraft}>
+              <Button variant="contained" onClick={onCreateDraft}>
                 Create draft playlist
               </Button>
             )}

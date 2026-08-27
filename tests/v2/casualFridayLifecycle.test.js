@@ -7,6 +7,7 @@ const Game = require('../../src/v2/models/CanonicalGame');
 const Event = require('../../src/v2/models/CasualFridayEvent');
 const Playlist = require('../../src/v2/models/CasualFridayPlaylist');
 const Rotation = require('../../src/v2/models/CasualFridayRotationGame');
+const Audit = require('../../src/v2/models/CasualFridayAudit');
 const service = require('../../src/v2/services/casualFridayService');
 
 const config = loadEnvironment({
@@ -154,6 +155,40 @@ describe('Casual Friday RSVP and voting lifecycle', () => {
     );
     expect(completed.status).toBe('completed');
     expect((await Playlist.findById(playlist._id)).status).toBe('completed');
+  });
+
+  test('lets Helpers explicitly end voting early when creating the playlist draft', async () => {
+    const helper = await createUser('EarlyDraftHelper', 'helper');
+    const member = await createUser('EarlyDraftMember');
+    await createRotation(helper, 1);
+    const helperAgent = await agentFor(helper);
+    const memberAgent = await agentFor(member);
+    const started = (
+      await helperAgent.post('/api/v2/casual-friday/tools/event/start').send({}).expect(201)
+    ).body.event;
+
+    await helperAgent
+      .post(`/api/v2/casual-friday/tools/event/${started.id}/draft`)
+      .send({ version: started.version })
+      .expect(409);
+    await memberAgent
+      .post(`/api/v2/casual-friday/tools/event/${started.id}/draft`)
+      .send({ version: started.version, endVotingEarly: true })
+      .expect(403);
+    const drafted = await helperAgent
+      .post(`/api/v2/casual-friday/tools/event/${started.id}/draft`)
+      .send({ version: started.version, endVotingEarly: true })
+      .expect(200);
+
+    expect(drafted.body.event).toMatchObject({ status: 'draft', open: false });
+    await memberAgent
+      .put(`/api/v2/casual-friday/events/${started.id}/rsvp`)
+      .send({ rsvp: 'yes' })
+      .expect(409);
+    expect(await Playlist.countDocuments({ weekKey: started.weekKey })).toBe(1);
+    expect(await Audit.findOne({ kind: 'event_draft_created' })).toMatchObject({
+      details: { votingEndedEarly: true }
+    });
   });
 
   test('automatically completes a linked event when its published playlist elapses', async () => {

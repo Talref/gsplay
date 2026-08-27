@@ -155,11 +155,22 @@ async function setVotes(actor, eventId, rotationGameIds, now = new Date()) {
   return memberEventDto(event, actor._id, now);
 }
 
-async function createDraft(actor, id, version, now = new Date()) {
+async function createDraft(
+  actor,
+  id,
+  version,
+  now = new Date(),
+  { endVotingEarly = false } = {}
+) {
   const event = await Event.findOne({ _id: id, status: 'open', version });
   if (!event) throw new AppError(409, 'event_not_open', 'Only the current open event can become a draft');
-  if (event.votingClosesAt > now)
-    throw new AppError(409, 'voting_still_open', 'The draft can be created after voting closes Friday at 15:00');
+  const votingEndedEarly = event.votingClosesAt > now;
+  if (votingEndedEarly && !endVotingEarly)
+    throw new AppError(
+      409,
+      'voting_still_open',
+      'Voting is still open; explicitly confirm ending it early to create the draft'
+    );
   if (event.endsAt <= now)
     throw new AppError(409, 'event_ended', 'This Casual Friday event has already ended');
   const playlist =
@@ -176,7 +187,14 @@ async function createDraft(actor, id, version, now = new Date()) {
   event.version += 1;
   event.updatedBy = actor._id;
   await event.save();
-  await audit(actor, 'event_draft_created', { eventId: event._id, playlistId: playlist._id });
+  await audit(actor, 'event_draft_created', {
+    eventId: event._id,
+    playlistId: playlist._id,
+    details: {
+      votingEndedEarly,
+      scheduledVotingClosesAt: votingEndedEarly ? event.votingClosesAt : null
+    }
+  });
   return manageEventDto(event, now);
 }
 
