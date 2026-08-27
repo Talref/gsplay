@@ -4,11 +4,13 @@ const CasualFridayRotationGame = require('../models/CasualFridayRotationGame');
 const CasualFridayEvent = require('../models/CasualFridayEvent');
 const CasualFridayPlaylist = require('../models/CasualFridayPlaylist');
 const CasualFridayPlaylistEntry = require('../models/CasualFridayPlaylistEntry');
+const RetroChallenge = require('../models/RetroChallenge');
 const { normalizedMultiplayerModes } = require('./multiplayerModes');
 const { EVENT_TIME_ZONE } = require('./casualFriday/scheduling');
 
 const GAME_PATH = /^\/catalogue\/([^/]+)\/?$/;
 const CASUAL_FRIDAY_PATH = /^\/casual-friday\/?$/;
+const RETROCLUB_PATH = /^\/retro\/?$/;
 const DESCRIPTION_LIMIT = 220;
 
 function compactText(value, limit = DESCRIPTION_LIMIT) {
@@ -28,6 +30,15 @@ function publicArtwork(value) {
     if (!['http:', 'https:'].includes(url.protocol)) return null;
     url.hash = '';
     return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function retroArtwork(value) {
+  if (!value) return null;
+  try {
+    return publicArtwork(new URL(value, 'https://retroachievements.org').toString());
   } catch {
     return null;
   }
@@ -182,8 +193,39 @@ async function gameMetadata(gameId) {
   };
 }
 
+async function retroclubMetadata(now = new Date()) {
+  const challenge = await RetroChallenge.findOne({
+    active: true,
+    status: 'active',
+    scoringStartsAt: { $lte: now },
+    scoringEndsAt: { $gt: now }
+  })
+    .select('title consoleName imageUrl description')
+    .lean();
+  if (!challenge) return null;
+  const month = new Intl.DateTimeFormat('it-IT', {
+    month: 'long',
+    timeZone: EVENT_TIME_ZONE
+  }).format(now);
+  const artwork = retroArtwork(challenge.imageUrl);
+  const flavor =
+    challenge.description ||
+    'Er Retroclub ha scelto la cartuccia: accendi tutto e prova a pijatte la corona.';
+  return {
+    title: `Gioco di ${month}: ${challenge.title}`,
+    description: compactText(
+      [challenge.consoleName, flavor].filter(Boolean).join(' • ')
+    ),
+    image: artwork || undefined,
+    url: '/retro',
+    type: 'website',
+    twitterCard: artwork ? 'summary_large_image' : 'summary'
+  };
+}
+
 async function resolveSocialMetadata(req) {
   if (CASUAL_FRIDAY_PATH.test(req.path)) return casualFridayMetadata();
+  if (RETROCLUB_PATH.test(req.path)) return retroclubMetadata();
   const match = req.path.match(GAME_PATH);
   if (!match) return null;
   return gameMetadata(match[1]);
@@ -194,5 +236,6 @@ module.exports = {
   casualFridayMetadata,
   gameMetadata,
   playlistDescription,
+  retroclubMetadata,
   resolveSocialMetadata
 };
