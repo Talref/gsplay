@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 # Run from the checked-out production branch after: git pull --ff-only origin master
+# Tests, lint, and dependency audits are completed before merging.
 SOURCE_ROOT="${SOURCE_ROOT:-$PWD}"
 DESTINATION="${DESTINATION:-/srv/gsplay}"
 ENV_FILE="${ENV_FILE:-/etc/gsplay/v2.env}"
@@ -25,9 +26,6 @@ run_quiet() {
   cat "$log" >&2
   fail "$description failed"
 }
-audit_counts() {
-  node -e "const fs=require('fs'); const report=JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); const counts=report.metadata?.vulnerabilities; if (!counts) process.exit(1); console.log(counts.total, counts.high, counts.critical);" "$1"
-}
 
 [[ -f "$SOURCE_ROOT/package-lock.json" && -f "$SOURCE_ROOT/gsplay-frontend/package-lock.json" ]] || fail "Run from the GSPlay checkout root"
 [[ -f "$ENV_FILE" ]] || fail "Missing production environment file: $ENV_FILE"
@@ -43,56 +41,14 @@ revision="$(git rev-parse HEAD)"
 started_at=$SECONDS
 npm_flags=(--no-audit --fund=false --loglevel=error)
 
-echo '▶ Running backend tests'
-run_quiet 'Backend dependency installation' "$LOG_DIR/backend-install.log" npm ci "${npm_flags[@]}"
-run_quiet 'Backend tests' "$LOG_DIR/backend-tests.log" env MONGO_URI='mongodb://127.0.0.1:27017/gsplay-test-preflight' npm test
-suite_count="$(sed -nE 's/^Test Suites: ([0-9]+) passed,.*$/\1/p' "$LOG_DIR/backend-tests.log" | tail -1)"
-test_count="$(sed -nE 's/^Tests:[[:space:]]+([0-9]+) passed,.*$/\1/p' "$LOG_DIR/backend-tests.log" | tail -1)"
-if [[ -n "$suite_count" && -n "$test_count" ]]; then
-  echo "✓ $suite_count suites and $test_count tests passed"
-else
-  echo '✓ Backend tests passed'
-fi
-
-echo
 echo '▶ Building frontend'
 run_quiet 'Frontend dependency installation' "$LOG_DIR/frontend-install.log" npm --prefix "$SOURCE_ROOT/gsplay-frontend" ci --include=dev "${npm_flags[@]}"
-run_quiet 'Frontend lint' "$LOG_DIR/frontend-lint.log" npm --prefix "$SOURCE_ROOT/gsplay-frontend" run lint
-echo '✓ Lint passed'
 run_quiet 'Frontend production build' "$LOG_DIR/frontend-build.log" npm --prefix "$SOURCE_ROOT/gsplay-frontend" run build
 echo '✓ Production bundle built'
 main_js_gzip="$(sed -nE 's/.*dist\/assets\/index-[^ ]+\.js.*gzip:[[:space:]]*([0-9.]+) kB.*/\1/p' "$LOG_DIR/frontend-build.log" | tail -1)"
 main_css_gzip="$(sed -nE 's/.*dist\/assets\/index-[^ ]+\.css.*gzip:[[:space:]]*([0-9.]+) kB.*/\1/p' "$LOG_DIR/frontend-build.log" | tail -1)"
 [[ -n "$main_js_gzip" ]] && printf '  Main JavaScript: %s kB gzip\n' "$main_js_gzip"
 [[ -n "$main_css_gzip" ]] && printf '  Main CSS:        %s kB gzip\n' "$main_css_gzip"
-
-echo
-echo '▶ Auditing dependencies'
-npm audit --omit=dev --json --loglevel=error >"$LOG_DIR/backend-audit-production.json" 2>&1 || true
-npm --prefix "$SOURCE_ROOT/gsplay-frontend" audit --omit=dev --json --loglevel=error >"$LOG_DIR/frontend-audit-production.json" 2>&1 || true
-npm audit --json --loglevel=error >"$LOG_DIR/backend-audit-all.json" 2>&1 || true
-npm --prefix "$SOURCE_ROOT/gsplay-frontend" audit --json --loglevel=error >"$LOG_DIR/frontend-audit-all.json" 2>&1 || true
-read -r backend_prod_total backend_prod_high backend_prod_critical < <(audit_counts "$LOG_DIR/backend-audit-production.json") || { cat "$LOG_DIR/backend-audit-production.json" >&2; fail 'Backend production audit could not be completed'; }
-read -r frontend_prod_total frontend_prod_high frontend_prod_critical < <(audit_counts "$LOG_DIR/frontend-audit-production.json") || { cat "$LOG_DIR/frontend-audit-production.json" >&2; fail 'Frontend production audit could not be completed'; }
-read -r backend_all_total _backend_all_high _backend_all_critical < <(audit_counts "$LOG_DIR/backend-audit-all.json") || { cat "$LOG_DIR/backend-audit-all.json" >&2; fail 'Backend development audit could not be completed'; }
-read -r frontend_all_total _frontend_all_high _frontend_all_critical < <(audit_counts "$LOG_DIR/frontend-audit-all.json") || { cat "$LOG_DIR/frontend-audit-all.json" >&2; fail 'Frontend development audit could not be completed'; }
-if (( backend_prod_high + backend_prod_critical > 0 )); then
-  cat "$LOG_DIR/backend-audit-production.json" >&2
-  fail 'Backend production dependencies contain high or critical vulnerabilities'
-fi
-if (( frontend_prod_high + frontend_prod_critical > 0 )); then
-  cat "$LOG_DIR/frontend-audit-production.json" >&2
-  fail 'Frontend production dependencies contain high or critical vulnerabilities'
-fi
-development_findings=$((backend_all_total + frontend_all_total - backend_prod_total - frontend_prod_total))
-if (( development_findings < 0 )); then development_findings=0; fi
-if (( development_findings > 0 )); then
-  echo '⚠ Development tooling contains known advisories (not in runtime release)'
-else
-  echo '✓ Development tooling has no known vulnerabilities'
-fi
-if (( backend_prod_total > 0 )); then echo "⚠ Backend production dependencies contain $backend_prod_total low/moderate finding(s)"; else echo '✓ Backend production dependencies clean'; fi
-if (( frontend_prod_total > 0 )); then echo "⚠ Frontend production dependencies contain $frontend_prod_total low/moderate finding(s)"; else echo '✓ Frontend production dependencies clean'; fi
 
 echo
 echo '▶ Preparing runtime'

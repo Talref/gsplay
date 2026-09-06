@@ -112,9 +112,11 @@ git pull --ff-only origin master
 ./scripts/deploy.sh
 ```
 
-`deploy.sh` refuses dirty or out-of-sync source, runs backend tests in an isolated MongoMemoryServer preflight environment and frontend lint/build, prepares dependencies and index checks before publication, installs current systemd unit definitions, publishes to `/srv/gsplay`, restarts both services, and waits for local liveness/readiness.
+Tests, lint, and dependency audits are completed before merging; deployment does not repeat them or install backend development dependencies.
 
-Successful steps print a concise summary; a failed step prints its captured command output automatically. Use `DEPLOY_VERBOSE=true ./scripts/deploy.sh` to print command output after every validation step.
+`deploy.sh` refuses dirty or out-of-sync source, installs frontend build dependencies and builds the production bundle, prepares backend production dependencies and database indexes before publication, installs current systemd unit definitions, publishes to `/srv/gsplay`, restarts both services, and waits for local liveness/readiness. It also verifies that the installed bcrypt native module loads before publication.
+
+Successful steps print a concise summary; a failed step prints its captured command output automatically. Use `DEPLOY_VERBOSE=true ./scripts/deploy.sh` to print command output after every preparation step.
 
 Check the running release and services:
 
