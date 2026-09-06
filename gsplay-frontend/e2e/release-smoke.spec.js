@@ -24,7 +24,9 @@ test('a member can sign up, reach the library, and log out', async ({ page }, te
   await expectNoHorizontalOverflow(page)
   await page.goto('/retro')
   await expect(page.getByRole('heading', { name: 'RETROCLUB' })).toBeVisible()
-  await expect(page.getByText('L’admin starà a soffià sulle cartucce. Porta pazienza.')).toBeVisible()
+  await expect(
+    page.getByText('L’admin starà a soffià sulle cartucce. Porta pazienza.')
+  ).toBeVisible()
   await expect(page.getByLabel('Username RetroAchievements')).toBeVisible()
   await expectNoHorizontalOverflow(page)
   await page.getByRole('button', { name: 'Esci' }).click()
@@ -123,9 +125,7 @@ test('catalogue search and member Steam validation expose safe UI feedback', asy
             wishlistCount: firstPage ? 2 : 1,
             ownerCount: firstPage ? 1 : 0,
             wishlistedBy: [{ id: '64e0cec540ae43699af217c1', username: 'E2E Admin' }],
-            ownedBy: firstPage
-              ? [{ id: '64e0cec540ae43699af217c2', username: 'E2E Friend' }]
-              : []
+            ownedBy: firstPage ? [{ id: '64e0cec540ae43699af217c2', username: 'E2E Friend' }] : []
           }
         ],
         page: {
@@ -210,9 +210,7 @@ test('catalogue search and member Steam validation expose safe UI feedback', asy
   await expectNoHorizontalOverflow(page)
 })
 
-test('guests compare ownership coverage and filter multiplayer results', async ({
-  page
-}) => {
+test('guests compare ownership coverage and filter multiplayer results', async ({ page }) => {
   await page.goto('/compare')
   await expect(page.getByRole('heading', { name: 'Confronta le libbrerie' })).toBeVisible()
   const picker = page.getByLabel('Cerca compari')
@@ -298,7 +296,9 @@ test('an admin can queue explicit IGDB catalogue maintenance actions', async ({ 
   await page.getByRole('button', { name: 'Entra' }).click()
   await expect(page.getByRole('button', { name: 'Esci' })).toBeVisible()
   await page.goto('/admin')
-  await expect(page.getByRole('heading', { name: 'Users and Steam coverage', level: 6 })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Users and Steam coverage', level: 6 })
+  ).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Manage users', level: 6 })).toBeVisible()
   await expect(
     page.getByRole('button', { name: 'Queue missing or pending IGDB metadata' })
@@ -499,6 +499,66 @@ test('Casual Friday tools show responsive reorderable cards and cached ITAD offe
   await cancelDialog.getByLabel('Cancellation reason').fill('E2E cancellation')
   await cancelDialog.getByRole('button', { name: 'Keep event' }).click()
   await expect(cancelDialog).not.toBeVisible()
+  const movieEntry = {
+    id: 'movie-entry-one',
+    type: 'movie',
+    position: 1,
+    movie: {
+      tmdbId: 1091,
+      title: 'La cosa',
+      overview: 'Una base antartica e parecchi motivi per non fidarsi dei colleghi.',
+      posterUrl: 'https://image.tmdb.org/t/p/w500/thing.jpg',
+      rating: 8.2,
+      runtimeMinutes: 109,
+      tmdbUrl: 'https://www.themoviedb.org/movie/1091'
+    }
+  }
+  const moviePlaylist = {
+    id: 'movie-playlist',
+    weekKey: '2099-01-02',
+    status: 'published',
+    version: 99,
+    editable: true,
+    entries: [movieEntry]
+  }
+  await page.route('**/api/v2/casual-friday/tools/movies/search?q=*', (route) =>
+    route.fulfill({
+      json: {
+        movies: [{ ...movieEntry.movie, originalTitle: 'The Thing', year: 1982 }]
+      }
+    })
+  )
+  await page.route('**/api/v2/casual-friday/tools/playlist/movie-entries', (route) =>
+    route.fulfill({ json: { playlist: moviePlaylist } })
+  )
+  await page.getByRole('button', { name: 'Add movie' }).click()
+  const movieSearch = page.getByRole('dialog', { name: 'Add movie' })
+  await movieSearch.getByLabel('Movie title').fill('La cosa')
+  await movieSearch.getByRole('button', { name: 'Search TMDB' }).click()
+  await movieSearch.getByRole('button', { name: /La cosa.*1982/ }).click()
+  await expect(page.getByRole('article').filter({ hasText: 'La cosa' })).toContainText('109 min')
+  await page.route('**/api/v2/casual-friday/tools/playlist/*/entries/*/movie', async (route) => {
+    const { version: _version, ...edits } = route.request().postDataJSON()
+    await route.fulfill({
+      json: {
+        playlist: {
+          ...moviePlaylist,
+          version: 100,
+          entries: [{ ...movieEntry, movie: { ...movieEntry.movie, ...edits } }]
+        }
+      }
+    })
+  })
+  await page.getByRole('button', { name: 'Edit movie' }).click()
+  const movieEdit = page.getByRole('dialog', { name: 'Edit movie' })
+  await movieEdit.getByLabel('Description').fill('Descrizione estesa dal console.')
+  await movieEdit.getByRole('button', { name: 'Save movie' }).click()
+  await expect(page.getByRole('article').filter({ hasText: 'La cosa' })).toContainText(
+    'Descrizione estesa dal console.'
+  )
+  await expect(
+    page.getByText('This product uses the TMDB API but is not endorsed or certified by TMDB.')
+  ).toBeVisible()
   await expectNoHorizontalOverflow(page)
 })
 
@@ -607,7 +667,9 @@ test('Casual Friday managers can restart a cancelled voting process', async ({ p
   await restartButton.click()
 
   await expect(
-    page.getByText('The previous responses and playlist were cleared. RSVPs and voting are open again.')
+    page.getByText(
+      'The previous responses and playlist were cleared. RSVPs and voting are open again.'
+    )
   ).toBeVisible()
   expect(requestBody).toEqual({ version: 4 })
   await expect(page.getByText('Cancelled: Server unavailable')).toHaveCount(0)
@@ -710,7 +772,9 @@ test('Casual Friday member page shows the running lineup and its inactive placeh
   await expect(page.getByRole('heading', { name: 'Per mo’ nun se gioca.' })).toBeVisible()
 })
 
-test('Casual Friday members can RSVP and select at most five locked candidates', async ({ page }) => {
+test('Casual Friday members can RSVP and select at most five locked candidates', async ({
+  page
+}) => {
   await page.goto('/login')
   await page.getByLabel('Nome utente').fill('E2E Admin')
   await page.getByLabel('Password').fill('correct-horse-battery-staple')

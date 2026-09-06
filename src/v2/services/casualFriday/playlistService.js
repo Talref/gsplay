@@ -31,7 +31,8 @@ function playlistIsEditable(playlist, now = new Date()) {
 async function buildPlaylistDto(playlist, userId) {
   if (!playlist) return null;
   const entries = await Entry.find({ playlistId: playlist._id }).sort({ position: 1 });
-  const canonicalGameIds = entries.map((entry) => entry.canonicalGameId);
+  const gameEntries = entries.filter((entry) => entry.type !== 'movie');
+  const canonicalGameIds = gameEntries.map((entry) => entry.canonicalGameId);
   const ownership = userId
     ? await LibraryItem.find({
         userId,
@@ -46,7 +47,7 @@ async function buildPlaylistDto(playlist, userId) {
     ])
   );
   const rotations = await Rotation.find({
-    _id: { $in: entries.map((entry) => entry.rotationGameId) }
+    _id: { $in: gameEntries.map((entry) => entry.rotationGameId) }
   }).select(
     'itadStatus itadGameId itadTitle itadCheckedAt itadError itadOffer itadOfferCheckedAt itadOfferError'
   );
@@ -62,9 +63,18 @@ async function buildPlaylistDto(playlist, userId) {
     cancellationReason: playlist.cancellationReason,
     cancelledAt: playlist.cancelledAt,
     entries: entries.map((entry) => {
+      if (entry.type === 'movie') {
+        return {
+          id: String(entry._id),
+          type: 'movie',
+          position: entry.position,
+          movie: entry.movie.toObject ? entry.movie.toObject() : entry.movie
+        };
+      }
       const rotation = rotationMap.get(String(entry.rotationGameId));
       return {
         id: String(entry._id),
+        type: 'game',
         rotationGameId: String(entry.rotationGameId),
         canonicalGameId: String(entry.canonicalGameId),
         position: entry.position,
@@ -96,7 +106,7 @@ async function updateKeyOffer(
   };
   const playlist = await requireEditablePlaylist(playlistId, version, actor, now);
   const entry = await Entry.findOneAndUpdate(
-    { _id: entryId, playlistId: playlist._id },
+    { _id: entryId, playlistId: playlist._id, type: { $ne: 'movie' } },
     { $set: { keyOffer } },
     { new: true, runValidators: true }
   );
@@ -212,6 +222,75 @@ async function addToPlaylist(actor, id, { now = new Date() } = {}) {
   return buildPlaylistDto(playlist, actor._id);
 }
 
+async function addMovieToPlaylist(actor, movie, { now = new Date() } = {}) {
+  const window = nextFridayWindow(now);
+  const event = await Event.findOne({ weekKey: window.weekKey });
+  if (event && !['draft', 'published'].includes(event.status))
+    throw new AppError(
+      409,
+      'event_not_editable',
+      'Create the editorial draft before changing its playlist'
+    );
+  const playlist = await upcomingPlaylist(actor, now);
+  if (!playlistIsEditable(playlist, now)) {
+    throw new AppError(
+      409,
+      'playlist_not_editable',
+      'The playlist can only be changed before Saturday at 06:00 Europe/Rome'
+    );
+  }
+  const count = await Entry.countDocuments({ playlistId: playlist._id });
+  const entry = await Entry.create({
+    type: 'movie',
+    playlistId: playlist._id,
+    position: count + 1,
+    selectedBy: actor._id,
+    movie
+  });
+  playlist.version += 1;
+  playlist.updatedBy = actor._id;
+  await playlist.save();
+  await audit(actor, 'playlist_movie_added', {
+    playlistId: playlist._id,
+    afterVersion: playlist.version,
+    details: { entryId: entry._id, tmdbId: movie.tmdbId, title: movie.title }
+  });
+  return buildPlaylistDto(playlist, actor._id);
+}
+
+async function updatePlaylistMovie(
+  actor,
+  playlistId,
+  entryId,
+  version,
+  edits,
+  { now = new Date() } = {}
+) {
+  const existing = await Entry.findOne({ _id: entryId, playlistId, type: 'movie' });
+  if (!existing) throw new AppError(404, 'not_found', 'Movie playlist entry was not found');
+  const movie = { ...existing.movie.toObject(), ...edits };
+  const playlist = await requireEditablePlaylist(playlistId, version, actor, now);
+  const entry = await Entry.findOneAndUpdate(
+    { _id: entryId, playlistId: playlist._id, type: 'movie' },
+    { $set: { movie } },
+    { new: true, runValidators: true }
+  );
+  if (!entry) {
+    await Playlist.updateOne(
+      { _id: playlist._id, version: playlist.version },
+      { $inc: { version: -1 } }
+    );
+    throw new AppError(404, 'not_found', 'Movie playlist entry was not found');
+  }
+  await audit(actor, 'playlist_movie_updated', {
+    playlistId: playlist._id,
+    beforeVersion: version,
+    afterVersion: playlist.version,
+    details: { entryId: entry._id, tmdbId: movie.tmdbId, title: movie.title }
+  });
+  return buildPlaylistDto(playlist, actor._id);
+}
+
 async function removeFromPlaylist(actor, playlistId, entryId, version, { now = new Date() } = {}) {
   const playlist = await requireEditablePlaylist(playlistId, version, actor, now);
   const entry = await Entry.findOneAndDelete({ _id: entryId, playlistId: playlist._id });
@@ -228,7 +307,7 @@ async function removeFromPlaylist(actor, playlistId, entryId, version, { now = n
   );
   await audit(actor, 'playlist_entry_removed', {
     playlistId: playlist._id,
-    rotationGameId: entry.rotationGameId,
+    ...(entry.rotationGameId ? { rotationGameId: entry.rotationGameId } : {}),
     beforeVersion: version,
     afterVersion: playlist.version
   });
@@ -292,7 +371,7 @@ async function publishPlaylist(actor, id, version, { now = new Date() } = {}) {
     throw new AppError(
       400,
       'invalid_playlist_size',
-      'A playlist needs at least one game before publication'
+      'A playlist needs at least one entry before publication'
     );
   Object.assign(playlist, {
     status: 'published',
@@ -388,7 +467,9 @@ async function restoreCancelledPlaylist(actor, id, version, now = new Date()) {
 }
 
 async function completeElapsedPlaylists(now = new Date()) {
-  const playlists = await Playlist.find({ status: 'published', endsAt: { $lte: now } }).select('_id');
+  const playlists = await Playlist.find({ status: 'published', endsAt: { $lte: now } }).select(
+    '_id'
+  );
   if (!playlists.length) return 0;
   const playlistIds = playlists.map((playlist) => playlist._id);
   const result = await Playlist.updateMany(
@@ -403,6 +484,7 @@ async function completeElapsedPlaylists(now = new Date()) {
 }
 
 module.exports = {
+  addMovieToPlaylist,
   addToPlaylist,
   buildPlaylistDto,
   cancelPlaylist,
@@ -413,5 +495,6 @@ module.exports = {
   removeKeyOffer,
   reorderPlaylist,
   restoreCancelledPlaylist,
-  updateKeyOffer
+  updateKeyOffer,
+  updatePlaylistMovie
 };

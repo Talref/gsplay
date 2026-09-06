@@ -159,6 +159,12 @@ export const casualFridayApi = {
   recheck: (id) => request('post', `/casual-friday/tools/rotation/${id}/recheck-itad`),
   retire: (id, reason) => request('post', `/casual-friday/tools/rotation/${id}/retire`, { reason }),
   addToPlaylist: (id) => request('post', `/casual-friday/tools/playlist/entries/${id}`),
+  searchMovies: (query) =>
+    request('get', `/casual-friday/tools/movies/search?q=${encodeURIComponent(query)}`),
+  addMovieToPlaylist: (tmdbId) =>
+    request('post', '/casual-friday/tools/playlist/movie-entries', { tmdbId }),
+  updatePlaylistMovie: (playlistId, entryId, data) =>
+    request('put', `/casual-friday/tools/playlist/${playlistId}/entries/${entryId}/movie`, data),
   removeFromPlaylist: (playlistId, entryId, version) =>
     request('delete', `/casual-friday/tools/playlist/${playlistId}/entries/${entryId}`, {
       version

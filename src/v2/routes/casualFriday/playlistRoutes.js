@@ -2,9 +2,106 @@ const { AppError } = require('../../http/errors');
 const { exactKeys, object, string } = require('../../http/validate');
 const Playlist = require('../../models/CasualFridayPlaylist');
 const service = require('../../services/casualFridayService');
+const { TmdbProviderError } = require('../../providers/tmdbClient');
 const { id, integer } = require('./validation');
 
-function registerPlaylistRoutes(router, manage, { itad }) {
+function positiveInteger(value, field) {
+  if (!Number.isInteger(value) || value < 1)
+    throw new AppError(400, 'invalid_request', `${field} must be a positive integer`);
+  return value;
+}
+
+function optionalNumber(value, field, min, max, { integerOnly = false } = {}) {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max)
+    throw new AppError(400, 'invalid_request', `${field} must be between ${min} and ${max}`);
+  if (integerOnly && !Number.isInteger(value))
+    throw new AppError(400, 'invalid_request', `${field} must be an integer`);
+  return value;
+}
+
+function optionalHttpsUrl(value, field) {
+  if (value === null || value === undefined || value === '') return null;
+  let url;
+  try {
+    url = new URL(string(value, field, { max: 2048 }));
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    throw new AppError(400, 'invalid_request', `${field} must be an HTTPS URL`);
+  }
+  if (url.protocol !== 'https:' || !url.hostname || url.username || url.password)
+    throw new AppError(400, 'invalid_request', `${field} must be an HTTPS URL`);
+  return url.href;
+}
+
+function movieEdits(value) {
+  object(value);
+  exactKeys(value, ['version', 'title', 'overview', 'posterUrl', 'rating', 'runtimeMinutes']);
+  return {
+    title: string(value.title, 'title', { max: 300 }),
+    overview: string(value.overview ?? '', 'overview', { min: 0, max: 4000 }),
+    posterUrl: optionalHttpsUrl(value.posterUrl, 'posterUrl'),
+    rating: optionalNumber(value.rating, 'rating', 0, 10),
+    runtimeMinutes: optionalNumber(value.runtimeMinutes, 'runtimeMinutes', 1, 1440, {
+      integerOnly: true
+    })
+  };
+}
+
+function tmdbError(error) {
+  if (!(error instanceof TmdbProviderError)) return error;
+  const unconfigured = /not configured/i.test(error.message);
+  return new AppError(
+    unconfigured ? 503 : 502,
+    unconfigured ? 'tmdb_not_configured' : 'tmdb_unavailable',
+    unconfigured
+      ? 'TMDB is not configured on this server'
+      : 'TMDB is unavailable right now. The playlist was not changed.'
+  );
+}
+
+function registerPlaylistRoutes(router, manage, { itad, tmdb }) {
+  router.get('/casual-friday/tools/movies/search', ...manage, async (req, res, next) => {
+    try {
+      const query = string(req.query.q, 'q', { min: 2, max: 100 });
+      res.json({ movies: await tmdb.searchMovies(query) });
+    } catch (error) {
+      next(tmdbError(error));
+    }
+  });
+
+  router.post('/casual-friday/tools/playlist/movie-entries', ...manage, async (req, res, next) => {
+    try {
+      const value = object(req.body);
+      exactKeys(value, ['tmdbId']);
+      const movie = await tmdb.getMovie(positiveInteger(value.tmdbId, 'tmdbId'));
+      res.json({ playlist: await service.addMovieToPlaylist(req.user, movie) });
+    } catch (error) {
+      next(tmdbError(error));
+    }
+  });
+
+  router.put(
+    '/casual-friday/tools/playlist/:playlistId/entries/:entryId/movie',
+    ...manage,
+    async (req, res, next) => {
+      try {
+        const value = object(req.body);
+        const edits = movieEdits(value);
+        res.json({
+          playlist: await service.updatePlaylistMovie(
+            req.user,
+            id(req.params.playlistId, 'playlistId'),
+            id(req.params.entryId, 'entryId'),
+            integer(value.version, 'version'),
+            edits
+          )
+        });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
   router.get('/casual-friday/tools/playlist', ...manage, async (req, res, next) => {
     try {
       const window = service.nextFridayWindow();

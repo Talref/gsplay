@@ -32,11 +32,7 @@ const memberLinks = [
   ['Libreria', '/library', <GamesOutlinedIcon key="library" color="primary" />],
   ['Confronta', '/compare', <CompareArrowsOutlinedIcon key="compare" color="primary" />],
   ['Catalogo', '/catalogue', <TravelExploreOutlinedIcon key="catalogue" color="primary" />],
-  [
-    'Most Wanted',
-    '/most-wanted',
-    <FavoriteBorderRoundedIcon key="most-wanted" color="primary" />
-  ],
+  ['Most Wanted', '/most-wanted', <FavoriteBorderRoundedIcon key="most-wanted" color="primary" />],
   [
     'Casual Friday',
     '/casual-friday',
@@ -201,6 +197,11 @@ export default function AppShell({ children }) {
         </Box>
         <Container component="main" maxWidth="xl" sx={{ flexGrow: 1, py: { xs: 3, md: 5 } }}>
           {children}
+          <Box component="footer" sx={{ mt: 6, pt: 2, borderTop: 1, borderColor: 'divider' }}>
+            <Typography variant="caption" color="text.secondary">
+              This product uses the TMDB API but is not endorsed or certified by TMDB.
+            </Typography>
+          </Box>
         </Container>
       </Box>
     </Box>

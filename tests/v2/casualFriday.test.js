@@ -6,6 +6,7 @@ const Game = require('../../src/v2/models/CanonicalGame');
 const Rotation = require('../../src/v2/models/CasualFridayRotationGame');
 const Playlist = require('../../src/v2/models/CasualFridayPlaylist');
 const Audit = require('../../src/v2/models/CasualFridayAudit');
+const { TmdbProviderError } = require('../../src/v2/providers/tmdbClient');
 const {
   cleanDisplayTitle,
   completeElapsedPlaylists,
@@ -33,7 +34,20 @@ const itadClient = {
     .mockResolvedValue({ outcome: 'matched', game: { id: 'itad-party', title: 'Party Game' } }),
   bestOffers: jest.fn().mockImplementation(async (ids) => new Map(ids.map((id) => [id, offer])))
 };
-const app = createApp(config, { itadClient });
+const movie = {
+  tmdbId: 1091,
+  title: 'La cosa',
+  overview: 'Una base molto poco tranquilla.',
+  posterUrl: 'https://image.tmdb.org/t/p/w500/thing.jpg',
+  rating: 8.2,
+  runtimeMinutes: 109,
+  tmdbUrl: 'https://www.themoviedb.org/movie/1091'
+};
+const tmdbClient = {
+  searchMovies: jest.fn().mockResolvedValue([movie]),
+  getMovie: jest.fn().mockResolvedValue(movie)
+};
+const app = createApp(config, { itadClient, tmdbClient });
 const password = 'correct-horse-battery-staple';
 async function user(username, role = 'member') {
   return User.create({
@@ -326,6 +340,94 @@ describe('Casual Friday core workflow', () => {
     expect(republished.status).toBe('published');
     expect(await Audit.countDocuments({ playlistId: draft.id, kind: 'playlist_restored' })).toBe(1);
     expect(await Audit.countDocuments({ playlistId: draft.id })).toBeGreaterThanOrEqual(5);
+  });
+  test('searches TMDB and manages multiple movie entries alongside games', async () => {
+    const helper = await user('MovieHelper', 'helper');
+    const agent = await agentFor(helper);
+    const game = await Game.create({ canonicalTitle: 'Party Game', normalizedTitle: 'party game' });
+    const rotation = (
+      await agent
+        .post('/api/v2/casual-friday/tools/rotation/from-catalogue')
+        .send(rotationPayload(game._id.toString()))
+        .expect(201)
+    ).body.rotation;
+    await agent
+      .get('/api/v2/casual-friday/tools/movies/search?q=La%20cosa')
+      .expect(200)
+      .expect(({ body }) => expect(body.movies[0]).toMatchObject({ tmdbId: 1091 }));
+    let playlist = (
+      await agent.post(`/api/v2/casual-friday/tools/playlist/entries/${rotation.id}`).expect(200)
+    ).body.playlist;
+    playlist = (
+      await agent
+        .post('/api/v2/casual-friday/tools/playlist/movie-entries')
+        .send({ tmdbId: 1091 })
+        .expect(200)
+    ).body.playlist;
+    tmdbClient.getMovie.mockResolvedValueOnce({
+      ...movie,
+      tmdbId: 78,
+      title: 'Blade Runner',
+      runtimeMinutes: null,
+      rating: null,
+      tmdbUrl: 'https://www.themoviedb.org/movie/78'
+    });
+    playlist = (
+      await agent
+        .post('/api/v2/casual-friday/tools/playlist/movie-entries')
+        .send({ tmdbId: 78 })
+        .expect(200)
+    ).body.playlist;
+    expect(playlist.entries.map((entry) => entry.type)).toEqual(['game', 'movie', 'movie']);
+    expect(playlist.entries[2].movie).toMatchObject({
+      title: 'Blade Runner',
+      runtimeMinutes: null,
+      rating: null
+    });
+    tmdbClient.getMovie.mockClear();
+    await agent.get('/api/v2/casual-friday/tools/playlist').expect(200);
+    expect(tmdbClient.getMovie).not.toHaveBeenCalled();
+
+    const order = [playlist.entries[2].id, playlist.entries[0].id, playlist.entries[1].id];
+    playlist = (
+      await agent
+        .put(`/api/v2/casual-friday/tools/playlist/${playlist.id}/order`)
+        .send({ version: playlist.version, entryIds: order })
+        .expect(200)
+    ).body.playlist;
+    expect(playlist.entries.map((entry) => entry.id)).toEqual(order);
+
+    const edited = (
+      await agent
+        .put(
+          `/api/v2/casual-friday/tools/playlist/${playlist.id}/entries/${playlist.entries[0].id}/movie`
+        )
+        .send({
+          version: playlist.version,
+          title: 'Blade Runner: Final Cut',
+          overview: 'Bring umbrellas.',
+          posterUrl: null,
+          rating: 8.5,
+          runtimeMinutes: 117
+        })
+        .expect(200)
+    ).body.playlist;
+    expect(edited.entries[0].movie).toMatchObject({
+      tmdbId: 78,
+      title: 'Blade Runner: Final Cut',
+      overview: 'Bring umbrellas.',
+      tmdbUrl: 'https://www.themoviedb.org/movie/78'
+    });
+
+    tmdbClient.getMovie.mockRejectedValueOnce(new TmdbProviderError('down'));
+    await agent
+      .post('/api/v2/casual-friday/tools/playlist/movie-entries')
+      .send({ tmdbId: 999 })
+      .expect(502);
+    const unchanged = (await agent.get('/api/v2/casual-friday/tools/playlist').expect(200)).body
+      .playlist;
+    expect(unchanged.version).toBe(edited.version);
+    expect(unchanged.entries).toHaveLength(3);
   });
   test('exposes a published playlist before kickoff and automatically completes elapsed playlists', async () => {
     const helper = await user('FinalHelper', 'helper');

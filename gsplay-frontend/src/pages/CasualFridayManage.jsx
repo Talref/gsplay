@@ -6,6 +6,7 @@ import EventManagePanel from '../components/casualFriday/EventManagePanel'
 import PlaylistPanel from '../components/casualFriday/PlaylistPanel'
 import ProposalPanel from '../components/casualFriday/ProposalPanel'
 import RotationPool from '../components/casualFriday/RotationPool'
+import MovieSearchDialog from '../components/casualFriday/MovieSearchDialog'
 import { catalogueApi, casualFridayApi } from '../services/api'
 import { useAuth } from '../context/useAuth'
 
@@ -68,6 +69,9 @@ export default function CasualFridayManage() {
   const [tab, setTab] = useState(0)
   const [igdbUrl, setIgdbUrl] = useState('')
   const [edit, setEdit] = useState(null)
+  const [movieSearchOpen, setMovieSearchOpen] = useState(false)
+  const [movieEdit, setMovieEdit] = useState(null)
+  const [savingMovie, setSavingMovie] = useState(false)
   const [infoEntry, setInfoEntry] = useState(null)
   const [keyOfferEntry, setKeyOfferEntry] = useState(null)
   const [keyOfferForm, setKeyOfferForm] = useState({ price: '', url: '' })
@@ -148,11 +152,7 @@ export default function CasualFridayManage() {
     setError('')
     setNotice('')
     try {
-      const result = await casualFridayApi.cancelEvent(
-        event.id,
-        event.version,
-        cancellationReason
-      )
+      const result = await casualFridayApi.cancelEvent(event.id, event.version, cancellationReason)
       setEvent(result.event)
       setCancelling(false)
       setCancellationReason('')
@@ -167,13 +167,16 @@ export default function CasualFridayManage() {
       !window.confirm(
         `Restart Casual Friday with ${enabledCandidates.length} currently enabled games? Existing RSVPs, votes, and playlist entries will be permanently deleted, then voting will reopen.`
       )
-    ) return
+    )
+      return
     setError('')
     setNotice('')
     try {
       const result = await casualFridayApi.restartEvent(event.id, event.version)
       setEvent(result.event)
-      setNotice('The previous responses and playlist were cleared. RSVPs and voting are open again.')
+      setNotice(
+        'The previous responses and playlist were cleared. RSVPs and voting are open again.'
+      )
       await reload()
     } catch (err) {
       setError(requestMessage(err))
@@ -219,7 +222,8 @@ export default function CasualFridayManage() {
       !window.confirm(
         `Start Casual Friday with ${enabledCandidates.length} locked voting candidates? RSVPs and voting will open immediately.`
       )
-    ) return
+    )
+      return
     setError('')
     try {
       const result = await casualFridayApi.startEvent()
@@ -235,7 +239,8 @@ export default function CasualFridayManage() {
       !window.confirm(
         'Create the playlist draft now? This will end RSVPs and voting immediately, and members will no longer be able to change their responses.'
       )
-    ) return
+    )
+      return
     setError('')
     try {
       const result = await casualFridayApi.createDraft(event.id, event.version, event.open)
@@ -266,7 +271,9 @@ export default function CasualFridayManage() {
     setError('')
     try {
       await casualFridayApi.setVotingEnabled(item.id, enabled)
-      setNotice(`${item.displayTitle} ${enabled ? 'will be' : 'will not be'} available in the next voting pool.`)
+      setNotice(
+        `${item.displayTitle} ${enabled ? 'will be' : 'will not be'} available in the next voting pool.`
+      )
       await reload()
     } catch (err) {
       setError(requestMessage(err))
@@ -281,10 +288,59 @@ export default function CasualFridayManage() {
         playlistRef.current.version
       )
       replacePlaylist(result.playlist)
-      setNotice(`${entry.rotation.displayTitle || entry.game.title} was removed from the draft.`)
+      const title = entry.movie?.title || entry.rotation?.displayTitle || entry.game?.title
+      setNotice(`${title} was removed from the draft.`)
     } catch (err) {
       setError(requestMessage(err))
       await reload()
+    }
+  }
+  const addMovie = async (movie) => {
+    setSavingMovie(true)
+    setError('')
+    setNotice('')
+    try {
+      const result = await casualFridayApi.addMovieToPlaylist(movie.tmdbId)
+      replacePlaylist(result.playlist)
+      setMovieSearchOpen(false)
+      setNotice(`${result.playlist.entries.at(-1).movie.title} was added to the playlist.`)
+    } catch (err) {
+      setError(requestMessage(err))
+    } finally {
+      setSavingMovie(false)
+    }
+  }
+  const openMovieEdit = (entry) => {
+    setMovieEdit({
+      entryId: entry.id,
+      title: entry.movie.title,
+      overview: entry.movie.overview || '',
+      posterUrl: entry.movie.posterUrl || '',
+      rating: entry.movie.rating ?? '',
+      runtimeMinutes: entry.movie.runtimeMinutes ?? ''
+    })
+  }
+  const saveMovieEdit = async () => {
+    setSavingMovie(true)
+    setError('')
+    try {
+      const current = playlistRef.current
+      const result = await casualFridayApi.updatePlaylistMovie(current.id, movieEdit.entryId, {
+        version: current.version,
+        title: movieEdit.title,
+        overview: movieEdit.overview,
+        posterUrl: movieEdit.posterUrl || null,
+        rating: movieEdit.rating === '' ? null : Number(movieEdit.rating),
+        runtimeMinutes: movieEdit.runtimeMinutes === '' ? null : Number(movieEdit.runtimeMinutes)
+      })
+      replacePlaylist(result.playlist)
+      setNotice(`${movieEdit.title} was updated.`)
+      setMovieEdit(null)
+    } catch (err) {
+      setError(requestMessage(err))
+      await reload()
+    } finally {
+      setSavingMovie(false)
     }
   }
   const openKeyOffer = (entry) => {
@@ -467,7 +523,7 @@ export default function CasualFridayManage() {
     const current = playlistRef.current
     if (
       !window.confirm(
-        `Publish this ${current.entries.length}-game Casual Friday playlist? It will remain editable until Saturday at 06:00 Europe/Rome.`
+        `Publish this ${current.entries.length}-item Casual Friday playlist? It will remain editable until Saturday at 06:00 Europe/Rome.`
       )
     )
       return
@@ -549,14 +605,26 @@ export default function CasualFridayManage() {
         onRemove={removeEntry}
         onInfo={setInfoEntry}
         onKeyOffer={openKeyOffer}
+        onEditMovie={openMovieEdit}
+        onAddMovie={() => setMovieSearchOpen(true)}
         onRestore={event ? null : requestRestore}
         onCancel={event ? null : () => setCancelling(true)}
         onPublish={publishPlaylist}
+      />
+      <MovieSearchDialog
+        open={movieSearchOpen}
+        saving={savingMovie}
+        onClose={() => setMovieSearchOpen(false)}
+        onSelect={addMovie}
       />
       <ManageDialogs
         edit={edit}
         onEditChange={setEdit}
         onSaveEdit={saveRotation}
+        movieEdit={movieEdit}
+        onMovieEditChange={setMovieEdit}
+        onSaveMovieEdit={saveMovieEdit}
+        savingMovie={savingMovie}
         infoEntry={infoEntry}
         onCloseInfo={() => setInfoEntry(null)}
         keyOfferEntry={keyOfferEntry}
