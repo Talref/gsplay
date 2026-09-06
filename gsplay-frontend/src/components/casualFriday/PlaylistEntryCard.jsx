@@ -43,7 +43,7 @@ export default function PlaylistEntryCard({
   onEditMovie
 }) {
   const movie = entry.type === 'movie' ? entry.movie : null
-  const title = movie?.title || entry.rotation?.displayTitle || entry.game?.title
+  const title = movie ? `${movie.title} - Film` : entry.rotation?.displayTitle || entry.game?.title
   const offer = entry.itad?.status === 'verified' ? entry.itad.offer : null
   const acquisitionUrl = entry.rotation?.acquisitionUrl
   const canAcquireDirectly =

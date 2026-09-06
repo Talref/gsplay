@@ -117,7 +117,7 @@ function GameCard({ entry }) {
             />
           </Box>
           <Stack spacing={1.25} sx={{ minWidth: 0, overflow: 'hidden' }}>
-            <Typography variant="h5">{movie.title}</Typography>
+            <Typography variant="h5">{movie.title} - Film</Typography>
             <Stack direction="row" flexWrap="wrap" gap={0.75}>
               {movie.runtimeMinutes && <Chip size="small" label={`${movie.runtimeMinutes} min`} />}
               {Number.isFinite(movie.rating) && (
@@ -137,6 +137,10 @@ function GameCard({ entry }) {
             </Stack>
             <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>
               {movie.overview || 'La trama s’è persa pe’ strada, ma er film sta qua.'}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Le informazioni sul film sono offerte dall'API di TMDB. Questo sito non è supportato
+              nè verificato da TMDB
             </Typography>
           </Stack>
         </CardContent>

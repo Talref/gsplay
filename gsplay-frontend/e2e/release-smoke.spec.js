@@ -536,7 +536,9 @@ test('Casual Friday tools show responsive reorderable cards and cached ITAD offe
   await movieSearch.getByLabel('Movie title').fill('La cosa')
   await movieSearch.getByRole('button', { name: 'Search TMDB' }).click()
   await movieSearch.getByRole('button', { name: /La cosa.*1982/ }).click()
-  await expect(page.getByRole('article').filter({ hasText: 'La cosa' })).toContainText('109 min')
+  await expect(page.getByRole('article').filter({ hasText: 'La cosa - Film' })).toContainText(
+    '109 min'
+  )
   await page.route('**/api/v2/casual-friday/tools/playlist/*/entries/*/movie', async (route) => {
     const { version: _version, ...edits } = route.request().postDataJSON()
     await route.fulfill({
@@ -553,12 +555,14 @@ test('Casual Friday tools show responsive reorderable cards and cached ITAD offe
   const movieEdit = page.getByRole('dialog', { name: 'Edit movie' })
   await movieEdit.getByLabel('Description').fill('Descrizione estesa dal console.')
   await movieEdit.getByRole('button', { name: 'Save movie' }).click()
-  await expect(page.getByRole('article').filter({ hasText: 'La cosa' })).toContainText(
+  await expect(page.getByRole('article').filter({ hasText: 'La cosa - Film' })).toContainText(
     'Descrizione estesa dal console.'
   )
   await expect(
-    page.getByText('This product uses the TMDB API but is not endorsed or certified by TMDB.')
-  ).toBeVisible()
+    page.getByText(
+      "Le informazioni sul film sono offerte dall'API di TMDB. Questo sito non è supportato nè verificato da TMDB"
+    )
+  ).toHaveCount(0)
   await expectNoHorizontalOverflow(page)
 })
 
@@ -748,6 +752,20 @@ test('Casual Friday member page shows the running lineup and its inactive placeh
                       voucher: 'DAJE10'
                     }
                   }
+                },
+                {
+                  id: 'movie',
+                  type: 'movie',
+                  position: 4,
+                  movie: {
+                    tmdbId: 1091,
+                    title: 'La cosa',
+                    overview: 'Una base antartica e parecchi motivi per non fidarsi dei colleghi.',
+                    posterUrl: null,
+                    rating: 8.2,
+                    runtimeMinutes: 109,
+                    tmdbUrl: 'https://www.themoviedb.org/movie/1091'
+                  }
                 }
               ]
             }
@@ -766,10 +784,20 @@ test('Casual Friday member page shows the running lineup and its inactive placeh
     page.getByRole('article').filter({ hasText: 'Già Comprato' }).getByRole('link')
   ).toHaveCount(0)
   await expect(page.getByText('Come s’entra:', { exact: true }).first()).toBeVisible()
+  const movieCard = page.getByRole('article').filter({ hasText: 'La cosa - Film' })
+  await expect(movieCard).toContainText('TMDB 8.2/10')
+  await expect(movieCard).toContainText(
+    "Le informazioni sul film sono offerte dall'API di TMDB. Questo sito non è supportato nè verificato da TMDB"
+  )
   await expectNoHorizontalOverflow(page)
   running = false
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Per mo’ nun se gioca.' })).toBeVisible()
+  await expect(
+    page.getByText(
+      "Le informazioni sul film sono offerte dall'API di TMDB. Questo sito non è supportato nè verificato da TMDB"
+    )
+  ).toHaveCount(0)
 })
 
 test('Casual Friday members can RSVP and select at most five locked candidates', async ({
