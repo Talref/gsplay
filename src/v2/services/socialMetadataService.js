@@ -90,27 +90,19 @@ function votingDescription(event) {
 }
 
 function playlistEntryTitle(entry) {
+  if (entry.type === 'movie') return entry.movie?.title || null;
   return entry.snapshots?.rotation?.displayTitle || entry.snapshots?.game?.title || null;
 }
 
 function playlistDescription(entries) {
-  const titles = entries.map(playlistEntryTitle).filter(Boolean);
-  if (!titles.length) return 'La playlist è pubblicata. Entra su GSPlay pe’ vede’ tutto er programma.';
-  const prefix = 'Stasera: ';
-  const suffix = '.';
-  const selected = [];
-  for (const title of titles) {
-    const remaining = titles.length - selected.length - 1;
-    const candidate = [...selected, title].join(' • ');
-    const remainder = remaining > 0 ? ` • + altri ${remaining}` : '';
-    if (`${prefix}${candidate}${remainder}${suffix}`.length > DESCRIPTION_LIMIT) break;
-    selected.push(title);
-  }
-  if (!selected.length) {
-    return `Playlist pubblicata: ${titles.length} ${titles.length === 1 ? 'gioco' : 'giochi'} in programma. Entra su GSPlay pe’ vede’ tutto.`;
-  }
-  const remaining = titles.length - selected.length;
-  return `${prefix}${selected.join(' • ')}${remaining ? ` • + altri ${remaining}` : ''}${suffix}`;
+  const lines = entries
+    .map((entry) => {
+      const title = playlistEntryTitle(entry);
+      if (!title) return null;
+      return `${entry.type === 'movie' ? '🎬' : '🎮'} ${title}`;
+    })
+    .filter(Boolean);
+  return `Questo Casual Friday:\n\n${lines.join('\n')}\n\nUlteriori informazioni su GSPlay.`;
 }
 
 function entryArtwork(entry) {
@@ -154,7 +146,7 @@ async function casualFridayMetadata(now = new Date()) {
   if (!playlist) return null;
   const entries = await CasualFridayPlaylistEntry.find({ playlistId: playlist._id })
     .sort({ position: 1 })
-    .select('position snapshots')
+    .select('position type snapshots movie')
     .lean();
   const artwork = entries.map(entryArtwork).find(Boolean);
   return {
