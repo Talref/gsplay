@@ -41,6 +41,16 @@ async function bootstrap() {
     (model) => model.collection.name === 'casual_friday_rotation_games_v2'
   ).collection;
   await rotationCollection.dropIndex('canonicalGameId_1').catch(ignoreMissingIndex);
+  const playlistEntryCollection = models.find(
+    (model) => model.collection.name === 'casual_friday_playlist_entries_v2'
+  ).collection;
+  await playlistEntryCollection.updateMany(
+    { type: { $exists: false } },
+    { $set: { type: 'game' } }
+  );
+  await playlistEntryCollection
+    .dropIndex('playlistId_1_rotationGameId_1')
+    .catch(ignoreMissingIndex);
   const retroCollection = models.find(
     (model) => model.collection.name === 'retro_challenges_v2'
   ).collection;

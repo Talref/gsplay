@@ -32,11 +32,7 @@ const memberLinks = [
   ['Libreria', '/library', <GamesOutlinedIcon key="library" color="primary" />],
   ['Confronta', '/compare', <CompareArrowsOutlinedIcon key="compare" color="primary" />],
   ['Catalogo', '/catalogue', <TravelExploreOutlinedIcon key="catalogue" color="primary" />],
-  [
-    'Most Wanted',
-    '/most-wanted',
-    <FavoriteBorderRoundedIcon key="most-wanted" color="primary" />
-  ],
+  ['Most Wanted', '/most-wanted', <FavoriteBorderRoundedIcon key="most-wanted" color="primary" />],
   [
     'Casual Friday',
     '/casual-friday',

@@ -83,6 +83,70 @@ function KeyAccess({ entry }) {
 }
 
 function GameCard({ entry }) {
+  if (entry.type === 'movie') {
+    const movie = entry.movie
+    return (
+      <Card component="article" sx={{ overflow: 'hidden', bgcolor: 'rgba(var(--gs-bg-rgb), .78)' }}>
+        <CardContent
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '88px minmax(0,1fr)', sm: '132px minmax(0,1fr)' },
+            gap: { xs: 1.5, sm: 2.5 },
+            p: { xs: 1.5, sm: 2.5 },
+            '&:last-child': { pb: { xs: 1.5, sm: 2.5 } }
+          }}
+        >
+          <Box sx={{ position: 'relative' }}>
+            <Box
+              component="img"
+              src={movie.posterUrl || '/placeholder-game.jpg'}
+              alt={`Locandina di ${movie.title}`}
+              sx={{
+                display: 'block',
+                width: '100%',
+                aspectRatio: '2 / 3',
+                objectFit: 'cover',
+                borderRadius: 1.5
+              }}
+            />
+            <Chip
+              size="small"
+              color="primary"
+              label={`#${entry.position}`}
+              sx={{ position: 'absolute', top: 6, left: 6, fontWeight: 800, boxShadow: 2 }}
+            />
+          </Box>
+          <Stack spacing={1.25} sx={{ minWidth: 0, overflow: 'hidden' }}>
+            <Typography variant="h5">{movie.title} - Film</Typography>
+            <Stack direction="row" flexWrap="wrap" gap={0.75}>
+              {movie.runtimeMinutes && <Chip size="small" label={`${movie.runtimeMinutes} min`} />}
+              {Number.isFinite(movie.rating) && (
+                <Chip size="small" variant="outlined" label={`TMDB ${movie.rating}/10`} />
+              )}
+              <Chip
+                component="a"
+                href={movie.tmdbUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                clickable
+                size="small"
+                color="primary"
+                variant="outlined"
+                label="TMDB"
+              />
+            </Stack>
+            <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>
+              {movie.overview || 'La trama s’è persa pe’ strada, ma er film sta qua.'}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Le informazioni sul film sono offerte dall'API di TMDB. Questo sito non è supportato
+              nè verificato da TMDB
+            </Typography>
+          </Stack>
+        </CardContent>
+      </Card>
+    )
+  }
   const rotation = entry.rotation
   const title = rotation.displayTitle || entry.game.title
   const directUrl = entry.free ? rotation.acquisitionUrl : null
@@ -250,7 +314,8 @@ export default function CasualFriday() {
       )}
       {!current.loading && !current.error && !playlist && event?.status === 'cancelled' && (
         <Alert severity="warning">
-          Er console ha annullato i giochi de venerdì: {event.cancellationReason || 'gli auspici erano contrari.'}
+          Er console ha annullato i giochi de venerdì:{' '}
+          {event.cancellationReason || 'gli auspici erano contrari.'}
         </Alert>
       )}
       {!current.loading && !current.error && !playlist && event?.status === 'completed' && (
@@ -266,7 +331,7 @@ export default function CasualFriday() {
               In ordine de apparizione, salvo ammutinamenti, crash e gente che deve aggiornà
               Windows.
             </Typography>
-            {playlist.entries.some((entry) => entry.keyOffer) && (
+            {playlist.entries.some((entry) => entry.type !== 'movie' && entry.keyOffer) && (
               <Typography
                 variant="caption"
                 color="text.secondary"

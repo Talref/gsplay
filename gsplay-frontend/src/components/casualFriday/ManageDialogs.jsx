@@ -16,6 +16,10 @@ export default function ManageDialogs({
   edit,
   onEditChange,
   onSaveEdit,
+  movieEdit,
+  onMovieEditChange,
+  onSaveMovieEdit,
+  savingMovie,
   infoEntry,
   onCloseInfo,
   keyOfferEntry,
@@ -43,6 +47,83 @@ export default function ManageDialogs({
           <Button onClick={() => onEditChange(null)}>Cancel</Button>
           <Button variant="contained" onClick={onSaveEdit}>
             Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(movieEdit)}
+        onClose={() => !savingMovie && onMovieEditChange(null)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Edit movie</DialogTitle>
+        <DialogContent>
+          {movieEdit && (
+            <Stack spacing={2} sx={{ pt: 1 }}>
+              <TextField
+                required
+                label="Title"
+                value={movieEdit.title}
+                onChange={(event) => onMovieEditChange({ ...movieEdit, title: event.target.value })}
+                slotProps={{ htmlInput: { maxLength: 300 } }}
+              />
+              <TextField
+                multiline
+                minRows={4}
+                label="Description"
+                value={movieEdit.overview}
+                onChange={(event) =>
+                  onMovieEditChange({ ...movieEdit, overview: event.target.value })
+                }
+                slotProps={{ htmlInput: { maxLength: 4000 } }}
+              />
+              <TextField
+                type="url"
+                label="Poster URL"
+                value={movieEdit.posterUrl}
+                onChange={(event) =>
+                  onMovieEditChange({ ...movieEdit, posterUrl: event.target.value })
+                }
+              />
+              <Stack direction={{ xs: 'column', sm: 'row' }} gap={2}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="TMDB rating"
+                  value={movieEdit.rating}
+                  onChange={(event) =>
+                    onMovieEditChange({ ...movieEdit, rating: event.target.value })
+                  }
+                  slotProps={{ htmlInput: { min: 0, max: 10, step: 0.1 } }}
+                />
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Runtime (minutes)"
+                  value={movieEdit.runtimeMinutes}
+                  onChange={(event) =>
+                    onMovieEditChange({ ...movieEdit, runtimeMinutes: event.target.value })
+                  }
+                  slotProps={{ htmlInput: { min: 1, max: 1440, step: 1 } }}
+                />
+              </Stack>
+              <Typography variant="body2" color="text.secondary">
+                The TMDB identity and link stay fixed for this playlist entry.
+              </Typography>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={savingMovie} onClick={() => onMovieEditChange(null)}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            disabled={savingMovie || !movieEdit?.title.trim()}
+            onClick={onSaveMovieEdit}
+          >
+            Save movie
           </Button>
         </DialogActions>
       </Dialog>
@@ -139,9 +220,7 @@ export default function ManageDialogs({
         <DialogTitle>Cancel this week’s event?</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            <Alert severity="warning">
-              {cancellationWarning}
-            </Alert>
+            <Alert severity="warning">{cancellationWarning}</Alert>
             <TextField
               autoFocus
               required

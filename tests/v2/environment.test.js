@@ -7,6 +7,7 @@ describe('v2 environment configuration', () => {
     expect(config.port).toBe(3000);
     expect(config.auth.cookieSecure).toBe(false);
     expect(config.itad.priceRefreshMs).toBe(3600000);
+    expect(config.providers.tmdbAccessToken).toBeNull();
     expect(config.mostWanted).toEqual({ refreshMs: 86400000, staleAfterMs: 259200000 });
     expect(config.guide).toMatchObject({ imageMaxBytes: 5 * 1024 * 1024 });
     expect(config.guide.uploadDir).toContain('gsplay-guide-images');
@@ -124,6 +125,14 @@ describe('v2 environment configuration', () => {
     expect(config.providers).toMatchObject({
       igdbClientId: 'twitch-client',
       igdbClientSecret: 'twitch-secret'
+    });
+  });
+
+  test('keeps the TMDB read token server-side in provider configuration', () => {
+    expect(
+      loadEnvironment({ ...valid, TMDB_READ_ACCESS_TOKEN: 'tmdb-token' }).providers
+    ).toMatchObject({
+      tmdbAccessToken: 'tmdb-token'
     });
   });
 

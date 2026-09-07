@@ -2,6 +2,7 @@ import ArrowDownwardRoundedIcon from '@mui/icons-material/ArrowDownwardRounded'
 import ArrowUpwardRoundedIcon from '@mui/icons-material/ArrowUpwardRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import DragIndicatorRoundedIcon from '@mui/icons-material/DragIndicatorRounded'
+import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import Groups2RoundedIcon from '@mui/icons-material/Groups2Rounded'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded'
@@ -38,13 +39,15 @@ export default function PlaylistEntryCard({
   onMove,
   onRemove,
   onInfo,
-  onKeyOffer
+  onKeyOffer,
+  onEditMovie
 }) {
-  const title = entry.rotation.displayTitle || entry.game.title
+  const movie = entry.type === 'movie' ? entry.movie : null
+  const title = movie ? `${movie.title} - Film` : entry.rotation?.displayTitle || entry.game?.title
   const offer = entry.itad?.status === 'verified' ? entry.itad.offer : null
-  const acquisitionUrl = entry.rotation.acquisitionUrl
+  const acquisitionUrl = entry.rotation?.acquisitionUrl
   const canAcquireDirectly =
-    ['free', 'web', 'external_store'].includes(entry.rotation.acquisitionKind) && acquisitionUrl
+    ['free', 'web', 'external_store'].includes(entry.rotation?.acquisitionKind) && acquisitionUrl
 
   return (
     <Card
@@ -78,7 +81,12 @@ export default function PlaylistEntryCard({
         <Box sx={{ position: 'relative', minWidth: 0 }}>
           <Box
             component="img"
-            src={entry.rotation.artwork || entry.game.artwork || '/placeholder-game.jpg'}
+            src={
+              movie?.posterUrl ||
+              entry.rotation?.artwork ||
+              entry.game?.artwork ||
+              '/placeholder-game.jpg'
+            }
             alt=""
             sx={{
               display: 'block',
@@ -127,29 +135,69 @@ export default function PlaylistEntryCard({
             </Typography>
           </Stack>
           <Stack direction="row" flexWrap="wrap" gap={0.75}>
-            <Chip
-              size="small"
-              icon={<Groups2RoundedIcon />}
-              label={
-                entry.rotation.playerCountLabel ||
-                `${entry.rotation.playerCountMin}–${entry.rotation.playerCountMax} players`
-              }
-            />
-            <Chip
-              size="small"
-              variant="outlined"
-              icon={<SportsEsportsRoundedIcon />}
-              label={modeLabel(entry.rotation.hostMode)}
-            />
-            {entry.free && <Chip size="small" color="success" label="Free" />}
-            <OfferChip offer={offer} />
-            <KeyOfferChip offer={entry.keyOffer} />
+            {movie ? (
+              <>
+                {movie.runtimeMinutes && (
+                  <Chip size="small" label={`${movie.runtimeMinutes} min`} />
+                )}
+                {Number.isFinite(movie.rating) && (
+                  <Chip size="small" variant="outlined" label={`TMDB ${movie.rating}/10`} />
+                )}
+                <Chip
+                  component="a"
+                  href={movie.tmdbUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  clickable
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                  label="TMDB"
+                />
+              </>
+            ) : (
+              <>
+                <Chip
+                  size="small"
+                  icon={<Groups2RoundedIcon />}
+                  label={
+                    entry.rotation.playerCountLabel ||
+                    `${entry.rotation.playerCountMin}–${entry.rotation.playerCountMax} players`
+                  }
+                />
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  icon={<SportsEsportsRoundedIcon />}
+                  label={modeLabel(entry.rotation.hostMode)}
+                />
+                {entry.free && <Chip size="small" color="success" label="Free" />}
+                <OfferChip offer={offer} />
+                <KeyOfferChip offer={entry.keyOffer} />
+              </>
+            )}
           </Stack>
+          {movie && (
+            <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>
+              {movie.overview || 'No description available.'}
+            </Typography>
+          )}
           <Stack direction="row" flexWrap="wrap" gap={0.5}>
-            <Button size="small" startIcon={<InfoOutlinedIcon />} onClick={() => onInfo(entry)}>
-              Player info
-            </Button>
-            {editable && (
+            {!movie && (
+              <Button size="small" startIcon={<InfoOutlinedIcon />} onClick={() => onInfo(entry)}>
+                Player info
+              </Button>
+            )}
+            {editable && movie && (
+              <Button
+                size="small"
+                startIcon={<EditRoundedIcon />}
+                onClick={() => onEditMovie(entry)}
+              >
+                Edit movie
+              </Button>
+            )}
+            {editable && !movie && (
               <Button
                 size="small"
                 startIcon={<VpnKeyRoundedIcon />}
@@ -160,7 +208,7 @@ export default function PlaylistEntryCard({
               </Button>
             )}
           </Stack>
-          {!offer && canAcquireDirectly && (
+          {!movie && !offer && canAcquireDirectly && (
             <Button
               component="a"
               href={acquisitionUrl}
@@ -174,7 +222,7 @@ export default function PlaylistEntryCard({
               Get / play game
             </Button>
           )}
-          {entry.itad?.offerError && (
+          {!movie && entry.itad?.offerError && (
             <Alert severity="warning" sx={{ py: 0 }}>
               Price lookup failed: {entry.itad.offerError}
             </Alert>

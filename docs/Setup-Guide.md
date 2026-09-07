@@ -10,7 +10,7 @@ cd gsplay
 cp .env.example .env
 ```
 
-Set two **different** high-entropy values for `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET`. Configure provider credentials only if you need Steam sync or IGDB enrichment. Never commit `.env`.
+Set two **different** high-entropy values for `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET`. Configure provider credentials only for the integrations you use, including `TMDB_READ_ACCESS_TOKEN` for Casual Friday movie search. Never commit `.env`.
 
 Install and run the services:
 

@@ -204,6 +204,7 @@ function loadEnvironment(environment = process.env) {
         environment.TW_CLIENTSECRET ||
         null,
       itadApiKey: environment.ITAD_API_KEY || null,
+      tmdbAccessToken: environment.TMDB_READ_ACCESS_TOKEN || null,
       retroAchievementsUsername: environment.RETROACHIEVEMENT_USERNAME || null,
       retroAchievementsApiKey: environment.RETROACHIEVEMENT_API_KEY || null
     }

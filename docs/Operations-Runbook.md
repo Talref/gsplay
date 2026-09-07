@@ -40,6 +40,14 @@ SERVER_STATUS_STALE_AFTER_MS=180000
 
 Provider credentials are optional and must remain only in this protected file.
 
+`TMDB_READ_ACCESS_TOKEN` enables movie search and insertion in Casual Friday Tools. Existing
+playlists, game management, and stored movie snapshots continue to work if TMDB is unavailable.
+Set it in the protected environment file using the API Read Access Token from your TMDB account.
+
+Casual Friday movie support reuses `casual_friday_playlist_entries_v2`. On deployment, the standard
+bootstrap marks legacy entries as games and replaces their uniqueness index with a compatible
+partial index; it creates no new collection and removes no playlist history.
+
 `SERVER_STATUS_STALE_AFTER_MS` controls when the Servers page warns that its latest snapshot is no
 longer current. The default is three minutes, comfortably above the 30-second n8n update cycle.
 

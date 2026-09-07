@@ -1,3 +1,4 @@
+import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import { Box, Button, Card, CardContent, Chip, Stack, Typography } from '@mui/material'
 import PlaylistEntryCard from './PlaylistEntryCard'
 
@@ -21,6 +22,8 @@ export default function PlaylistPanel({
   onRemove,
   onInfo,
   onKeyOffer,
+  onEditMovie,
+  onAddMovie,
   onRestore,
   onCancel,
   onPublish
@@ -56,7 +59,7 @@ export default function PlaylistPanel({
           </Typography>
           <Typography variant="h5">Weekly playlist</Typography>
           <Typography color="text.secondary">
-            This preview contains the same game and acquisition details members will receive.
+            This preview contains the same game and movie details members will receive.
           </Typography>
           <Chip
             size="small"
@@ -79,7 +82,9 @@ export default function PlaylistPanel({
             }}
           >
             <Typography variant="h6">Your draft is empty</Typography>
-            <Typography color="text.secondary">Choose a game from the rotation above.</Typography>
+            <Typography color="text.secondary">
+              Choose a game from the rotation above or add a movie.
+            </Typography>
           </Box>
         )}
         <Stack spacing={1.5}>
@@ -100,6 +105,7 @@ export default function PlaylistPanel({
               onRemove={onRemove}
               onInfo={onInfo}
               onKeyOffer={onKeyOffer}
+              onEditMovie={onEditMovie}
             />
           ))}
         </Stack>
@@ -120,9 +126,19 @@ export default function PlaylistPanel({
                     ? 'Saving the new order…'
                     : playlist.entries.length
                       ? 'Drag cards or use the arrow controls to change the order.'
-                      : 'Add at least one game to publish.'}
+                      : 'Add at least one item to publish.'}
             </Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} gap={1}>
+              {playlist.editable && (
+                <Button
+                  variant="outlined"
+                  startIcon={<AddRoundedIcon />}
+                  disabled={savingOrder}
+                  onClick={onAddMovie}
+                >
+                  Add movie
+                </Button>
+              )}
               {playlist.status === 'cancelled' && onRestore && (
                 <Button variant="outlined" onClick={onRestore}>
                   Restore as draft
