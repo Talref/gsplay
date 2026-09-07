@@ -124,14 +124,17 @@ describe('Casual Friday lifecycle social previews', () => {
     ]);
     const response = await preview();
 
-    expect(response.text).toContain('content="Stasera: First Game • Second Game."');
+    expect(response.text).toContain(
+      'content="Questo Casual Friday:\n\n🎮 First Game\n🎮 Second Game\n\nUlteriori informazioni su GSPlay."'
+    );
+    expect(response.text).not.toContain('Stasera:');
     expect(response.text).toContain(
       'property="og:image" content="https://images.example/first.jpg"'
     );
     expect(response.text).toContain('name="twitter:card" content="summary_large_image"');
   });
 
-  test('summarizes long playlists without cutting game titles', async () => {
+  test('shows mixed game and movie entries in their published order', async () => {
     const playlist = await CasualFridayPlaylist.create({
       weekKey: '2099-08-14',
       status: 'published',
@@ -141,25 +144,51 @@ describe('Casual Friday lifecycle social previews', () => {
       updatedBy: actorId
     });
     await createEvent({ status: 'published', playlistId: playlist._id });
-    await CasualFridayPlaylistEntry.create(
-      [...Array(12)].map((_, index) => ({
+    await CasualFridayPlaylistEntry.create([
+      {
+        playlistId: playlist._id,
+        type: 'movie',
+        position: 2,
+        selectedBy: actorId,
+        movie: {
+          tmdbId: 807,
+          title: 'Seven',
+          overview: '',
+          posterUrl: 'https://image.tmdb.org/t/p/w500/seven.jpg',
+          rating: 8.4,
+          runtimeMinutes: 127,
+          tmdbUrl: 'https://www.themoviedb.org/movie/807'
+        }
+      },
+      {
         playlistId: playlist._id,
         rotationGameId: new mongoose.Types.ObjectId(),
         canonicalGameId: new mongoose.Types.ObjectId(),
-        position: index + 1,
+        position: 3,
         selectedBy: actorId,
         snapshots: {
-          game: { title: `Legionary Adventure Number ${index + 1}` },
-          rotation: { displayTitle: `Legionary Adventure Number ${index + 1}` }
+          game: { title: 'Goose Goose Duck' },
+          rotation: { displayTitle: 'Goose Goose Duck' }
         }
-      }))
-    );
+      },
+      {
+        playlistId: playlist._id,
+        rotationGameId: new mongoose.Types.ObjectId(),
+        canonicalGameId: new mongoose.Types.ObjectId(),
+        position: 1,
+        selectedBy: actorId,
+        snapshots: {
+          game: { title: 'Jackbox Party Pack 9' },
+          rotation: { displayTitle: 'Jackbox Party Pack 9' }
+        }
+      }
+    ]);
     const response = await preview();
     const description = response.text.match(/property="og:description" content="([^"]+)"/)[1];
 
-    expect(description.length).toBeLessThanOrEqual(220);
-    expect(description).toMatch(/\+ altri \d+\.$/);
-    expect(description).not.toContain('…');
+    expect(description).toBe(
+      'Questo Casual Friday:\n\n🎮 Jackbox Party Pack 9\n🎬 Seven\n🎮 Goose Goose Duck\n\nUlteriori informazioni su GSPlay.'
+    );
   });
 
   test('clearly marks cancelled events and uses generic metadata when none exists', async () => {
