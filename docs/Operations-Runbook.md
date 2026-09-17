@@ -29,6 +29,10 @@ COOKIE_SAME_SITE=lax
 AUTH_RATE_LIMIT_WINDOW_MS=900000
 AUTH_RATE_LIMIT_MAX=20
 ENABLE_WORKER=true
+DB_BACKUP_ENABLED=true
+DB_BACKUP_DIR=/media/backups/gsplay/db
+DB_BACKUP_HOUR=4
+DB_BACKUP_RETENTION_DAYS=30
 GUIDE_UPLOAD_DIR=/var/lib/gsplay/guide
 GUIDE_IMAGE_MAX_BYTES=5242880
 SERVER_STATUS_INTEGRATION_TOKEN=<independent random token, 32+ characters>
@@ -110,6 +114,39 @@ account; GSPlay creates its `guide` subdirectory on the first upload. The path i
 `GUIDE_UPLOAD_DIR` is customized, add the same absolute path to the API unit's `ReadWritePaths` and
 backup commands.
 
+### Scheduled database backups
+
+The worker can create one compressed MongoDB archive per day. Before enabling it, install the
+MongoDB Database Tools so `mongodump` is available to the `gsplay` service, verify that the NAS is
+mounted, and prepare the configured directory:
+
+```bash
+sudo mkdir -p /media/backups/gsplay/db
+sudo chown gsplay:gsplay /media/backups/gsplay/db
+sudo chmod 750 /media/backups/gsplay/db
+sudo -u gsplay test -r /media/backups/gsplay/db
+sudo -u gsplay test -w /media/backups/gsplay/db
+```
+
+Parent directories must also grant the `gsplay` user traversal permission. If that needs an ACL on
+the host, configure it there rather than in the application or deploy script. The supplied worker
+unit allows the standard backup directory through its filesystem sandbox. A custom
+`DB_BACKUP_DIR` also requires a matching `ReadWritePaths` systemd override.
+
+Set `DB_BACKUP_ENABLED=true`, `DB_BACKUP_DIR=/media/backups/gsplay/db`, the desired local
+`DB_BACKUP_HOUR`, and `DB_BACKUP_RETENTION_DAYS` in `/etc/gsplay/v2.env`. Scheduling follows
+Europe/Rome time. A missing directory, unavailable mount, missing `mongodump`, or failed dump is
+logged without stopping the worker. Retention runs only after a new archive succeeds.
+
+For an urgent diagnostic or pre-change backup, invoke the same operation manually. It will not
+overwrite an archive already completed for the current date:
+
+```bash
+sudo -u gsplay bash -c 'set -a; source /etc/gsplay/v2.env; set +a; exec node /srv/gsplay/scripts/backup-db.js'
+```
+
+These scheduled archives contain MongoDB only. Guide uploads remain a separate filesystem backup.
+
 ## Routine deployment
 
 Merge tested work to `master`, then run on the server:
@@ -137,7 +174,8 @@ curl --fail http://127.0.0.1:3000/health/ready
 
 ## Backup and recovery
 
-Before data changes, upgrades that change schemas, or manual MongoDB work:
+The scheduled database backup above is the normal MongoDB protection. For a separate timestamped
+database archive or a matching guide-image backup before unusual manual work:
 
 ```bash
 stamp=$(date +%Y%m%d-%H%M%S)
