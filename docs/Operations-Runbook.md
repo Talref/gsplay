@@ -1,4 +1,6 @@
-# GSPlay operations runbook
+# Giocatori Stanchi stack operations runbook
+
+This runbook operates the current GSPlay API, worker, frontend release, and supporting data services in the Giocatori Stanchi technical stack. The retained `v2` environment, route, collection, and systemd names are compatibility contracts, not source-layout boundaries.
 
 This guide covers the ongoing Arch Linux production setup: checkout at `~/s/gsplay`, runtime at `/srv/gsplay`, Caddy at `gsplay.daje.cc`, systemd services, and MongoDB.
 

@@ -1,8 +1,8 @@
-# GSPlay API Documentation
+# GSPlay API documentation
 
 ## Overview
 
-GSPlay is a comprehensive game library management application that integrates with IGDB (Internet Game Database) to provide detailed game information and user library management.
+The GSPlay API is the HTTP component of the Giocatori Stanchi technical stack. It integrates with IGDB (Internet Game Database) to provide detailed game information and user library management.
 
 ## Base URL
 

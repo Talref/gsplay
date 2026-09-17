@@ -12,10 +12,12 @@ const processes = [
     args: [
       path.join(root, 'node_modules/nodemon/bin/nodemon.js'),
       '--watch',
-      'src/v2',
+      'src/api',
+      '--watch',
+      'src/core',
       '--ext',
       'js',
-      'src/v2/server.js'
+      'src/api/server.js'
     ]
   },
   {
@@ -25,10 +27,12 @@ const processes = [
     args: [
       path.join(root, 'node_modules/nodemon/bin/nodemon.js'),
       '--watch',
-      'src/v2',
+      'src/worker',
+      '--watch',
+      'src/core',
       '--ext',
       'js',
-      'src/v2/worker.js'
+      'src/worker/worker.js'
     ]
   },
   {

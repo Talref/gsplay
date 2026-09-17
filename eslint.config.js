@@ -6,7 +6,7 @@ module.exports = [
     ignores: ['**/node_modules/**', 'gsplay-frontend/**', 'tests/coverage/**']
   },
   {
-    files: ['src/v2/**/*.js', 'scripts/**/*.js', 'tests/**/*.js'],
+    files: ['src/**/*.js', 'scripts/**/*.js', 'tests/**/*.js'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'commonjs',

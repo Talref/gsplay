@@ -1,9 +1,10 @@
-# GSPlay
+# Giocatori Stanchi technical stack
 
-GSPlay is a self-hosted shared PC-game library: members can sync Steam ownership, import supported library exports, discover a canonical catalogue, compare shared games server-side, and maintain catalogue metadata through controlled admin workflows.
+This repository contains the technical stack for the Giocatori Stanchi community. It is intentionally a monorepo for community-owned runtimes, integrations, operational tooling, and shared capabilities. GSPlay, the current self-hosted web application, is a major component rather than the repository boundary.
 
-## What is included
+## Current components
 
+- Express API and durable background worker with a runtime-neutral shared core.
 - Cookie-based access/refresh sessions, role-based admin access, and narrow auth rate limiting.
 - Authoritative `LibraryItem` entitlements, Steam sync, strict CSV/JSON imports, and durable retryable jobs.
 - Server-side library comparison; complete user libraries are never aggregated in the browser.
@@ -22,9 +23,11 @@ npm run bootstrap
 npm run dev
 ```
 
-`npm run dev` starts the v2 API, durable worker, and Vite frontend together. Output is prefixed with `[api]`, `[worker]`, or `[web]`; press `Ctrl+C` once to stop the entire stack cleanly. The API and worker restart when `src/v2` JavaScript changes, while Vite provides frontend HMR. The runner uses the expected `http://localhost:5173`; if Vite reports another port, stop old development stacks before continuing.
+`npm run dev` starts the API, durable worker, and Vite frontend together. Output is prefixed with `[api]`, `[worker]`, or `[web]`; press `Ctrl+C` once to stop the entire stack cleanly. The API watches `src/api` and `src/core`, while the worker watches `src/worker` and `src/core`; Vite provides frontend HMR. The runner uses the expected `http://localhost:5173`; if Vite reports another port, stop old development stacks before continuing.
 
-The frontend opens on `http://localhost:5173` and proxies `/api` to the v2 API at `http://localhost:3000`.
+The frontend opens on `http://localhost:5173` and proxies `/api` to the API at `http://localhost:3000`. Public routes retain the compatible `/api/v2` prefix.
+
+See [Architecture](docs/Architecture.md) for source ownership and dependency rules.
 
 ## Quality checks
 
@@ -37,7 +40,7 @@ npm run build
 npm run test:e2e
 ```
 
-The end-to-end suite runs an isolated in-memory MongoDB, v2 API, and Vite server. It does not access your `.env`, local database, or provider credentials.
+The end-to-end suite runs an isolated in-memory MongoDB, API, and Vite server. It does not access your `.env`, local database, or provider credentials.
 
 ## Production deployment
 
@@ -49,7 +52,7 @@ git pull --ff-only origin master
 ./scripts/deploy.sh
 ```
 
-The deploy script requires a clean checkout synchronized with `origin/master`, runs backend tests plus frontend lint/build, prepares and validates a runtime release, verifies indexes, publishes to `/srv/gsplay`, restarts API/worker, and waits for local liveness/readiness checks.
+The deploy script requires a clean checkout synchronized with `origin/master`, builds the frontend, prepares and validates a runtime release, verifies indexes, publishes to `/srv/gsplay`, restarts API/worker, and waits for local liveness/readiness checks. Tests, lint, and dependency audits are intentionally completed before merge rather than repeated during deployment.
 
 See [Operations Runbook](docs/Operations-Runbook.md) for setup, backup, deployment, rollback, and incident procedures.
 
@@ -68,7 +71,7 @@ See [Operations Runbook](docs/Operations-Runbook.md) for setup, backup, deployme
 | `npm run format:check` | Verify repository formatting without changing files            |
 | `npm run lint`         | Lint backend and frontend JavaScript                           |
 | `./scripts/deploy.sh`  | Build, validate, publish, restart, and health-check production |
-| `npm test`             | Run v2 backend tests                                           |
+| `npm test`             | Run backend tests                                              |
 
 ## Security notes
 

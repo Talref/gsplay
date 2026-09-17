@@ -25,7 +25,7 @@ export default defineConfig({
   })),
   webServer: [
     {
-      command: 'node ../scripts/e2e-v2-server.js',
+      command: 'node ../scripts/e2e-server.js',
       url: 'http://127.0.0.1:3100/health/live',
       reuseExistingServer: false,
       timeout: 60_000

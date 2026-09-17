@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 require('dotenv').config();
-const { loadEnvironment } = require('../src/v2/config/environment');
-const { runDatabaseBackup } = require('../src/v2/services/databaseBackupService');
+const { loadEnvironment } = require('../src/core/config/environment');
+const { runDatabaseBackup } = require('../src/core/services/databaseBackupService');
 
 async function main() {
   const config = loadEnvironment();
