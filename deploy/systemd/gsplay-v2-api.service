@@ -1,5 +1,5 @@
 [Unit]
-Description=GSPlay v2 API
+Description=Giocatori Stanchi API
 After=network-online.target mongod.service
 Wants=network-online.target
 
@@ -9,7 +9,7 @@ User=gsplay
 Group=gsplay
 WorkingDirectory=/srv/gsplay
 EnvironmentFile=/etc/gsplay/v2.env
-ExecStart=/usr/bin/node /srv/gsplay/src/v2/server.js
+ExecStart=/usr/bin/node /srv/gsplay/src/api/server.js
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true

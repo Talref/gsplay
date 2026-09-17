@@ -1,0 +1,527 @@
+const request = require('supertest');
+const { loadEnvironment } = require('../../src/core/config/environment');
+const { createApp } = require('../../src/api/app');
+const User = require('../../src/core/models/User');
+const CanonicalGame = require('../../src/core/models/CanonicalGame');
+const LibraryItem = require('../../src/core/models/LibraryItem');
+const { claimNextJob } = require('../../src/core/jobs/jobService');
+const { createJobHandlers } = require('../../src/worker/jobs/handlers');
+
+const config = loadEnvironment({
+  NODE_ENV: 'test',
+  MONGO_URI: 'mongodb://127.0.0.1:27017/gsplay_test',
+  JWT_ACCESS_SECRET: 'a'.repeat(32),
+  JWT_REFRESH_SECRET: 'b'.repeat(32)
+});
+const app = createApp(config);
+const password = 'correct-horse-battery-staple';
+
+async function createMember(username) {
+  return User.create({
+    usernameNormalized: User.normalizeUsername(username),
+    usernameDisplay: username,
+    passwordHash: await User.hashPassword(password)
+  });
+}
+async function authenticate(username) {
+  const agent = request.agent(app);
+  await agent.post('/api/v2/auth/login').send({ username, password }).expect(200);
+  return agent;
+}
+
+describe('authoritative library APIs', () => {
+  beforeEach(async () => global.testUtils.cleanupDatabase());
+
+  test('returns only the authenticated user active library, grouped by canonical game and provider set', async () => {
+    const member = await createMember('Library User');
+    const other = await createMember('Other User');
+    const game = await CanonicalGame.create({
+      canonicalTitle: 'Shared Game',
+      normalizedTitle: 'shared game'
+    });
+    await LibraryItem.create([
+      {
+        userId: member._id,
+        provider: 'steam',
+        providerGameId: '1',
+        providerTitle: 'Shared Game',
+        normalizedTitle: 'shared game',
+        canonicalGameId: game._id,
+        matchStatus: 'auto_matched',
+        source: 'api'
+      },
+      {
+        userId: member._id,
+        provider: 'gog',
+        providerGameId: '2',
+        providerTitle: 'Shared Game',
+        normalizedTitle: 'shared game',
+        canonicalGameId: game._id,
+        matchStatus: 'auto_matched',
+        source: 'api'
+      },
+      {
+        userId: other._id,
+        provider: 'steam',
+        providerGameId: '1',
+        providerTitle: 'Shared Game',
+        normalizedTitle: 'shared game',
+        canonicalGameId: game._id,
+        matchStatus: 'auto_matched',
+        source: 'api'
+      },
+      {
+        userId: member._id,
+        provider: 'gog',
+        providerGameId: 'gone',
+        providerTitle: 'Removed',
+        normalizedTitle: 'removed',
+        source: 'api',
+        removedAt: new Date()
+      }
+    ]);
+    const response = await (
+      await authenticate('Library User')
+    )
+      .get('/api/v2/me/library')
+      .expect(200);
+    expect(response.body.page.total).toBe(1);
+    expect(response.body.items[0]).toMatchObject({
+      providerTitle: 'Shared Game',
+      canonicalGame: { title: 'Shared Game' },
+      providers: expect.arrayContaining(['steam', 'gog']),
+      entitlementCount: 2
+    });
+  });
+
+  test('lets a user add, remove, and restore a manual catalogue entitlement without touching imported ownership', async () => {
+    const user = await createMember('Manual Owner');
+    const agent = await authenticate('Manual Owner');
+    const game = await CanonicalGame.create({
+      canonicalTitle: 'Manual Quest',
+      normalizedTitle: 'manualquest'
+    });
+    await agent
+      .put(`/api/v2/me/library/games/${game._id}`)
+      .expect(201)
+      .expect(({ body }) =>
+        expect(body).toMatchObject({
+          created: true,
+          ownership: { owned: true, manual: true, providers: ['manual'] }
+        })
+      );
+    expect(
+      await LibraryItem.countDocuments({ userId: user._id, provider: 'manual', removedAt: null })
+    ).toBe(1);
+    await agent
+      .put(`/api/v2/me/library/games/${game._id}`)
+      .expect(200)
+      .expect(({ body }) => expect(body.created).toBe(false));
+    await agent.delete(`/api/v2/me/library/games/${game._id}`).send({}).expect(400);
+    await agent
+      .delete(`/api/v2/me/library/games/${game._id}`)
+      .send({ confirmation: 'REMOVE FROM LIBRARY' })
+      .expect(200)
+      .expect(({ body }) => expect(body.ownership.owned).toBe(false));
+    expect(
+      await LibraryItem.findOne({
+        userId: user._id,
+        provider: 'manual',
+        providerGameId: game._id.toString(),
+        removedAt: { $ne: null }
+      })
+    ).toBeTruthy();
+    await agent
+      .put(`/api/v2/me/library/games/${game._id}`)
+      .expect(200)
+      .expect(({ body }) =>
+        expect(body).toMatchObject({ created: false, ownership: { manual: true } })
+      );
+    await LibraryItem.create({
+      userId: user._id,
+      provider: 'steam',
+      providerGameId: '123',
+      providerTitle: game.canonicalTitle,
+      normalizedTitle: game.normalizedTitle,
+      canonicalGameId: game._id,
+      matchStatus: 'auto_matched',
+      source: 'api'
+    });
+    await agent
+      .delete(`/api/v2/me/library/games/${game._id}`)
+      .send({ confirmation: 'REMOVE FROM LIBRARY' })
+      .expect(200)
+      .expect(({ body }) =>
+        expect(body.ownership).toMatchObject({ owned: true, providers: ['steam'] })
+      );
+    await agent
+      .delete(`/api/v2/me/library/games/${game._id}`)
+      .send({ confirmation: 'REMOVE FROM LIBRARY' })
+      .expect(409);
+  });
+
+  test('links only a strict SteamID64 to the authenticated account', async () => {
+    await createMember('Steam Link User');
+    const agent = await authenticate('Steam Link User');
+    const response = await agent
+      .put('/api/v2/me/providers/steam')
+      .send({ steamId: '76561198000000000' })
+      .expect(200);
+    expect(response.body.steamAccount).toMatchObject({
+      steamId: '76561198000000000',
+      linkedAt: expect.any(String)
+    });
+    await agent.put('/api/v2/me/providers/steam').send({ steamId: 'bad-id' }).expect(400);
+    const user = await User.findOne({ usernameNormalized: 'steam link user' });
+    expect(user.steamAccount.steamId).toBe('76561198000000000');
+  });
+
+  test('offers public comparison choices without exposing roles', async () => {
+    const caller = await createMember('Comparison Caller');
+    const other = await createMember('Comparison Other');
+    const response = await request(app).get('/api/v2/users').expect(200);
+    expect(response.body.users.map((user) => user.id)).toEqual(
+      expect.arrayContaining([caller._id.toString(), other._id.toString()])
+    );
+    expect(response.body.users[0]).not.toHaveProperty('role');
+  });
+
+  test('validates a bounded CSV import and processes it as an upload job', async () => {
+    await createMember('Import User');
+    const agent = await authenticate('Import User');
+    const response = await agent
+      .post('/api/v2/me/imports')
+      .field('provider', 'gog')
+      .attach('file', Buffer.from('providerGameId,providerTitle\ngog-1,Aqua Quest\n'), {
+        filename: 'library.csv',
+        contentType: 'text/csv'
+      })
+      .expect(202);
+    expect(response.body.job.gameCount).toBe(1);
+    const job = await claimNextJob('worker');
+    await expect(createJobHandlers({ providers: {} }).upload(job)).resolves.toMatchObject({
+      counts: { created: 1 }
+    });
+    expect(
+      await LibraryItem.findOne({ provider: 'gog', providerGameId: 'gog-1', source: 'upload' })
+    ).toBeTruthy();
+    await agent
+      .post('/api/v2/me/imports')
+      .field('provider', 'gog')
+      .attach('file', Buffer.from('wrong,header\n1,Aqua\n'), {
+        filename: 'bad.csv',
+        contentType: 'text/csv'
+      })
+      .expect(400);
+  });
+
+  test('requires at least two distinct comparison members', async () => {
+    const caller = await createMember('Logged In Caller');
+    const selected = await createMember('Selected Library');
+    const callerOnly = await CanonicalGame.create({
+      canonicalTitle: 'Caller Only',
+      normalizedTitle: 'caller only'
+    });
+    const selectedOnly = await CanonicalGame.create({
+      canonicalTitle: 'Selected Only',
+      normalizedTitle: 'selected only'
+    });
+    await LibraryItem.create([
+      {
+        userId: caller._id,
+        provider: 'steam',
+        providerGameId: 'caller',
+        providerTitle: 'Caller Only',
+        normalizedTitle: 'caller only',
+        canonicalGameId: callerOnly._id,
+        matchStatus: 'auto_matched',
+        source: 'api'
+      },
+      {
+        userId: selected._id,
+        provider: 'steam',
+        providerGameId: 'selected',
+        providerTitle: 'Selected Only',
+        normalizedTitle: 'selected only',
+        canonicalGameId: selectedOnly._id,
+        matchStatus: 'auto_matched',
+        source: 'api'
+      }
+    ]);
+    await (
+      await authenticate('Logged In Caller')
+    )
+      .post('/api/v2/library-comparisons')
+      .send({ userIds: [selected._id.toString()] })
+      .expect(400);
+    await request(app)
+      .post('/api/v2/library-comparisons')
+      .send({ userIds: [selected._id.toString(), selected._id.toString()] })
+      .expect(400);
+  });
+
+  test('compares canonical ownership server-side for exactly the selected members', async () => {
+    const first = await createMember('First User');
+    const second = await createMember('Second User');
+    const third = await createMember('Third User');
+    const shared = await CanonicalGame.create({
+      canonicalTitle: 'Shared',
+      normalizedTitle: 'shared'
+    });
+    const solo = await CanonicalGame.create({ canonicalTitle: 'Solo', normalizedTitle: 'solo' });
+    await LibraryItem.create([
+      {
+        userId: first._id,
+        provider: 'steam',
+        providerGameId: '1',
+        providerTitle: 'Shared',
+        normalizedTitle: 'shared',
+        canonicalGameId: shared._id,
+        matchStatus: 'auto_matched',
+        source: 'api'
+      },
+      {
+        userId: second._id,
+        provider: 'steam',
+        providerGameId: '2',
+        providerTitle: 'Shared',
+        normalizedTitle: 'shared',
+        canonicalGameId: shared._id,
+        matchStatus: 'auto_matched',
+        source: 'api'
+      },
+      {
+        userId: third._id,
+        provider: 'steam',
+        providerGameId: '3',
+        providerTitle: 'Solo',
+        normalizedTitle: 'solo',
+        canonicalGameId: solo._id,
+        matchStatus: 'auto_matched',
+        source: 'api'
+      }
+    ]);
+    const response = await request(app)
+      .post('/api/v2/library-comparisons')
+      .send({ userIds: [first._id.toString(), second._id.toString()] })
+      .expect(200);
+    expect(response.body.users).toHaveLength(2);
+    expect(response.body.games).toEqual([
+      expect.objectContaining({
+        title: 'Shared',
+        ownerCount: 2,
+        selectedUserCount: 2,
+        owners: expect.arrayContaining([
+          expect.objectContaining({ username: 'First User' }),
+          expect.objectContaining({ username: 'Second User' })
+        ]),
+        ownerIds: expect.arrayContaining([first._id.toString(), second._id.toString()])
+      })
+    ]);
+    expect(response.body.page).toMatchObject({ number: 1, size: 24, total: 1, hasMore: false });
+  });
+
+  test('returns games owned by at least two selected members ordered by coverage then title', async () => {
+    const first = await createMember('Intersection One');
+    const second = await createMember('Intersection Two');
+    const third = await createMember('Intersection Three');
+    const all = await CanonicalGame.create({
+      canonicalTitle: 'All Three',
+      normalizedTitle: 'all three'
+    });
+    const partial = await CanonicalGame.create({
+      canonicalTitle: 'Only Two',
+      normalizedTitle: 'only two'
+    });
+    await LibraryItem.create([
+      {
+        userId: first._id,
+        provider: 'steam',
+        providerGameId: 'a1',
+        providerTitle: 'All Three',
+        normalizedTitle: 'all three',
+        canonicalGameId: all._id,
+        matchStatus: 'auto_matched',
+        source: 'api'
+      },
+      {
+        userId: second._id,
+        provider: 'steam',
+        providerGameId: 'a2',
+        providerTitle: 'All Three',
+        normalizedTitle: 'all three',
+        canonicalGameId: all._id,
+        matchStatus: 'auto_matched',
+        source: 'api'
+      },
+      {
+        userId: third._id,
+        provider: 'steam',
+        providerGameId: 'a3',
+        providerTitle: 'All Three',
+        normalizedTitle: 'all three',
+        canonicalGameId: all._id,
+        matchStatus: 'auto_matched',
+        source: 'api'
+      },
+      {
+        userId: first._id,
+        provider: 'gog',
+        providerGameId: 'p1',
+        providerTitle: 'Only Two',
+        normalizedTitle: 'only two',
+        canonicalGameId: partial._id,
+        matchStatus: 'auto_matched',
+        source: 'api'
+      },
+      {
+        userId: second._id,
+        provider: 'gog',
+        providerGameId: 'p2',
+        providerTitle: 'Only Two',
+        normalizedTitle: 'only two',
+        canonicalGameId: partial._id,
+        matchStatus: 'auto_matched',
+        source: 'api'
+      }
+    ]);
+    const response = await request(app)
+      .post('/api/v2/library-comparisons')
+      .send({ userIds: [first._id.toString(), second._id.toString(), third._id.toString()] })
+      .expect(200);
+    expect(response.body.games).toEqual([
+      expect.objectContaining({ title: 'All Three', ownerCount: 3, selectedUserCount: 3 }),
+      expect.objectContaining({ title: 'Only Two', ownerCount: 2, selectedUserCount: 3 })
+    ]);
+  });
+
+  test('compares the maximum selection of ten members without requiring universal ownership', async () => {
+    const members = await Promise.all(
+      [...Array(10)].map((_, index) => createMember(`Large Group ${index}`))
+    );
+    const game = await CanonicalGame.create({
+      canonicalTitle: 'Two Legionaries',
+      normalizedTitle: 'two legionaries'
+    });
+    await LibraryItem.create(
+      members.slice(0, 2).map((member, index) => ({
+        userId: member._id,
+        provider: 'steam',
+        providerGameId: `large-group-${index}`,
+        providerTitle: game.canonicalTitle,
+        normalizedTitle: game.normalizedTitle,
+        canonicalGameId: game._id,
+        matchStatus: 'auto_matched',
+        source: 'api'
+      }))
+    );
+    const response = await request(app)
+      .post('/api/v2/library-comparisons')
+      .send({ userIds: members.map((member) => String(member._id)) })
+      .expect(200);
+    expect(response.body.games).toEqual([
+      expect.objectContaining({
+        title: 'Two Legionaries',
+        ownerCount: 2,
+        selectedUserCount: 10
+      })
+    ]);
+  });
+
+  test('filters coverage results by genre and normalized multiplayer modes on the backend', async () => {
+    const first = await createMember('Filter One');
+    const second = await createMember('Filter Two');
+    const third = await createMember('Filter Three');
+    const games = await CanonicalGame.create([
+      {
+        canonicalTitle: 'Co-op Adventure',
+        normalizedTitle: 'co op adventure',
+        genres: ['Adventure'],
+        gameModes: ['Co-operative']
+      },
+      {
+        canonicalTitle: 'Solo Adventure',
+        normalizedTitle: 'solo adventure',
+        genres: ['Adventure'],
+        gameModes: ['Single player']
+      },
+      {
+        canonicalTitle: 'Split Action',
+        normalizedTitle: 'split action',
+        genres: ['Action'],
+        gameModes: ['Split screen']
+      }
+    ]);
+    await LibraryItem.create(
+      games.flatMap((game, gameIndex) =>
+        [first, second, ...(gameIndex === 0 ? [third] : [])].map((member, ownerIndex) => ({
+          userId: member._id,
+          provider: 'steam',
+          providerGameId: `${gameIndex}-${ownerIndex}`,
+          providerTitle: game.canonicalTitle,
+          normalizedTitle: game.normalizedTitle,
+          canonicalGameId: game._id,
+          matchStatus: 'auto_matched',
+          source: 'api'
+        }))
+      )
+    );
+    const userIds = [first, second, third].map((member) => String(member._id));
+    const multiplayer = await request(app)
+      .post('/api/v2/library-comparisons')
+      .send({ userIds, multiplayerOnly: true })
+      .expect(200);
+    expect(multiplayer.body.games.map((game) => game.title)).toEqual([
+      'Co-op Adventure',
+      'Split Action'
+    ]);
+    expect(multiplayer.body.facets).toEqual({
+      genres: ['Action', 'Adventure'],
+      multiplayerModes: [
+        { id: 'co_op', label: 'Co-op' },
+        { id: 'split_screen', label: 'Schermo condiviso' }
+      ]
+    });
+    const filtered = await request(app)
+      .post('/api/v2/library-comparisons')
+      .send({ userIds, genres: ['Action'], multiplayerModes: ['split_screen'] })
+      .expect(200);
+    expect(filtered.body.games).toEqual([
+      expect.objectContaining({
+        title: 'Split Action',
+        multiplayerModes: [{ id: 'split_screen', label: 'Schermo condiviso' }]
+      })
+    ]);
+  });
+
+  test('paginates large coverage results without returning complete selected libraries', async () => {
+    const first = await createMember('Page One');
+    const second = await createMember('Page Two');
+    const games = await CanonicalGame.create(
+      [...Array(5)].map((_, index) => ({
+        canonicalTitle: `Paged ${String(index).padStart(2, '0')}`,
+        normalizedTitle: `paged ${String(index).padStart(2, '0')}`
+      }))
+    );
+    await LibraryItem.create(
+      games.flatMap((game, gameIndex) =>
+        [first, second].map((member, ownerIndex) => ({
+          userId: member._id,
+          provider: 'steam',
+          providerGameId: `paged-${gameIndex}-${ownerIndex}`,
+          providerTitle: game.canonicalTitle,
+          normalizedTitle: game.normalizedTitle,
+          canonicalGameId: game._id,
+          matchStatus: 'auto_matched',
+          source: 'api'
+        }))
+      )
+    );
+    const response = await request(app)
+      .post('/api/v2/library-comparisons')
+      .send({ userIds: [String(first._id), String(second._id)], page: 2, pageSize: 2 })
+      .expect(200);
+    expect(response.body.games.map((game) => game.title)).toEqual(['Paged 02', 'Paged 03']);
+    expect(response.body.page).toEqual({ number: 2, size: 2, total: 5, hasMore: true });
+  });
+});

@@ -1,0 +1,232 @@
+const mongoose = require('mongoose');
+const CanonicalGame = require('../../core/models/CanonicalGame');
+const CasualFridayRotationGame = require('../../core/models/CasualFridayRotationGame');
+const CasualFridayEvent = require('../../core/models/CasualFridayEvent');
+const CasualFridayPlaylist = require('../../core/models/CasualFridayPlaylist');
+const CasualFridayPlaylistEntry = require('../../core/models/CasualFridayPlaylistEntry');
+const RetroChallenge = require('../../core/models/RetroChallenge');
+const { normalizedMultiplayerModes } = require('../../core/services/multiplayerModes');
+const { COMMUNITY_TIME_ZONE } = require('../../core/time/communityTime');
+
+const GAME_PATH = /^\/catalogue\/([^/]+)\/?$/;
+const CASUAL_FRIDAY_PATH = /^\/casual-friday\/?$/;
+const RETROCLUB_PATH = /^\/retro\/?$/;
+const DESCRIPTION_LIMIT = 220;
+
+function compactText(value, limit = DESCRIPTION_LIMIT) {
+  const normalized = String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (normalized.length <= limit) return normalized;
+  const shortened = normalized.slice(0, limit - 1);
+  const lastSpace = shortened.lastIndexOf(' ');
+  const cutAt = lastSpace > limit * 0.7 ? lastSpace : shortened.length;
+  return `${shortened.slice(0, cutAt).trimEnd()}…`;
+}
+
+function publicArtwork(value) {
+  try {
+    const url = new URL(value);
+    if (!['http:', 'https:'].includes(url.protocol)) return null;
+    url.hash = '';
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function retroArtwork(value) {
+  if (!value) return null;
+  try {
+    return publicArtwork(new URL(value, 'https://retroachievements.org').toString());
+  } catch {
+    return null;
+  }
+}
+
+function playerCount(rotation) {
+  if (!rotation) return null;
+  if (rotation.playerCountLabel) return rotation.playerCountLabel;
+  if (rotation.playerCountMin === rotation.playerCountMax) {
+    return `${rotation.playerCountMin} ${rotation.playerCountMin === 1 ? 'giocatore' : 'giocatori'}`;
+  }
+  return `${rotation.playerCountMin}–${rotation.playerCountMax} giocatori`;
+}
+
+function buildGameDescription(game, rotation) {
+  const details = [];
+  if (game.genres?.length) details.push(game.genres.slice(0, 3).join(', '));
+  const multiplayer = normalizedMultiplayerModes(game.gameModes).map((mode) => mode.label);
+  if (multiplayer.length) details.push(multiplayer.join(', '));
+  const players = playerCount(rotation);
+  if (players) details.push(players);
+  if (rotation) details.push('In rotazione Casual Friday');
+  if (details.length) return compactText(details.join(' • '));
+  if (game.summary) return compactText(game.summary);
+  return compactText(
+    `Scheda de ${game.canonicalTitle} nel catalogo GSPlay. Tutto pronto, manca solo decide quando giocà.`
+  );
+}
+
+function casualFridayDate(startsAt) {
+  return new Intl.DateTimeFormat('it-IT', {
+    day: 'numeric',
+    month: 'long',
+    timeZone: COMMUNITY_TIME_ZONE
+  }).format(startsAt);
+}
+
+function casualFridayTitle(event) {
+  return `Casual Friday — ${casualFridayDate(event.startsAt)}`;
+}
+
+function votingDescription(event) {
+  const deadline = new Intl.DateTimeFormat('it-IT', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: COMMUNITY_TIME_ZONE
+  }).format(event.votingClosesAt);
+  return `Le votazioni sono aperte fino alle ${deadline} di venerdì: entra, dai la disponibilità e scegli fino a cinque giochi. Daje, che er Senato aspetta er voto tuo.`;
+}
+
+function playlistEntryTitle(entry) {
+  if (entry.type === 'movie') return entry.movie?.title || null;
+  return entry.snapshots?.rotation?.displayTitle || entry.snapshots?.game?.title || null;
+}
+
+function playlistDescription(entries) {
+  const lines = entries
+    .map((entry) => {
+      const title = playlistEntryTitle(entry);
+      if (!title) return null;
+      return `${entry.type === 'movie' ? '🎬' : '🎮'} ${title}`;
+    })
+    .filter(Boolean);
+  return `Questo Casual Friday:\n\n${lines.join('\n')}\n\nUlteriori informazioni su GSPlay.`;
+}
+
+function entryArtwork(entry) {
+  return publicArtwork(entry.snapshots?.rotation?.artwork || entry.snapshots?.game?.artwork);
+}
+
+async function casualFridayMetadata(now = new Date()) {
+  const event = await CasualFridayEvent.findOne({ endsAt: { $gt: now } })
+    .sort({ startsAt: 1 })
+    .select('status startsAt endsAt votingClosesAt playlistId')
+    .lean();
+  if (!event) return null;
+  const title = casualFridayTitle(event);
+  if (event.status === 'cancelled') {
+    return {
+      title: `${title} — Annullato`,
+      description: 'La serata è stata annullata. Stavorta niente legioni, ma se rifamo presto.',
+      url: '/casual-friday'
+    };
+  }
+  if (event.status === 'open' && event.votingClosesAt > now) {
+    return {
+      title: `${title} — Vota ora`,
+      description: votingDescription(event),
+      url: '/casual-friday'
+    };
+  }
+  if (!['published', 'completed'].includes(event.status) || !event.playlistId) {
+    return {
+      title,
+      description:
+        'Le votazioni sono chiuse e la playlist è in preparazione. Li giochi arrivano appena er Senato decide.',
+      url: '/casual-friday'
+    };
+  }
+  const playlist = await CasualFridayPlaylist.findOne({
+    _id: event.playlistId,
+    status: { $in: ['published', 'completed'] }
+  })
+    .select('_id')
+    .lean();
+  if (!playlist) return null;
+  const entries = await CasualFridayPlaylistEntry.find({ playlistId: playlist._id })
+    .sort({ position: 1 })
+    .select('position type snapshots movie')
+    .lean();
+  const artwork = entries.map(entryArtwork).find(Boolean);
+  return {
+    title,
+    description: playlistDescription(entries),
+    image: artwork || undefined,
+    url: '/casual-friday',
+    twitterCard: artwork ? 'summary_large_image' : 'summary'
+  };
+}
+
+async function gameMetadata(gameId) {
+  if (!mongoose.isObjectIdOrHexString(gameId)) return null;
+  const game = await CanonicalGame.findOne(
+    {
+      _id: gameId,
+      hiddenAt: null,
+      archivedAt: null,
+      mergedIntoId: null
+    },
+    'canonicalTitle summary genres gameModes artwork'
+  ).lean();
+  if (!game) return null;
+  const rotation = await CasualFridayRotationGame.findOne(
+    { canonicalGameId: game._id, status: 'active' },
+    'playerCountMin playerCountMax playerCountLabel'
+  ).lean();
+  const artwork = publicArtwork(game.artwork);
+  return {
+    title: game.canonicalTitle,
+    description: buildGameDescription(game, rotation),
+    image: artwork || undefined,
+    url: `/catalogue/${game._id}`,
+    type: 'website',
+    twitterCard: artwork ? 'summary_large_image' : 'summary'
+  };
+}
+
+async function retroclubMetadata(now = new Date()) {
+  const challenge = await RetroChallenge.findOne({
+    active: true,
+    status: 'active',
+    scoringStartsAt: { $lte: now },
+    scoringEndsAt: { $gt: now }
+  })
+    .select('title consoleName imageUrl description')
+    .lean();
+  if (!challenge) return null;
+  const month = new Intl.DateTimeFormat('it-IT', {
+    month: 'long',
+    timeZone: COMMUNITY_TIME_ZONE
+  }).format(now);
+  const artwork = retroArtwork(challenge.imageUrl);
+  const flavor =
+    challenge.description ||
+    'Er Retroclub ha scelto la cartuccia: accendi tutto e prova a pijatte la corona.';
+  return {
+    title: `Gioco di ${month}: ${challenge.title}`,
+    description: compactText([challenge.consoleName, flavor].filter(Boolean).join(' • ')),
+    image: artwork || undefined,
+    url: '/retro',
+    type: 'website',
+    twitterCard: artwork ? 'summary_large_image' : 'summary'
+  };
+}
+
+async function resolveSocialMetadata(req) {
+  if (CASUAL_FRIDAY_PATH.test(req.path)) return casualFridayMetadata();
+  if (RETROCLUB_PATH.test(req.path)) return retroclubMetadata();
+  const match = req.path.match(GAME_PATH);
+  if (!match) return null;
+  return gameMetadata(match[1]);
+}
+
+module.exports = {
+  buildGameDescription,
+  casualFridayMetadata,
+  gameMetadata,
+  playlistDescription,
+  retroclubMetadata,
+  resolveSocialMetadata
+};

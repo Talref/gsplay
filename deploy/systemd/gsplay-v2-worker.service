@@ -1,5 +1,5 @@
 [Unit]
-Description=GSPlay v2 durable job worker
+Description=Giocatori Stanchi durable job worker
 After=network-online.target mongod.service gsplay-v2-api.service
 Wants=network-online.target
 
@@ -9,7 +9,7 @@ User=gsplay
 Group=gsplay
 WorkingDirectory=/srv/gsplay
 EnvironmentFile=/etc/gsplay/v2.env
-ExecStart=/usr/bin/node /srv/gsplay/src/v2/worker.js
+ExecStart=/usr/bin/node /srv/gsplay/src/worker/worker.js
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true

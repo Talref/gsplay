@@ -2,9 +2,13 @@
 
 ## Project Structure & Module Organization
 
-The backend lives in `src/v2/`. Keep endpoints in `routes/`, middleware in `http/`, schemas in `models/`, integrations in `providers/`, and business logic in `services/` or `jobs/`. Entry points are `server.js` and `worker.js`; tests are under `tests/v2/`.
+This repository contains the technical stack for the Giocatori Stanchi community. GSPlay is one component, not the repository boundary. New community technical components belong here by default unless a concrete operational or ownership reason calls for a separate repository; do not pre-build directories or abstractions for hypothetical services.
 
-The React/Vite client is in `gsplay-frontend/`. Place screens in `src/pages/`, reusable UI in `src/components/`, API access in `src/services/`, and Playwright scenarios in `e2e/`. Operational files are in `deploy/`; project documentation belongs in `docs/`.
+The backend is split by runtime ownership. `src/api/` owns Express, HTTP, sessions, uploads, previews, routes, and request/response concerns. `src/worker/` owns polling, handlers, throttling, and worker orchestration. `src/core/` owns concrete runtime-neutral models, database access, providers, domain services, queue operations, configuration, migrations, and community time. API and worker may depend on core; core must never depend on either runtime. A capability may belong in core even with one consumer when it is genuinely runtime-neutral, but introduce shared abstractions only for an actual need. See `docs/Architecture.md` before making structural changes.
+
+Backend tests mirror ownership under `tests/api/`, `tests/core/`, and `tests/worker/`. Keep operational CLI entry points in `scripts/` and host definitions in `deploy/`; reuse established configuration, logging, database, deployment, testing, and systemd patterns. Large structural changes must be deliberate rather than incidental.
+
+The React/Vite GSPlay client is in `gsplay-frontend/`. Place screens in `src/pages/`, reusable UI in `src/components/`, API access in `src/services/`, and Playwright scenarios in `e2e/`. Project documentation belongs in `docs/`.
 
 ## Build, Test, and Development Commands
 

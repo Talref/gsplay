@@ -1,4 +1,6 @@
-# GSPlay setup guide
+# Giocatori Stanchi stack setup guide
+
+This guide sets up the current GSPlay web, API, and worker components of the Giocatori Stanchi technical stack. See [Architecture](./Architecture.md) for repository boundaries.
 
 ## Local environment
 
