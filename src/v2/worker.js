@@ -20,6 +20,7 @@ const {
 } = require('./services/casualFridayService');
 const { refreshMostWantedIfDue } = require('./services/mostWantedService');
 const { refreshActiveChallenge } = require('./services/retroService');
+const { BACKUP_CHECK_MS, runScheduledDatabaseBackup } = require('./services/databaseBackupService');
 
 async function startWorker({ pollMs = 1_000 } = {}) {
   const config = loadEnvironment();
@@ -188,8 +189,28 @@ async function startWorker({ pollMs = 1_000 } = {}) {
     }
   };
   const retroTimer = setInterval(retroMaintenance, config.retroAchievements.refreshMs);
+  let backupRunning = null;
+  let backupAbortController = null;
+  const backupMaintenance = () => {
+    if (backupRunning) return backupRunning;
+    backupAbortController = new AbortController();
+    backupRunning = runScheduledDatabaseBackup({
+      mongoUri: config.mongoUri,
+      backupConfig: config.dbBackup,
+      log: console,
+      signal: backupAbortController.signal
+    })
+      .catch((error) => console.error('DB backup scheduler failed', error))
+      .finally(() => {
+        backupRunning = null;
+        backupAbortController = null;
+      });
+    return backupRunning;
+  };
+  const backupTimer = setInterval(() => void backupMaintenance(), BACKUP_CHECK_MS);
   void mostWantedMaintenance();
   void retroMaintenance();
+  void backupMaintenance();
   await priceMaintenance();
   await tick();
   const shutdown = async () => {
@@ -199,6 +220,9 @@ async function startWorker({ pollMs = 1_000 } = {}) {
     clearInterval(priceTimer);
     clearInterval(mostWantedTimer);
     clearInterval(retroTimer);
+    clearInterval(backupTimer);
+    backupAbortController?.abort();
+    if (backupRunning) await backupRunning;
     await disconnectDatabase();
   };
   process.once('SIGINT', shutdown);

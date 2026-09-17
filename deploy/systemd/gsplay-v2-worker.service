@@ -16,7 +16,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/srv/gsplay
+ReadWritePaths=/srv/gsplay -/media/backups/gsplay/db
 
 [Install]
 WantedBy=multi-user.target

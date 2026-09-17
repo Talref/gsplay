@@ -38,6 +38,12 @@ function asAbsolutePath(value, fallback, label) {
   return result;
 }
 
+function asOptionalAbsolutePath(value, label) {
+  if (value === undefined || value === '') return null;
+  if (!path.isAbsolute(value)) throw new Error(`${label} must be an absolute path`);
+  return value;
+}
+
 function requireSecret(environment, name) {
   const value = environment[name];
   if (!value || value.startsWith('replace-with-')) {
@@ -66,6 +72,18 @@ function loadEnvironment(environment = process.env) {
     mongoUri,
     logLevel: environment.LOG_LEVEL || 'info',
     workerEnabled: asBoolean(environment.ENABLE_WORKER, true),
+    dbBackup: {
+      enabled: asBoolean(environment.DB_BACKUP_ENABLED, false),
+      directory: asOptionalAbsolutePath(environment.DB_BACKUP_DIR, 'DB_BACKUP_DIR'),
+      hour: asInteger(environment.DB_BACKUP_HOUR, 4, 'DB_BACKUP_HOUR', 0, 23),
+      retentionDays: asInteger(
+        environment.DB_BACKUP_RETENTION_DAYS,
+        30,
+        'DB_BACKUP_RETENTION_DAYS',
+        1,
+        3650
+      )
+    },
     uploadMaxBytes: asInteger(
       environment.UPLOAD_MAX_BYTES,
       10 * 1024 * 1024,

@@ -7,6 +7,12 @@ describe('v2 environment configuration', () => {
     expect(config.port).toBe(3000);
     expect(config.auth.cookieSecure).toBe(false);
     expect(config.itad.priceRefreshMs).toBe(3600000);
+    expect(config.dbBackup).toEqual({
+      enabled: false,
+      directory: null,
+      hour: 4,
+      retentionDays: 30
+    });
     expect(config.providers.tmdbAccessToken).toBeNull();
     expect(config.mostWanted).toEqual({ refreshMs: 86400000, staleAfterMs: 259200000 });
     expect(config.guide).toMatchObject({ imageMaxBytes: 5 * 1024 * 1024 });
@@ -50,6 +56,30 @@ describe('v2 environment configuration', () => {
     expect(
       loadEnvironment({ ...valid, ITAD_PRICE_REFRESH_MS: '7200000' }).itad.priceRefreshMs
     ).toBe(7200000);
+  });
+
+  test('validates scheduled database backup settings', () => {
+    expect(() => loadEnvironment({ ...valid, DB_BACKUP_DIR: 'relative/path' })).toThrow(
+      'DB_BACKUP_DIR'
+    );
+    expect(() => loadEnvironment({ ...valid, DB_BACKUP_HOUR: '24' })).toThrow('DB_BACKUP_HOUR');
+    expect(() => loadEnvironment({ ...valid, DB_BACKUP_RETENTION_DAYS: '0' })).toThrow(
+      'DB_BACKUP_RETENTION_DAYS'
+    );
+    expect(
+      loadEnvironment({
+        ...valid,
+        DB_BACKUP_ENABLED: 'true',
+        DB_BACKUP_DIR: '/media/backups/gsplay/db',
+        DB_BACKUP_HOUR: '2',
+        DB_BACKUP_RETENTION_DAYS: '14'
+      }).dbBackup
+    ).toEqual({
+      enabled: true,
+      directory: '/media/backups/gsplay/db',
+      hour: 2,
+      retentionDays: 14
+    });
   });
 
   test('validates Most Wanted refresh and stale intervals', () => {
