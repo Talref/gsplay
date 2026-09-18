@@ -5,7 +5,11 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const coreRoot = path.join(root, 'src/core');
-const forbiddenRoots = [path.join(root, 'src/api'), path.join(root, 'src/worker')];
+const forbiddenRoots = [
+  path.join(root, 'src/api'),
+  path.join(root, 'src/worker'),
+  path.join(root, 'src/gsbot')
+];
 const violations = [];
 
 function javascriptFiles(directory) {
@@ -32,7 +36,7 @@ for (const file of javascriptFiles(coreRoot)) {
 }
 
 if (violations.length) {
-  console.error('Core must not import API or worker modules:');
+  console.error('Core must not import runtime-specific API, worker, or GSbot modules:');
   for (const violation of violations) console.error(`- ${violation}`);
   process.exitCode = 1;
 } else {

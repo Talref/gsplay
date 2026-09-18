@@ -4,7 +4,7 @@ This repository contains the technical stack for the Giocatori Stanchi community
 
 ## Current components
 
-- Express API and durable background worker with a runtime-neutral shared core.
+- Express API, durable background worker, and GSbot Discord runtime with a runtime-neutral shared core.
 - Cookie-based access/refresh sessions, role-based admin access, and narrow auth rate limiting.
 - Authoritative `LibraryItem` entitlements, Steam sync, strict CSV/JSON imports, and durable retryable jobs.
 - Server-side library comparison; complete user libraries are never aggregated in the browser.
@@ -15,7 +15,7 @@ This repository contains the technical stack for the Giocatori Stanchi community
 
 ## Local development
 
-Prerequisites: Node.js, npm, and MongoDB. Copy `.env.example` to `.env`, create two independent 32+-character JWT secrets, and keep `.env` untracked.
+Prerequisites: Node.js 18 or newer, npm, and MongoDB. Copy `.env.example` to `.env`, create two independent 32+-character JWT secrets, and keep `.env` untracked.
 
 ```bash
 npm ci
@@ -26,6 +26,8 @@ npm run dev
 `npm run dev` starts the API, durable worker, and Vite frontend together. Output is prefixed with `[api]`, `[worker]`, or `[web]`; press `Ctrl+C` once to stop the entire stack cleanly. The API watches `src/api` and `src/core`, while the worker watches `src/worker` and `src/core`; Vite provides frontend HMR. The runner uses the expected `http://localhost:5173`; if Vite reports another port, stop old development stacks before continuing.
 
 The frontend opens on `http://localhost:5173` and proxies `/api` to the API at `http://localhost:3000`. Public routes retain the compatible `/api/v2` prefix.
+
+GSbot is intentionally started separately so missing Discord credentials do not block normal web development. Set `GSBOT_TOKEN` and `GSBOT_GUILD_ID`, then run `npm run dev:gsbot` for reload support or `npm run gsbot` directly.
 
 See [Architecture](docs/Architecture.md) for source ownership and dependency rules.
 
@@ -44,7 +46,7 @@ The end-to-end suite runs an isolated in-memory MongoDB, API, and Vite server. I
 
 ## Production deployment
 
-Production uses a root-owned `/etc/gsplay/v2.env`, systemd API and worker services bound to loopback, and Caddy as the TLS frontend. After merging a tested change to `master`, deploy from the server checkout:
+Production uses a root-owned `/etc/gsplay/v2.env`, independent systemd services, and Caddy as the TLS frontend. After merging a tested change to `master`, deploy from the server checkout:
 
 ```bash
 cd ~/s/gsplay
@@ -52,7 +54,7 @@ git pull --ff-only origin master
 ./scripts/deploy.sh
 ```
 
-The deploy script requires a clean checkout synchronized with `origin/master`, builds the frontend, prepares and validates a runtime release, verifies indexes, publishes to `/srv/gsplay`, restarts API/worker, and waits for local liveness/readiness checks. Tests, lint, and dependency audits are intentionally completed before merge rather than repeated during deployment.
+The deploy script requires a clean checkout synchronized with `origin/master`, builds the frontend, prepares and validates a runtime release, verifies indexes, publishes to `/srv/gsplay`, restarts configured runtimes, and waits for their checks. Tests, lint, and dependency audits are intentionally completed before merge rather than repeated during deployment.
 
 See [Operations Runbook](docs/Operations-Runbook.md) for setup, backup, deployment, rollback, and incident procedures.
 
@@ -64,8 +66,10 @@ See [Operations Runbook](docs/Operations-Runbook.md) for setup, backup, deployme
 | `npm run dev`          | Start API, worker, and frontend together with hot reload       |
 | `npm run dev:api`      | Start only the API with nodemon                                |
 | `npm run dev:worker`   | Start only the worker with nodemon                             |
+| `npm run dev:gsbot`    | Start only GSbot with nodemon                                  |
 | `npm run dev:frontend` | Start only the Vite frontend                                   |
 | `npm run worker`       | Start the durable worker                                       |
+| `npm run gsbot`        | Start the GSbot Discord runtime                                |
 | `npm run bootstrap`    | Create/verify indexes                                          |
 | `npm run format`       | Format backend, frontend, tests, and project files             |
 | `npm run format:check` | Verify repository formatting without changing files            |

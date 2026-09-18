@@ -6,8 +6,8 @@ This repository is the technical stack for the Giocatori Stanchi community. GSPl
 
 ```text
 API runtime ---------\
-                      >-- runtime-neutral core
-Worker runtime ------/
+Worker runtime -------+-- runtime-neutral core
+GSbot runtime --------/
 
 Operational scripts ----> core
 E2E harness ------------> API + core
@@ -15,14 +15,15 @@ E2E harness ------------> API + core
 
 - `src/api/` owns Express startup, routes, middleware, sessions, HTTP errors and validation, uploads, and response-oriented services.
 - `src/worker/` owns polling, job execution, handlers, throttling, and worker-only orchestration.
+- `src/gsbot/` owns Discord connectivity, command registration, interactions, and GSbot lifecycle.
 - `src/core/` owns runtime-neutral models, database access, provider clients, domain/application services, shared queue operations, configuration, migrations, and the community clock.
 - `gsplay-frontend/` is the existing GSPlay React/Vite frontend and remains independently runnable.
 - `scripts/` contains operational CLI entry points; reusable logic they invoke may live in core.
 - `deploy/` contains host and runtime deployment definitions.
 
-API and worker may import core. Core must not import API or worker code. `npm run lint:backend` enforces that direction with a lightweight local-import check. Runtime-neutral capabilities belong in core based on what they do, not how many callers they currently have. Shared abstractions should still exist only when there is a concrete abstraction need.
+API, worker, and GSbot may import core. Core must not import runtime-specific code. `npm run lint:backend` enforces that direction with a lightweight local-import check. Runtime-neutral capabilities belong in core based on what they do, not how many callers they currently have. Shared abstractions should still exist only when there is a concrete abstraction need.
 
-Tests mirror ownership in `tests/api/`, `tests/core/`, and `tests/worker/`. API development watches API and core sources; worker development watches worker and core sources.
+Tests mirror ownership in `tests/api/`, `tests/core/`, `tests/worker/`, and `tests/gsbot/`. Each runtime's development command watches its own sources and core.
 
 ## Monorepo intent
 

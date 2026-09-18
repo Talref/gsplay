@@ -15,8 +15,10 @@
     "dev": "node scripts/dev.js",
     "dev:api": "nodemon --watch src/api --watch src/core --ext js src/api/server.js",
     "dev:worker": "nodemon --watch src/worker --watch src/core --ext js src/worker/worker.js",
+    "dev:gsbot": "nodemon --watch src/gsbot --watch src/core --ext js src/gsbot/gsbot.js",
     "dev:frontend": "npm --prefix gsplay-frontend run dev",
     "worker": "node src/worker/worker.js",
+    "gsbot": "node src/gsbot/gsbot.js",
     "bootstrap": "node scripts/bootstrap-schema.js",
     "docs": "jsdoc -c jsdoc.conf.json"
   },
@@ -24,6 +26,9 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "engines": {
+    "node": ">=18"
+  },
   "allowScripts": {
     "bcrypt@6.0.0": true,
     "mongodb-memory-server@10.4.3": true,
@@ -36,6 +41,7 @@
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "debug": "^4.4.3",
+    "discord.js": "^14.27.0",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "express-rate-limit": "^8.1.0",

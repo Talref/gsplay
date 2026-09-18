@@ -46,6 +46,34 @@ SERVER_STATUS_STALE_AFTER_MS=180000
 
 Provider credentials are optional and must remain only in this protected file.
 
+### GSbot Discord setup
+
+GSbot uses a normal Discord Application/Bot user and a guild-scoped temporary `/test` command. It needs only these bootstrap values:
+
+```env
+GSBOT_TOKEN=<Discord bot token>
+GSBOT_GUILD_ID=<Discord server ID>
+```
+
+Create and invite it with the minimum MVP access:
+
+1. Open the [Discord Developer Portal](https://discord.com/developers/applications), select **New Application**, and name it `GSbot`.
+2. Open **Bot**. Use **Reset Token** if necessary, copy the bot token, and store it as `GSBOT_TOKEN`. The token is shown only when created or reset; do not use the application ID, public key, or client secret in its place.
+3. Leave privileged Gateway intents disabled. GSbot requests only the non-privileged Guilds intent.
+4. In the Discord desktop/web client, enable **User Settings → Advanced → Developer Mode**. Right-click the Giocatori Stanchi server, choose **Copy Server ID**, and store that numeric value as `GSBOT_GUILD_ID`.
+5. In the Developer Portal, open **OAuth2 → URL Generator**. Select the `bot` and `applications.commands` scopes, select no Bot Permissions, open the generated URL, and add GSbot to the intended server.
+6. Add both values to `/etc/gsplay/v2.env`, deploy, and verify `/test` in that server. Its reply is ephemeral and visible only to the invoking member.
+
+Both values absent means the deployment explicitly disables `gsplay-gsbot.service`. Supplying only one makes deployment fail before publishing. Direct `npm run gsbot` startup also fails clearly when either value is missing. No Discord token is stored in MongoDB or exposed to the frontend.
+
+For local verification, put the same two values in the untracked `.env` and run:
+
+```bash
+npm run dev:gsbot
+```
+
+Successful startup logs `GSbot ready` after the guild command is registered. Stop it with `Ctrl+C`; the runtime closes the Discord client cleanly. The `/test` command is temporary diagnostic functionality and performs no database writes.
+
 `TMDB_READ_ACCESS_TOKEN` enables movie search and insertion in Casual Friday Tools. Existing
 playlists, game management, and stored movie snapshots continue to work if TMDB is unavailable.
 Set it in the protected environment file using the API Read Access Token from your TMDB account.
@@ -161,7 +189,7 @@ git pull --ff-only origin master
 
 Tests, lint, and dependency audits are completed before merging; deployment does not repeat them or install backend development dependencies.
 
-`deploy.sh` refuses dirty or out-of-sync source, installs frontend build dependencies and builds the production bundle, prepares backend production dependencies and database indexes before publication, installs current systemd unit definitions, publishes to `/srv/gsplay`, restarts both services, and waits for local liveness/readiness. It also verifies that the installed bcrypt native module loads before publication.
+`deploy.sh` refuses dirty or out-of-sync source, installs frontend build dependencies and builds the production bundle, prepares backend production dependencies and database indexes before publication, installs current systemd unit definitions, publishes to `/srv/gsplay`, restarts API and worker plus configured GSbot, and waits for runtime checks. It also verifies that the installed bcrypt native module loads before publication.
 
 Successful steps print a concise summary; a failed step prints its captured command output automatically. Use `DEPLOY_VERBOSE=true ./scripts/deploy.sh` to print command output after every preparation step.
 
@@ -169,7 +197,7 @@ Check the running release and services:
 
 ```bash
 cat /srv/gsplay/REVISION
-sudo systemctl --no-pager --full status gsplay-v2-api.service gsplay-v2-worker.service
+sudo systemctl --no-pager --full status gsplay-v2-api.service gsplay-v2-worker.service gsplay-gsbot.service
 curl --fail http://127.0.0.1:3000/health/live
 curl --fail http://127.0.0.1:3000/health/ready
 ```
@@ -214,8 +242,8 @@ After recovery, return the checkout to `master` deliberately. Database restores 
 ## Diagnostics
 
 ```bash
-sudo journalctl -u gsplay-v2-api.service -u gsplay-v2-worker.service -n 100 --no-pager
-sudo journalctl -fu gsplay-v2-api.service -u gsplay-v2-worker.service
+sudo journalctl -u gsplay-v2-api.service -u gsplay-v2-worker.service -u gsplay-gsbot.service -n 100 --no-pager
+sudo journalctl -fu gsplay-v2-api.service -u gsplay-v2-worker.service -u gsplay-gsbot.service
 sudo caddy validate --config /etc/caddy/Caddyfile
 ```
 

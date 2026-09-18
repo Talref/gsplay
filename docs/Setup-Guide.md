@@ -1,10 +1,10 @@
 # Giocatori Stanchi stack setup guide
 
-This guide sets up the current GSPlay web, API, and worker components of the Giocatori Stanchi technical stack. See [Architecture](./Architecture.md) for repository boundaries.
+This guide sets up the current GSPlay web, API, worker, and GSbot components of the Giocatori Stanchi technical stack. See [Architecture](./Architecture.md) for repository boundaries.
 
 ## Local environment
 
-Requirements: Node.js, npm, MongoDB, and Git.
+Requirements: Node.js 18 or newer, npm, MongoDB, and Git.
 
 ```bash
 git clone https://github.com/Talref/gsplay.git
@@ -24,6 +24,8 @@ npm run dev
 
 The single development command starts the API, durable worker, and frontend together. Use `Ctrl+C` to terminate all three processes. For an individual process, use `npm run dev:api`, `npm run dev:worker`, or `npm run dev:frontend`. Vite should start on port 5173; if it chooses another port, older development processes are still running and should be stopped first.
 
+GSbot stays separate so Discord credentials are not required for normal web development. Follow the [GSbot Discord setup](./Operations-Runbook.md#gsbot-discord-setup), then run `npm run dev:gsbot`.
+
 The API listens on `127.0.0.1:3000` by default and the Vite frontend on `127.0.0.1:5173`.
 
 ## Tests
@@ -41,4 +43,4 @@ Backend tests and the E2E suite use isolated in-memory MongoDB instances. They d
 
 ## Production
 
-For initial host preparation and routine maintenance, use [Operations Runbook](./Operations-Runbook.md). Production uses a root-owned `/etc/gsplay/v2.env`, loopback-bound API and worker systemd services, Caddy TLS termination, and `scripts/deploy.sh` for updates.
+For initial host preparation and routine maintenance, use [Operations Runbook](./Operations-Runbook.md). Production uses a root-owned `/etc/gsplay/v2.env`, independent API, worker, and optional GSbot systemd services, Caddy TLS termination, and `scripts/deploy.sh` for updates.
