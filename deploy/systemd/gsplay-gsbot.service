@@ -1,0 +1,21 @@
+[Unit]
+Description=Giocatori Stanchi GSbot Discord runtime
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gsplay
+Group=gsplay
+WorkingDirectory=/srv/gsplay
+EnvironmentFile=/etc/gsplay/v2.env
+ExecStart=/usr/bin/node /srv/gsplay/src/gsbot/gsbot.js
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
