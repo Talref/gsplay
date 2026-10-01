@@ -1,12 +1,28 @@
 require('dotenv').config();
 const { loadGsbotEnvironment } = require('./config');
-const { createGsbotRuntime } = require('./runtime');
+const { connectDatabase, disconnectDatabase } = require('../core/database');
+const { createBirthdayDelivery } = require('./features/birthdayDelivery');
+const { createGsbotClient, createGsbotRuntime } = require('./runtime');
 
 async function startGsbot({ environment = process.env, log = console } = {}) {
   const config = loadGsbotEnvironment(environment);
-  const runtime = createGsbotRuntime({ config, log });
-  await runtime.start();
-  return runtime;
+  await connectDatabase(config);
+  const client = createGsbotClient();
+  const delivery = createBirthdayDelivery({ client, log });
+  const runtime = createGsbotRuntime({
+    config,
+    client,
+    delivery,
+    log,
+    onStop: disconnectDatabase
+  });
+  try {
+    await runtime.start();
+    return runtime;
+  } catch (error) {
+    await disconnectDatabase();
+    throw error;
+  }
 }
 
 if (require.main === module) {

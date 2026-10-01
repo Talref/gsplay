@@ -19,6 +19,7 @@
     "dev:frontend": "npm --prefix gsplay-frontend run dev",
     "worker": "node src/worker/worker.js",
     "gsbot": "node src/gsbot/gsbot.js",
+    "gsbot:configure": "node scripts/configure-gsbot.js",
     "bootstrap": "node scripts/bootstrap-schema.js",
     "docs": "jsdoc -c jsdoc.conf.json"
   },

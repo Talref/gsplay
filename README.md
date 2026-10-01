@@ -27,7 +27,7 @@ npm run dev
 
 The frontend opens on `http://localhost:5173` and proxies `/api` to the API at `http://localhost:3000`. Public routes retain the compatible `/api/v2` prefix.
 
-GSbot is intentionally started separately so missing Discord credentials do not block normal web development. Set `GSBOT_TOKEN` and `GSBOT_GUILD_ID`, then run `npm run dev:gsbot` for reload support or `npm run gsbot` directly.
+GSbot is intentionally started separately so missing Discord credentials do not block normal web development. Set `GSBOT_TOKEN` and `GSBOT_GUILD_ID`, then run `npm run dev:gsbot` for reload support or `npm run gsbot` directly. See [GSbot](docs/GSbot.md) for its internal command and feature-channel reference.
 
 See [Architecture](docs/Architecture.md) for source ownership and dependency rules.
 
@@ -60,22 +60,23 @@ See [Operations Runbook](docs/Operations-Runbook.md) for setup, backup, deployme
 
 ## Useful scripts
 
-| Command                | Purpose                                                        |
-| ---------------------- | -------------------------------------------------------------- |
-| `npm start`            | Start the API                                                  |
-| `npm run dev`          | Start API, worker, and frontend together with hot reload       |
-| `npm run dev:api`      | Start only the API with nodemon                                |
-| `npm run dev:worker`   | Start only the worker with nodemon                             |
-| `npm run dev:gsbot`    | Start only GSbot with nodemon                                  |
-| `npm run dev:frontend` | Start only the Vite frontend                                   |
-| `npm run worker`       | Start the durable worker                                       |
-| `npm run gsbot`        | Start the GSbot Discord runtime                                |
-| `npm run bootstrap`    | Create/verify indexes                                          |
-| `npm run format`       | Format backend, frontend, tests, and project files             |
-| `npm run format:check` | Verify repository formatting without changing files            |
-| `npm run lint`         | Lint backend and frontend JavaScript                           |
-| `./scripts/deploy.sh`  | Build, validate, publish, restart, and health-check production |
-| `npm test`             | Run backend tests                                              |
+| Command                        | Purpose                                                        |
+| ------------------------------ | -------------------------------------------------------------- |
+| `npm start`                    | Start the API                                                  |
+| `npm run dev`                  | Start API, worker, and frontend together with hot reload       |
+| `npm run dev:api`              | Start only the API with nodemon                                |
+| `npm run dev:worker`           | Start only the worker with nodemon                             |
+| `npm run dev:gsbot`            | Start only GSbot with nodemon                                  |
+| `npm run dev:frontend`         | Start only the Vite frontend                                   |
+| `npm run worker`               | Start the durable worker                                       |
+| `npm run gsbot`                | Start the GSbot Discord runtime                                |
+| `npm run gsbot:configure -- …` | Configure semantic GSbot channel mappings in MongoDB           |
+| `npm run bootstrap`            | Create/verify indexes                                          |
+| `npm run format`               | Format backend, frontend, tests, and project files             |
+| `npm run format:check`         | Verify repository formatting without changing files            |
+| `npm run lint`                 | Lint backend and frontend JavaScript                           |
+| `./scripts/deploy.sh`          | Build, validate, publish, restart, and health-check production |
+| `npm test`                     | Run backend tests                                              |
 
 ## Security notes
 
