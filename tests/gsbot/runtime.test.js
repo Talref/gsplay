@@ -1,6 +1,7 @@
 const { EventEmitter } = require('node:events');
 const { Events, MessageFlags } = require('discord.js');
 const testCommand = require('../../src/gsbot/commands/testCommand');
+const birthdayCommand = require('../../src/gsbot/commands/birthdayCommand');
 const {
   commandPayload,
   createGsbotClient,
@@ -32,7 +33,7 @@ describe('GSbot runtime', () => {
     client.destroy();
   });
 
-  test('registers the temporary guild-scoped test command', async () => {
+  test('registers the guild-scoped commands', async () => {
     const { client, guild } = fakeDiscord();
     const runtime = createGsbotRuntime({
       config,
@@ -43,7 +44,7 @@ describe('GSbot runtime', () => {
     await runtime.start();
 
     expect(client.guilds.fetch).toHaveBeenCalledWith(config.guildId);
-    expect(guild.commands.set).toHaveBeenCalledWith(commandPayload([testCommand]));
+    expect(guild.commands.set).toHaveBeenCalledWith(commandPayload([testCommand, birthdayCommand]));
     expect(commandPayload([testCommand])).toEqual([
       expect.objectContaining({
         name: 'test',

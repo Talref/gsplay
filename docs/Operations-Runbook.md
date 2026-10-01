@@ -48,7 +48,8 @@ Provider credentials are optional and must remain only in this protected file.
 
 ### GSbot Discord setup
 
-GSbot uses a normal Discord Application/Bot user and a guild-scoped temporary `/test` command. It needs only these bootstrap values:
+GSbot uses a normal Discord Application/Bot user and guild-scoped slash commands. It needs only
+these bootstrap values:
 
 ```env
 GSBOT_TOKEN=<Discord bot token>
@@ -61,7 +62,9 @@ Create and invite it with the minimum MVP access:
 2. Open **Bot**. Use **Reset Token** if necessary, copy the bot token, and store it as `GSBOT_TOKEN`. The token is shown only when created or reset; do not use the application ID, public key, or client secret in its place.
 3. Leave privileged Gateway intents disabled. GSbot requests only the non-privileged Guilds intent.
 4. In the Discord desktop/web client, enable **User Settings → Advanced → Developer Mode**. Right-click the Giocatori Stanchi server, choose **Copy Server ID**, and store that numeric value as `GSBOT_GUILD_ID`.
-5. In the Developer Portal, open **OAuth2 → URL Generator**. Select the `bot` and `applications.commands` scopes, select no Bot Permissions, open the generated URL, and add GSbot to the intended server.
+5. In the Developer Portal, open **OAuth2 → URL Generator**. Select the `bot` and
+   `applications.commands` scopes. Grant only **View Channels** and **Send Messages**, open the
+   generated URL, and add GSbot to the intended server. Do not grant Administrator.
 6. Add both values to `/etc/gsplay/v2.env`, deploy, and verify `/test` in that server. Its reply is ephemeral and visible only to the invoking member.
 
 Both values absent means the deployment explicitly disables `gsplay-gsbot.service`. Supplying only one makes deployment fail before publishing. Direct `npm run gsbot` startup also fails clearly when either value is missing. No Discord token is stored in MongoDB or exposed to the frontend.
@@ -72,7 +75,22 @@ For local verification, put the same two values in the untracked `.env` and run:
 npm run dev:gsbot
 ```
 
-Successful startup logs `GSbot ready` after the guild command is registered. Stop it with `Ctrl+C`; the runtime closes the Discord client cleanly. The `/test` command is temporary diagnostic functionality and performs no database writes.
+Successful startup logs `GSbot ready` after the guild commands are registered. Stop it with `Ctrl+C`;
+the runtime closes the Discord client and database connection cleanly. The `/test` command is
+temporary diagnostic functionality and performs no database writes.
+
+GSbot feature-channel mappings are stored in MongoDB. Configure the public `general` channel after
+the first deployment:
+
+```bash
+sudo -u gsplay bash -c 'set -a; source /etc/gsplay/v2.env; set +a; \
+  /usr/bin/node /srv/gsplay/scripts/configure-gsbot.js \
+  --guild-id "$GSBOT_GUILD_ID" --general-channel-id 1338850451076026389'
+```
+
+See [GSbot](GSbot.md) for the internal command reference. Re-run this command if the semantic
+`general` channel changes; no service restart is required. Ensure GSbot's role can view and send in
+that channel.
 
 `TMDB_READ_ACCESS_TOKEN` enables movie search and insertion in Casual Friday Tools. Existing
 playlists, game management, and stored movie snapshots continue to work if TMDB is unavailable.

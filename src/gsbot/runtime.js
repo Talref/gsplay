@@ -1,7 +1,8 @@
 const { Client, Events, GatewayIntentBits } = require('discord.js');
 const testCommand = require('./commands/testCommand');
+const birthdayCommand = require('./commands/birthdayCommand');
 
-const DEFAULT_COMMANDS = [testCommand];
+const DEFAULT_COMMANDS = [testCommand, birthdayCommand];
 
 function createGsbotClient() {
   return new Client({ intents: [GatewayIntentBits.Guilds] });
@@ -15,6 +16,8 @@ function createGsbotRuntime({
   config,
   client = createGsbotClient(),
   commands = DEFAULT_COMMANDS,
+  delivery = null,
+  onStop = null,
   log = console
 }) {
   const commandByName = new Map(commands.map((command) => [command.data.name, command]));
@@ -47,6 +50,7 @@ function createGsbotRuntime({
           const guild = await readyClient.guilds.fetch(config.guildId);
           await guild.commands.set(commandPayload(commands));
           started = true;
+          delivery?.start();
           log.info(`GSbot ready · guild=${guild.name} (${guild.id}) · commands=${commands.length}`);
           resolve();
         } catch (error) {
@@ -67,7 +71,9 @@ function createGsbotRuntime({
   async function stop() {
     if (stopped) return;
     stopped = true;
+    await delivery?.stop();
     client.destroy();
+    await onStop?.();
     log.info('GSbot stopped cleanly');
   }
 

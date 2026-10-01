@@ -25,6 +25,10 @@ API, worker, and GSbot may import core. Core must not import runtime-specific co
 
 Tests mirror ownership in `tests/api/`, `tests/core/`, `tests/worker/`, and `tests/gsbot/`. Each runtime's development command watches its own sources and core.
 
+GSbot's command and feature-channel reference is maintained in [GSbot](GSbot.md). Discord feature
+channel IDs are semantic MongoDB configuration rather than environment variables; credentials and
+the bootstrap guild ID remain in the protected environment.
+
 ## Monorepo intent
 
 Technical components directly supporting the community belong here by default so they can reuse established configuration, persistence, deployment, testing, and operational patterns. This does not require one runtime, one deployment unit, or speculative scaffolding. A separate repository should follow a concrete isolation, lifecycle, security, or ownership need.

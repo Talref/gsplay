@@ -12,7 +12,10 @@ function loadGsbotEnvironment(environment = process.env) {
   if (!DISCORD_SNOWFLAKE.test(guildId)) {
     throw new Error('GSBOT_GUILD_ID must be a Discord server ID');
   }
-  return Object.freeze({ token, guildId });
+  const mongoUri = environment.MONGO_URI || 'mongodb://127.0.0.1:27017/gsplay';
+  if (!/^mongodb(\+srv)?:\/\//.test(mongoUri))
+    throw new Error('MONGO_URI must be a MongoDB connection URI');
+  return Object.freeze({ token, guildId, mongoUri });
 }
 
 module.exports = { loadGsbotEnvironment };

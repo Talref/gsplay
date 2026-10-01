@@ -11,7 +11,11 @@ describe('GSbot environment configuration', () => {
   test('validates and returns the target guild configuration', () => {
     expect(
       loadGsbotEnvironment({ GSBOT_TOKEN: 'discord-token', GSBOT_GUILD_ID: '123456789012345678' })
-    ).toEqual({ token: 'discord-token', guildId: '123456789012345678' });
+    ).toEqual({
+      token: 'discord-token',
+      guildId: '123456789012345678',
+      mongoUri: 'mongodb://127.0.0.1:27017/gsplay'
+    });
     expect(() =>
       loadGsbotEnvironment({ GSBOT_TOKEN: 'discord-token', GSBOT_GUILD_ID: 'not-a-server' })
     ).toThrow('GSBOT_GUILD_ID must be a Discord server ID');

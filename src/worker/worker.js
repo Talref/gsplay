@@ -25,6 +25,13 @@ const {
   BACKUP_CHECK_MS,
   runScheduledDatabaseBackup
 } = require('../core/services/databaseBackupService');
+const {
+  claimDueScheduledJob,
+  failScheduledJobPreparation,
+  markScheduledJobReady
+} = require('../core/jobs/scheduledJobService');
+const { ensureBirthdaySchedules } = require('../core/services/birthdayService');
+const { createScheduledJobHandlers } = require('./jobs/scheduledHandlers');
 
 async function startWorker({ pollMs = 1_000 } = {}) {
   const config = loadEnvironment();
@@ -42,10 +49,12 @@ async function startWorker({ pollMs = 1_000 } = {}) {
         })
       : null;
   const handlers = createJobHandlers(config, { igdbGate });
+  const scheduledHandlers = createScheduledJobHandlers();
   let stopping = false;
   let draining = false;
   let igdbPausedUntil = 0;
   let metadataSettled = false;
+  let scheduledDraining = false;
   const drain = async () => {
     if (stopping || draining) return;
     draining = true;
@@ -131,14 +140,48 @@ async function startWorker({ pollMs = 1_000 } = {}) {
     }
   };
   const tick = () => drain().catch((error) => console.error('Worker tick failed', error));
+  const drainScheduled = async () => {
+    if (stopping || scheduledDraining) return;
+    scheduledDraining = true;
+    try {
+      while (!stopping) {
+        const job = await claimDueScheduledJob(workerId);
+        if (!job) return;
+        const handler = scheduledHandlers[job.type];
+        if (!handler) {
+          await failScheduledJobPreparation(
+            job,
+            new Error(`No scheduled-job handler is registered for ${job.type}`)
+          );
+          continue;
+        }
+        try {
+          await handler(job);
+          await markScheduledJobReady(job);
+        } catch (error) {
+          await failScheduledJobPreparation(job, error);
+        }
+      }
+    } finally {
+      scheduledDraining = false;
+    }
+  };
+  const scheduledTick = () =>
+    drainScheduled().catch((error) => console.error('Scheduled-job tick failed', error));
   // Reconciliation is also performed by drain() when it finds no work. Record
   // this startup result so the first tick does not print the same scan twice.
   const startupReport = await reconcileIgdbMetadata({ config, log: console });
   metadataSettled = startupReport.queued === 0;
   const timer = setInterval(tick, pollMs);
+  const scheduledTimer = setInterval(scheduledTick, pollMs);
   const maintenance = () =>
     Promise.all([
       reconcileIgdbMetadata({ config, log: console }),
+      ensureBirthdaySchedules().then(
+        (count) =>
+          count &&
+          console.info(`🎂 Restored ${count} missing birthday schedule${count === 1 ? '' : 's'}`)
+      ),
       completeElapsedPlaylists().then(
         (count) =>
           count &&
@@ -215,11 +258,14 @@ async function startWorker({ pollMs = 1_000 } = {}) {
   void mostWantedMaintenance();
   void retroMaintenance();
   void backupMaintenance();
+  await ensureBirthdaySchedules();
   await priceMaintenance();
   await tick();
+  await scheduledTick();
   const shutdown = async () => {
     stopping = true;
     clearInterval(timer);
+    clearInterval(scheduledTimer);
     clearInterval(maintenanceTimer);
     clearInterval(priceTimer);
     clearInterval(mostWantedTimer);
