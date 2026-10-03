@@ -2,17 +2,36 @@ require('dotenv').config();
 const { loadGsbotEnvironment } = require('./config');
 const { connectDatabase, disconnectDatabase } = require('../core/database');
 const { createBirthdayDelivery } = require('./features/birthdayDelivery');
+const { createTemporaryTagCleanup } = require('./features/temporaryTagCleanup');
+const {
+  createTemporaryTagExpirationDelivery
+} = require('./features/temporaryTagExpirationDelivery');
 const { createGsbotClient, createGsbotRuntime } = require('./runtime');
 
 async function startGsbot({ environment = process.env, log = console } = {}) {
   const config = loadGsbotEnvironment(environment);
   await connectDatabase(config);
   const client = createGsbotClient();
-  const delivery = createBirthdayDelivery({ client, log });
+  const birthdayDelivery = createBirthdayDelivery({ client, log });
+  const temporaryTagCleanup = createTemporaryTagCleanup({ client, log });
+  const temporaryTagExpirationDelivery = createTemporaryTagExpirationDelivery({
+    cleanup: temporaryTagCleanup,
+    log
+  });
+  const delivery = {
+    start() {
+      birthdayDelivery.start();
+      temporaryTagExpirationDelivery.start();
+    },
+    async stop() {
+      await Promise.all([birthdayDelivery.stop(), temporaryTagExpirationDelivery.stop()]);
+    }
+  };
   const runtime = createGsbotRuntime({
     config,
     client,
     delivery,
+    interactionContext: { temporaryTagCleanup },
     log,
     onStop: disconnectDatabase
   });

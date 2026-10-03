@@ -16,13 +16,16 @@ changes:
 ```bash
 sudo -u gsplay /usr/bin/node /srv/gsplay/scripts/configure-gsbot.js \
   --guild-id "$GSBOT_GUILD_ID" \
-  --general-channel-id 1338850451076026389
+  --general-channel-id 1338850451076026389 \
+  --staff-role-id 1555940533216616518
 ```
 
 Run the command from an environment where `MONGO_URI` and `GSBOT_GUILD_ID` are available. The
 current `general` channel is public and receives birthday reminders. Birthday messages allow a
 mention of the birthday user only; role, `@everyone`, and additional user mentions are suppressed.
 GSbot needs View Channel and Send Messages permission there; it does not need Administrator.
+The configured staff role authorizes operational `/tag` commands. GSbot itself needs Manage Roles,
+and its highest role must remain above the temporary roles it creates.
 
 ## Commands
 
@@ -44,3 +47,14 @@ GSbot needs View Channel and Send Messages permission there; it does not need Ad
 February 29 birthdays run on February 28 in non-leap years. Real reminders are persistent and are
 delivered to the configured `general` channel after worker processing, including after runtime
 downtime.
+
+### Temporary tags
+
+- `/tag create` — opens a modal for a name, button label, and optional `GG/MM/AAAA HH:mm`
+  expiration in Europe/Rome.
+- `/tag invite <tag>` — publishes the tag's self-service button in the current channel.
+- `/tag info <tag>` and `/tag list` — show current Discord member counts and lifecycle details.
+- `/tag delete <tag>` — asks for confirmation, deletes the Discord role, and disables every invite.
+
+Temporary roles have no permissions, are not hoisted, and are not mentionable. Expiration uses the
+persistent scheduled-job handoff and performs the same cleanup as manual deletion.

@@ -26,7 +26,9 @@ const models = [
   require('../src/core/models/SteamAppCache'),
   require('../src/core/models/Birthday'),
   require('../src/core/models/ScheduledJob'),
-  require('../src/core/models/GsbotGuildConfig')
+  require('../src/core/models/GsbotGuildConfig'),
+  require('../src/core/models/TemporaryTag'),
+  require('../src/core/models/TemporaryTagInvite')
 ];
 const ignoreMissingIndex = (error) => {
   if (!['IndexNotFound', 'NamespaceNotFound'].includes(error.codeName)) throw error;
