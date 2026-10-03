@@ -1,4 +1,4 @@
-const { Collection, MessageFlags } = require('discord.js');
+const { Collection, MessageFlags, PermissionFlagsBits } = require('discord.js');
 const ScheduledJob = require('../../src/core/models/ScheduledJob');
 const TemporaryTag = require('../../src/core/models/TemporaryTag');
 const TemporaryTagInvite = require('../../src/core/models/TemporaryTagInvite');
@@ -65,7 +65,7 @@ describe('/tag', () => {
 
   test('registers all commands and autocomplete selectors', () => {
     const payload = tagCommand.data.toJSON();
-    expect(payload.default_member_permissions).toBe('0');
+    expect(payload.default_member_permissions).toBe(PermissionFlagsBits.ManageGuild.toString());
     expect(payload.options.map(({ name }) => name)).toEqual([
       'create',
       'invite',

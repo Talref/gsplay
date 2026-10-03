@@ -3,6 +3,7 @@ const {
   ButtonBuilder,
   ButtonStyle,
   ModalBuilder,
+  PermissionFlagsBits,
   SlashCommandBuilder,
   TextInputBuilder,
   TextInputStyle
@@ -30,7 +31,7 @@ const TAG_ID_PREFIX = 'tag:';
 const data = new SlashCommandBuilder()
   .setName('tag')
   .setDescription('Gestisce i tag temporanei della community')
-  .setDefaultMemberPermissions(0)
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
   .addSubcommand((command) => command.setName('create').setDescription('Crea un tag temporaneo'))
   .addSubcommand((command) =>
     command

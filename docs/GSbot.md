@@ -56,8 +56,8 @@ downtime.
 Temporary roles have no permissions, are not hoisted, and are not mentionable. Expiration uses the
 persistent scheduled-job handoff and performs the same cleanup as manual deletion.
 
-`/tag` is disabled for non-administrators by default. Grant the intended staff roles or members
-access through **Server Settings → Integrations → GSbot → Command Permissions → `/tag`**. This is
-Discord operational configuration; GSbot does not maintain a separate staff-role mapping. GSbot
-itself still needs Manage Roles, and its highest role must remain above the temporary roles it
-creates.
+`/tag` requires Discord's Manage Server permission by default. Server managers can grant the
+intended staff roles or members access through **Server Settings → Integrations → GSbot → Command
+Permissions → `/tag`**. This is Discord operational configuration; GSbot does not maintain a
+separate staff-role mapping. GSbot itself still needs Manage Roles, and its highest role must remain
+above the temporary roles it creates.
