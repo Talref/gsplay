@@ -2,6 +2,7 @@ const { EventEmitter } = require('node:events');
 const { Events, MessageFlags } = require('discord.js');
 const testCommand = require('../../src/gsbot/commands/testCommand');
 const birthdayCommand = require('../../src/gsbot/commands/birthdayCommand');
+const tagCommand = require('../../src/gsbot/commands/tagCommand');
 const {
   commandPayload,
   createGsbotClient,
@@ -44,7 +45,9 @@ describe('GSbot runtime', () => {
     await runtime.start();
 
     expect(client.guilds.fetch).toHaveBeenCalledWith(config.guildId);
-    expect(guild.commands.set).toHaveBeenCalledWith(commandPayload([testCommand, birthdayCommand]));
+    expect(guild.commands.set).toHaveBeenCalledWith(
+      commandPayload([testCommand, birthdayCommand, tagCommand])
+    );
     expect(commandPayload([testCommand])).toEqual([
       expect.objectContaining({
         name: 'test',
@@ -73,7 +76,7 @@ describe('GSbot runtime', () => {
       content: 'GSbot operativo.\nServer: Giocatori Stanchi',
       flags: MessageFlags.Ephemeral
     });
-    expect(log.info).toHaveBeenCalledWith(expect.stringContaining('GSbot command complete'));
+    expect(log.info).toHaveBeenCalledWith(expect.stringContaining('GSbot interaction complete'));
     await runtime.stop();
     expect(client.destroy).toHaveBeenCalledTimes(1);
   });
