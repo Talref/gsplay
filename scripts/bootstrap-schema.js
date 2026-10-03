@@ -61,12 +61,20 @@ async function bootstrap() {
   ).collection;
   await retroCollection.dropIndex('retroGameId_1').catch(ignoreMissingIndex);
   const { backfillRetroChallenges } = require('../src/core/migrations/retroCompatibility');
-  const retroBackfilled = await backfillRetroChallenges();
+  const { removeObsoleteTagAuthorization } = require('../src/core/migrations/gsbotAuthorization');
+  const [retroBackfilled, obsoleteTagAuthorization] = await Promise.all([
+    backfillRetroChallenges(),
+    removeObsoleteTagAuthorization()
+  ]);
   await Promise.all(models.map((model) => model.createIndexes()));
   console.info(
     `Created or verified database indexes for: ${models.map((model) => model.collection.name).join(', ')}`
   );
   if (retroBackfilled) console.info(`Backfilled ${retroBackfilled} Retroclub edition records`);
+  if (obsoleteTagAuthorization.modifiedCount)
+    console.info(
+      `Removed obsolete GSbot tag authorization from ${obsoleteTagAuthorization.modifiedCount} guild configuration${obsoleteTagAuthorization.modifiedCount === 1 ? '' : 's'}`
+    );
   await disconnectDatabase();
 }
 bootstrap().catch(async (error) => {

@@ -1,12 +1,10 @@
 const { Collection, MessageFlags } = require('discord.js');
-const GsbotGuildConfig = require('../../src/core/models/GsbotGuildConfig');
 const ScheduledJob = require('../../src/core/models/ScheduledJob');
 const TemporaryTag = require('../../src/core/models/TemporaryTag');
 const TemporaryTagInvite = require('../../src/core/models/TemporaryTagInvite');
 const tagCommand = require('../../src/gsbot/commands/tagCommand');
 
 const guildId = '123456789012345678';
-const staffRoleId = '1555940533216616518';
 const userId = '323456789012345678';
 
 function interaction(overrides = {}) {
@@ -17,7 +15,7 @@ function interaction(overrides = {}) {
     guildId,
     channelId: '623456789012345678',
     user: { id: userId },
-    member: { roles: { cache: new Collection([[staffRoleId, {}]]) } },
+    member: { roles: { cache: new Collection() } },
     guild: {
       roles: {
         create: jest.fn().mockResolvedValue(role),
@@ -50,14 +48,6 @@ function interaction(overrides = {}) {
   };
 }
 
-async function configure() {
-  await GsbotGuildConfig.create({
-    guildId,
-    channels: { general: '723456789012345678' },
-    roles: { staff: staffRoleId }
-  });
-}
-
 async function createTag(overrides = {}) {
   return TemporaryTag.create({
     guildId,
@@ -71,13 +61,11 @@ async function createTag(overrides = {}) {
 }
 
 describe('/tag', () => {
-  beforeEach(async () => {
-    await global.testUtils.cleanupDatabase();
-    await configure();
-  });
+  beforeEach(async () => global.testUtils.cleanupDatabase());
 
   test('registers all commands and autocomplete selectors', () => {
     const payload = tagCommand.data.toJSON();
+    expect(payload.default_member_permissions).toBe('0');
     expect(payload.options.map(({ name }) => name)).toEqual([
       'create',
       'invite',
@@ -172,10 +160,7 @@ describe('/tag', () => {
     const removal = interaction({
       member: {
         roles: {
-          cache: new Collection([
-            [staffRoleId, {}],
-            [tag.discordRoleId, {}]
-          ])
+          cache: new Collection([[tag.discordRoleId, {}]])
         }
       },
       customId: `tag:toggle:${tag.id}`,
@@ -247,9 +232,10 @@ describe('/tag', () => {
     });
   });
 
-  test('rejects staff commands without the configured role', async () => {
+  test('handles commands without a GSbot-specific staff role check', async () => {
     const command = interaction({ member: { roles: { cache: new Collection() } } });
     await tagCommand.execute(command);
-    expect(command.reply.mock.calls[0][0].content).toContain('Non sei autorizzato');
+    expect(command.deferReply).toHaveBeenCalledTimes(1);
+    expect(command.editReply.mock.calls[0][0].content).toBe('Nessun tag temporaneo attivo.');
   });
 });
