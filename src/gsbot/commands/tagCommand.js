@@ -22,7 +22,7 @@ const {
   normalizeTagName,
   recordTemporaryTagInvite
 } = require('../../core/services/temporaryTagService');
-const { ephemeral, isGsbotStaff, memberHasRole } = require('../interactions');
+const { ephemeral, memberHasRole } = require('../interactions');
 
 const CREATE_MODAL_ID = 'tag:create';
 const TAG_ID_PREFIX = 'tag:';
@@ -30,6 +30,7 @@ const TAG_ID_PREFIX = 'tag:';
 const data = new SlashCommandBuilder()
   .setName('tag')
   .setDescription('Gestisce i tag temporanei della community')
+  .setDefaultMemberPermissions(0)
   .addSubcommand((command) => command.setName('create').setDescription('Crea un tag temporaneo'))
   .addSubcommand((command) =>
     command
@@ -169,13 +170,6 @@ function editEphemeral(content, extra = {}) {
   };
 }
 
-async function requireStaff(interaction) {
-  if (await isGsbotStaff(interaction)) return true;
-  if (interaction.isAutocomplete?.()) await interaction.respond([]);
-  else await interaction.reply(ephemeral('Non sei autorizzato a gestire i tag temporanei.'));
-  return false;
-}
-
 async function selectedTag(interaction) {
   const tagId = interaction.options.getString('tag', true);
   return activeTemporaryTag(interaction.guildId, tagId);
@@ -187,7 +181,6 @@ async function memberCount(interaction, tag) {
 }
 
 async function execute(interaction) {
-  if (!(await requireStaff(interaction))) return;
   const subcommand = interaction.options.getSubcommand();
   if (subcommand === 'create') {
     await interaction.showModal(createModal());
@@ -272,7 +265,6 @@ async function execute(interaction) {
 }
 
 async function autocomplete(interaction) {
-  if (!(await requireStaff(interaction))) return;
   const focused = interaction.options.getFocused().toLocaleLowerCase('it-IT');
   const tags = await listActiveTemporaryTags(interaction.guildId);
   await interaction.respond(
@@ -284,7 +276,6 @@ async function autocomplete(interaction) {
 }
 
 async function handleCreateModal(interaction) {
-  if (!(await requireStaff(interaction))) return;
   const name = interaction.fields.getTextInputValue('name');
   const buttonLabel = interaction.fields.getTextInputValue('button_label');
   let expiresAt;
@@ -358,7 +349,6 @@ async function handleDeleteButton(interaction, action, tagId, userId, context) {
     await interaction.reply(ephemeral('Questa conferma appartiene a un altro utente.'));
     return;
   }
-  if (!(await requireStaff(interaction))) return;
   if (action === 'cancel') {
     await interaction.update({ content: 'Eliminazione annullata.', components: [] });
     return;

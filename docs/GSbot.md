@@ -16,16 +16,13 @@ changes:
 ```bash
 sudo -u gsplay /usr/bin/node /srv/gsplay/scripts/configure-gsbot.js \
   --guild-id "$GSBOT_GUILD_ID" \
-  --general-channel-id 1338850451076026389 \
-  --staff-role-id 1555940533216616518
+  --general-channel-id 1338850451076026389
 ```
 
 Run the command from an environment where `MONGO_URI` and `GSBOT_GUILD_ID` are available. The
 current `general` channel is public and receives birthday reminders. Birthday messages allow a
 mention of the birthday user only; role, `@everyone`, and additional user mentions are suppressed.
 GSbot needs View Channel and Send Messages permission there; it does not need Administrator.
-The configured staff role authorizes operational `/tag` commands. GSbot itself needs Manage Roles,
-and its highest role must remain above the temporary roles it creates.
 
 ## Commands
 
@@ -58,3 +55,9 @@ downtime.
 
 Temporary roles have no permissions, are not hoisted, and are not mentionable. Expiration uses the
 persistent scheduled-job handoff and performs the same cleanup as manual deletion.
+
+`/tag` is disabled for non-administrators by default. Grant the intended staff roles or members
+access through **Server Settings → Integrations → GSbot → Command Permissions → `/tag`**. This is
+Discord operational configuration; GSbot does not maintain a separate staff-role mapping. GSbot
+itself still needs Manage Roles, and its highest role must remain above the temporary roles it
+creates.
