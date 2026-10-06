@@ -42,10 +42,16 @@ GSbot needs View Channel and Send Messages permission there; it does not need Ad
   the invoking user's birthday when `user` is omitted. It does not calculate or display age.
 - `/birthday test` — privately renders a randomized birthday message through the same renderer used
   for delivery. It does not consume, create, or reschedule a reminder.
+- `/birthday channelset channel:<Discord channel>` — privately updates the destination for future
+  birthday reminders in the current server.
 
 February 29 birthdays run on February 28 in non-leap years. Real reminders are persistent and are
 delivered to the configured `general` channel after worker processing, including after runtime
 downtime.
+
+`/birthday` requires Discord's Manage Server permission by default. Server managers can adjust
+access through **Server Settings → Integrations → GSbot → Command Permissions → `/birthday`**;
+GSbot does not maintain a separate operator-role mapping.
 
 ### Temporary tags
 

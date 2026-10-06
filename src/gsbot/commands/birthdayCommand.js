@@ -1,5 +1,11 @@
-const { MessageFlags, SlashCommandBuilder } = require('discord.js');
+const {
+  ChannelType,
+  MessageFlags,
+  PermissionFlagsBits,
+  SlashCommandBuilder
+} = require('discord.js');
 const Birthday = require('../../core/models/Birthday');
+const GsbotGuildConfig = require('../../core/models/GsbotGuildConfig');
 const {
   removeBirthday,
   renderBirthdayMessage,
@@ -15,6 +21,7 @@ const VALIDATION_MESSAGES = new Set([
 const data = new SlashCommandBuilder()
   .setName('birthday')
   .setDescription('Gestisce i compleanni della community')
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
   .addSubcommand((command) =>
     command
       .setName('set')
@@ -50,6 +57,18 @@ const data = new SlashCommandBuilder()
   )
   .addSubcommand((command) =>
     command.setName('test').setDescription('Mostra in privato un messaggio di prova')
+  )
+  .addSubcommand((command) =>
+    command
+      .setName('channelset')
+      .setDescription('Imposta il canale per gli avvisi di compleanno')
+      .addChannelOption((option) =>
+        option
+          .setName('channel')
+          .setDescription('Canale per gli avvisi di compleanno')
+          .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+          .setRequired(true)
+      )
   );
 
 function ephemeral(content) {
@@ -111,6 +130,17 @@ async function execute(interaction) {
           : `<@${user.id}> non ha ancora impostato il compleanno.`
       )
     );
+    return;
+  }
+
+  if (subcommand === 'channelset') {
+    const channel = interaction.options.getChannel('channel', true);
+    await GsbotGuildConfig.findOneAndUpdate(
+      { guildId: interaction.guildId },
+      { $set: { 'channels.general': channel.id } },
+      { upsert: true, setDefaultsOnInsert: true }
+    );
+    await interaction.reply(ephemeral(`Canale compleanni impostato: <#${channel.id}>.`));
     return;
   }
 
