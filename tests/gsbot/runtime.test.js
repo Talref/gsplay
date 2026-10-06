@@ -93,4 +93,21 @@ describe('GSbot runtime', () => {
     await expect(runtime.start()).rejects.toThrow('GSbot startup failed: Discord unavailable');
     expect(client.destroy).toHaveBeenCalledTimes(1);
   });
+
+  test('does not become ready when the deployment readiness signal fails', async () => {
+    const { client } = fakeDiscord();
+    const onReady = jest.fn().mockRejectedValue(new Error('readiness marker unavailable'));
+    const runtime = createGsbotRuntime({
+      config,
+      client,
+      onReady,
+      log: { info: jest.fn(), error: jest.fn() }
+    });
+
+    await expect(runtime.start()).rejects.toThrow(
+      'GSbot startup failed: readiness marker unavailable'
+    );
+    expect(onReady).toHaveBeenCalledTimes(1);
+    expect(client.destroy).toHaveBeenCalledTimes(1);
+  });
 });

@@ -19,6 +19,7 @@ function createGsbotRuntime({
   commands = DEFAULT_COMMANDS,
   delivery = null,
   interactionContext = {},
+  onReady = null,
   onStop = null,
   log = console
 }) {
@@ -68,6 +69,7 @@ function createGsbotRuntime({
         try {
           const guild = await readyClient.guilds.fetch(config.guildId);
           await guild.commands.set(commandPayload(commands));
+          await onReady?.();
           started = true;
           delivery?.start();
           log.info(`GSbot ready · guild=${guild.name} (${guild.id}) · commands=${commands.length}`);

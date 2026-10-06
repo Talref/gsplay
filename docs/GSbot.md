@@ -8,7 +8,9 @@ remain in `src/core`; due-time processing remains in the worker.
 
 `GSBOT_TOKEN` and `GSBOT_GUILD_ID` are bootstrap values in the protected runtime environment.
 Feature channel mappings live in MongoDB so adding bot functions does not create an expanding set of
-environment variables.
+environment variables. The guild ID is not secret, but it is deployment-specific: production and
+future staging instances use different values. Missing or invalid configuration fails startup; there
+is no production fallback in source.
 
 Configure the semantic `general` channel after the first deployment, and whenever that channel
 changes:
@@ -16,7 +18,7 @@ changes:
 ```bash
 sudo -u gsplay /usr/bin/node /srv/gsplay/scripts/configure-gsbot.js \
   --guild-id "$GSBOT_GUILD_ID" \
-  --general-channel-id 1338850451076026389
+  --general-channel-id <Discord general channel ID>
 ```
 
 Run the command from an environment where `MONGO_URI` and `GSBOT_GUILD_ID` are available. The

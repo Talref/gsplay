@@ -9,6 +9,7 @@ ENV_FILE="${ENV_FILE:-/etc/gsplay/v2.env}"
 API_SERVICE="${API_SERVICE:-gsplay-v2-api.service}"
 WORKER_SERVICE="${WORKER_SERVICE:-gsplay-v2-worker.service}"
 GSBOT_SERVICE="${GSBOT_SERVICE:-gsplay-gsbot.service}"
+GSBOT_READY_FILE=/run/gsplay-gsbot/ready
 STAGE="$(mktemp -d "${TMPDIR:-/tmp}/gsplay-release.XXXXXX")"
 LOG_DIR="$(mktemp -d "${TMPDIR:-/tmp}/gsplay-deploy-logs.XXXXXX")"
 DEPLOY_VERBOSE="${DEPLOY_VERBOSE:-false}"
@@ -41,14 +42,8 @@ fi
 revision="$(git rev-parse HEAD)"
 started_at=$SECONDS
 npm_flags=(--no-audit --fund=false --loglevel=error)
-gsbot_configuration='disabled'
-gsbot_values="$(sudo bash -c 'set -a; source "$1"; set +a; printf "%s|%s" "${GSBOT_TOKEN:-}" "${GSBOT_GUILD_ID:-}"' bash "$ENV_FILE")"
-gsbot_token="${gsbot_values%%|*}"
-gsbot_guild_id="${gsbot_values#*|}"
-if [[ -n "$gsbot_token" && -n "$gsbot_guild_id" ]]; then
-  gsbot_configuration='enabled'
-elif [[ -n "$gsbot_token" || -n "$gsbot_guild_id" ]]; then
-  fail 'GSbot configuration is incomplete; set both GSBOT_TOKEN and GSBOT_GUILD_ID, or leave both empty'
+if ! gsbot_configuration="$(sudo bash -c 'set -a; source "$1"; set +a; exec node "$2/scripts/check-gsbot-config.js"' bash "$ENV_FILE" "$SOURCE_ROOT")"; then
+  fail "GSbot configuration/startup check failed; fix the reported setting in $ENV_FILE"
 fi
 
 echo '▶ Building frontend'
@@ -94,7 +89,8 @@ else
 fi
 
 gsbot_is_ready() {
-  [[ "$gsbot_configuration" == 'disabled' ]] || systemctl is-active --quiet "$GSBOT_SERVICE"
+  [[ "$gsbot_configuration" == 'disabled' ]] \
+    || { systemctl is-active --quiet "$GSBOT_SERVICE" && [[ -f "$GSBOT_READY_FILE" ]]; }
 }
 
 for attempt in {1..20}; do

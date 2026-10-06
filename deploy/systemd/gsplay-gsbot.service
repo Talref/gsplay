@@ -9,6 +9,8 @@ User=gsplay
 Group=gsplay
 WorkingDirectory=/srv/gsplay
 EnvironmentFile=/etc/gsplay/v2.env
+Environment=GSBOT_READY_FILE=/run/gsplay-gsbot/ready
+RuntimeDirectory=gsplay-gsbot
 ExecStart=/usr/bin/node /srv/gsplay/src/gsbot/gsbot.js
 Restart=on-failure
 RestartSec=5
