@@ -98,6 +98,20 @@ See [GSbot](GSbot.md) for the internal command reference. Re-run this command if
 `general` channel changes; no service restart is required. Ensure GSbot's role can view and send in
 that channel.
 
+To remove all birthday, temporary-tag, GSbot configuration, and related scheduled-job records for a
+single guild, stop the GSbot and worker runtimes and run:
+
+```bash
+npm run gsbot:reset-guild -- \
+  --guild-id 123456789012345678 \
+  --confirm 123456789012345678
+```
+
+The confirmation must exactly match the target guild ID. The command reports deletion counts and
+does not remove unrelated application records or records belonging to another guild. Restart the
+runtimes after reviewing the result. Discord roles and messages are not modified by this database
+reset.
+
 `TMDB_READ_ACCESS_TOKEN` enables movie search and insertion in Casual Friday Tools. Existing
 playlists, game management, and stored movie snapshots continue to work if TMDB is unavailable.
 Set it in the protected environment file using the API Read Access Token from your TMDB account.
