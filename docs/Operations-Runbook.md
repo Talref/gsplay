@@ -61,13 +61,19 @@ Create and invite it with the minimum MVP access:
 1. Open the [Discord Developer Portal](https://discord.com/developers/applications), select **New Application**, and name it `GSbot`.
 2. Open **Bot**. Use **Reset Token** if necessary, copy the bot token, and store it as `GSBOT_TOKEN`. The token is shown only when created or reset; do not use the application ID, public key, or client secret in its place.
 3. Leave privileged Gateway intents disabled. GSbot requests only the non-privileged Guilds intent.
-4. In the Discord desktop/web client, enable **User Settings → Advanced → Developer Mode**. Right-click the Giocatori Stanchi server, choose **Copy Server ID**, and store that numeric value as `GSBOT_GUILD_ID`.
+4. In the Discord desktop/web client, enable **User Settings → Advanced → Developer Mode**. Right-click the target server, choose **Copy Server ID**, and store that numeric value as `GSBOT_GUILD_ID`.
 5. In the Developer Portal, open **OAuth2 → URL Generator**. Select the `bot` and
    `applications.commands` scopes. Grant only **View Channels** and **Send Messages**, open the
    generated URL, and add GSbot to the intended server. Do not grant Administrator.
 6. Add both values to `/etc/gsplay/v2.env`, deploy, and verify `/test` in that server. Its reply is ephemeral and visible only to the invoking member.
 
-Both values absent means the deployment explicitly disables `gsplay-gsbot.service`. Supplying only one makes deployment fail before publishing. Direct `npm run gsbot` startup also fails clearly when either value is missing. No Discord token is stored in MongoDB or exposed to the frontend.
+Both values absent means the deployment explicitly disables `gsplay-gsbot.service`. When GSbot is
+enabled, `GSBOT_GUILD_ID` is required bootstrap configuration. It is not a secret: production and
+future staging deployments use different guild IDs, and changing guild requires configuration rather
+than a source change. Missing, empty, or invalid configuration makes deployment fail before publishing
+and makes direct `npm run gsbot` startup exit non-zero; there is no production fallback. The deploy
+also waits for GSbot to finish guild command registration before reporting success. No Discord token
+is stored in MongoDB or exposed to the frontend.
 
 For local verification, put the same two values in the untracked `.env` and run:
 
@@ -85,7 +91,7 @@ the first deployment:
 ```bash
 sudo -u gsplay bash -c 'set -a; source /etc/gsplay/v2.env; set +a; \
   /usr/bin/node /srv/gsplay/scripts/configure-gsbot.js \
-  --guild-id "$GSBOT_GUILD_ID" --general-channel-id 1338850451076026389'
+  --guild-id "$GSBOT_GUILD_ID" --general-channel-id <Discord general channel ID>'
 ```
 
 See [GSbot](GSbot.md) for the internal command reference. Re-run this command if the semantic

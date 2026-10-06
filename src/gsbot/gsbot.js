@@ -1,4 +1,5 @@
 require('dotenv').config();
+const fs = require('node:fs/promises');
 const { loadGsbotEnvironment } = require('./config');
 const { connectDatabase, disconnectDatabase } = require('../core/database');
 const { createBirthdayDelivery } = require('./features/birthdayDelivery');
@@ -8,7 +9,18 @@ const {
 } = require('./features/temporaryTagExpirationDelivery');
 const { createGsbotClient, createGsbotRuntime } = require('./runtime');
 
+async function removeReadyFile(path) {
+  if (!path) return;
+  try {
+    await fs.unlink(path);
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+}
+
 async function startGsbot({ environment = process.env, log = console } = {}) {
+  const readyFile = environment.GSBOT_READY_FILE?.trim();
+  await removeReadyFile(readyFile);
   const config = loadGsbotEnvironment(environment);
   await connectDatabase(config);
   const client = createGsbotClient();
@@ -33,7 +45,11 @@ async function startGsbot({ environment = process.env, log = console } = {}) {
     delivery,
     interactionContext: { temporaryTagCleanup },
     log,
-    onStop: disconnectDatabase
+    onReady: readyFile ? () => fs.writeFile(readyFile, `${process.pid}\n`, { mode: 0o600 }) : null,
+    onStop: async () => {
+      await removeReadyFile(readyFile);
+      await disconnectDatabase();
+    }
   });
   try {
     await runtime.start();

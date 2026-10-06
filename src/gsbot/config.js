@@ -18,4 +18,12 @@ function loadGsbotEnvironment(environment = process.env) {
   return Object.freeze({ token, guildId, mongoUri });
 }
 
-module.exports = { loadGsbotEnvironment };
+function gsbotDeploymentMode(environment = process.env) {
+  const token = environment.GSBOT_TOKEN?.trim();
+  const guildId = environment.GSBOT_GUILD_ID?.trim();
+  if (!token && !guildId) return 'disabled';
+  loadGsbotEnvironment(environment);
+  return 'enabled';
+}
+
+module.exports = { gsbotDeploymentMode, loadGsbotEnvironment };
