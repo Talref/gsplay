@@ -24,10 +24,11 @@ async function startGsbot({ environment = process.env, log = console } = {}) {
   const config = loadGsbotEnvironment(environment);
   await connectDatabase(config);
   const client = createGsbotClient();
-  const birthdayDelivery = createBirthdayDelivery({ client, log });
+  const birthdayDelivery = createBirthdayDelivery({ client, guildId: config.guildId, log });
   const temporaryTagCleanup = createTemporaryTagCleanup({ client, log });
   const temporaryTagExpirationDelivery = createTemporaryTagExpirationDelivery({
     cleanup: temporaryTagCleanup,
+    guildId: config.guildId,
     log
   });
   const delivery = {

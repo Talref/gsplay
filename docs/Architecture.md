@@ -29,6 +29,11 @@ GSbot's command and feature-channel reference is maintained in [GSbot](GSbot.md)
 channel IDs are semantic MongoDB configuration rather than environment variables; credentials and
 the bootstrap guild ID remain in the protected environment.
 
+Each GSbot runtime serves exactly one guild selected by `GSBOT_GUILD_ID`. Discord interactions,
+persisted feature records, scheduled work, and future guild-specific state must always be scoped to
+that guild and must never cross guild boundaries. Prefer IDs supplied by Discord and persisted guild
+configuration over server-specific IDs embedded in source.
+
 ## Monorepo intent
 
 Technical components directly supporting the community belong here by default so they can reuse established configuration, persistence, deployment, testing, and operational patterns. This does not require one runtime, one deployment unit, or speculative scaffolding. A separate repository should follow a concrete isolation, lifecycle, security, or ownership need.
