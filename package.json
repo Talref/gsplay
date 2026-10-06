@@ -20,6 +20,7 @@
     "worker": "node src/worker/worker.js",
     "gsbot": "node src/gsbot/gsbot.js",
     "gsbot:configure": "node scripts/configure-gsbot.js",
+    "gsbot:reset-guild": "node scripts/reset-gsbot-guild.js",
     "bootstrap": "node scripts/bootstrap-schema.js",
     "docs": "jsdoc -c jsdoc.conf.json"
   },
