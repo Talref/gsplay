@@ -6,7 +6,8 @@ const {
 } = require('../../core/jobs/scheduledJobService');
 const { TEMPORARY_TAG_EXPIRATION_JOB_TYPE } = require('../../core/services/temporaryTagService');
 
-function createTemporaryTagExpirationDelivery({ cleanup, log = console, pollMs = 1_000 }) {
+function createTemporaryTagExpirationDelivery({ cleanup, guildId, log = console, pollMs = 1_000 }) {
+  if (!guildId) throw new Error('GSbot guild ID is required for temporary tag expiration delivery');
   const deliveryId = `gsbot-tag-${process.pid}-${crypto.randomUUID()}`;
   let timer;
   let running = false;
@@ -27,7 +28,8 @@ function createTemporaryTagExpirationDelivery({ cleanup, log = console, pollMs =
     try {
       while (!stopping) {
         const job = await claimReadyScheduledJob(deliveryId, {
-          types: [TEMPORARY_TAG_EXPIRATION_JOB_TYPE]
+          types: [TEMPORARY_TAG_EXPIRATION_JOB_TYPE],
+          guildId
         });
         if (!job) return;
         try {

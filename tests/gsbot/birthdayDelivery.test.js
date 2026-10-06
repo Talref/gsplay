@@ -35,7 +35,11 @@ describe('GSbot birthday delivery', () => {
         fetch: jest.fn().mockResolvedValue({ isTextBased: () => true, send })
       }
     };
-    const delivery = createBirthdayDelivery({ client, log: { info: jest.fn(), error: jest.fn() } });
+    const delivery = createBirthdayDelivery({
+      client,
+      guildId,
+      log: { info: jest.fn(), error: jest.fn() }
+    });
 
     await delivery.deliver(job);
 
@@ -53,5 +57,68 @@ describe('GSbot birthday delivery', () => {
       deliveryMessageId: 'discord-message'
     });
     expect(await ScheduledJob.countDocuments({ status: 'scheduled' })).toBe(1);
+  });
+
+  test('claims birthday work only for the configured guild', async () => {
+    const guildId = '123456789012345678';
+    const otherGuildId = '223456789012345678';
+    const discordUserId = '323456789012345678';
+    const otherDiscordUserId = '423456789012345678';
+    const channelId = '523456789012345678';
+    await Promise.all([
+      Birthday.create({ guildId, discordUserId, day: 4, month: 7 }),
+      Birthday.create({
+        guildId: otherGuildId,
+        discordUserId: otherDiscordUserId,
+        day: 5,
+        month: 8
+      }),
+      GsbotGuildConfig.create({ guildId, channels: { general: channelId } })
+    ]);
+    await enqueueScheduledJob({
+      type: 'birthday_reminder',
+      payload: { guildId: otherGuildId, discordUserId: otherDiscordUserId, occurrenceYear: 2026 },
+      runAt: new Date(0),
+      dedupeKey: `birthday:${otherGuildId}:${otherDiscordUserId}:2026`
+    });
+    await enqueueScheduledJob({
+      type: 'birthday_reminder',
+      payload: { guildId, discordUserId, occurrenceYear: 2026 },
+      runAt: new Date(0),
+      dedupeKey: `birthday:${guildId}:${discordUserId}:2026`
+    });
+    for (let index = 0; index < 2; index += 1) {
+      const preparing = await claimDueScheduledJob('worker-a');
+      await markScheduledJobReady(preparing);
+    }
+    const send = jest.fn().mockResolvedValue({ id: 'discord-message' });
+    const client = {
+      channels: {
+        fetch: jest.fn().mockResolvedValue({ isTextBased: () => true, send })
+      }
+    };
+    const delivery = createBirthdayDelivery({
+      client,
+      guildId,
+      log: { info: jest.fn(), error: jest.fn() }
+    });
+
+    await delivery.drain();
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0][0].content).toContain(`<@${discordUserId}>`);
+    expect(
+      await ScheduledJob.findOne({
+        type: 'birthday_reminder',
+        'payload.guildId': guildId,
+        status: 'completed'
+      })
+    ).not.toBeNull();
+    expect(
+      await ScheduledJob.findOne({
+        type: 'birthday_reminder',
+        'payload.guildId': otherGuildId
+      })
+    ).toMatchObject({ status: 'ready', attempts: 0 });
   });
 });

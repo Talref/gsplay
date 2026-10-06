@@ -109,12 +109,14 @@ async function failScheduledJobPreparation(job, error) {
   );
 }
 
-async function claimReadyScheduledJob(deliveryId, { types, leaseMs = 60_000 } = {}) {
+async function claimReadyScheduledJob(deliveryId, { types, guildId, leaseMs = 60_000 } = {}) {
   const now = new Date();
   const typeFilter = types?.length ? { type: { $in: types } } : {};
+  const guildFilter = guildId ? { 'payload.guildId': guildId } : {};
   return ScheduledJob.findOneAndUpdate(
     {
       ...typeFilter,
+      ...guildFilter,
       $or: [
         { status: 'ready', nextAttemptAt: { $lte: now } },
         { status: 'delivering', leaseExpiresAt: { $lte: now } }
