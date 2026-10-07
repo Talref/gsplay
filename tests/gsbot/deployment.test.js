@@ -35,14 +35,17 @@ describe('GSbot deployment wiring', () => {
 
     expect(checkGsbotConfig({ GSBOT_TOKEN: 'discord-token' }, output)).toBe(1);
     expect(output.error).toHaveBeenCalledWith(
-      'GSbot configuration invalid: GSBOT_GUILD_ID is required'
+      'GSbot configuration invalid: GSBOT_GUILD_IDS or GSBOT_GUILD_ID is required'
     );
     expect(
-      checkGsbotConfig({ GSBOT_TOKEN: 'discord-token', GSBOT_GUILD_ID: 'not-a-guild' }, output)
+      checkGsbotConfig({ GSBOT_TOKEN: 'discord-token', GSBOT_GUILD_IDS: 'not-a-guild' }, output)
     ).toBe(1);
     expect(
       checkGsbotConfig(
-        { GSBOT_TOKEN: 'discord-token', GSBOT_GUILD_ID: '123456789012345678' },
+        {
+          GSBOT_TOKEN: 'discord-token',
+          GSBOT_GUILD_IDS: '123456789012345678,223456789012345678'
+        },
         output
       )
     ).toBe(0);
@@ -53,7 +56,7 @@ describe('GSbot deployment wiring', () => {
       env: { GSBOT_TOKEN: 'discord-token' }
     });
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain('GSBOT_GUILD_ID is required');
+    expect(result.stderr).toContain('GSBOT_GUILD_IDS or GSBOT_GUILD_ID is required');
     expect(result.stdout).not.toContain('enabled');
   });
 });

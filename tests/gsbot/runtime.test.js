@@ -9,22 +9,27 @@ const {
   createGsbotRuntime
 } = require('../../src/gsbot/runtime');
 
-const config = { token: 'discord-token', guildId: '123456789012345678' };
+const config = {
+  token: 'discord-token',
+  guildIds: ['123456789012345678', '223456789012345678']
+};
 
 function fakeDiscord() {
   const client = new EventEmitter();
-  const guild = {
-    id: config.guildId,
-    name: 'Giocatori Stanchi',
+  const guilds = config.guildIds.map((id, index) => ({
+    id,
+    name: index === 0 ? 'Giocatori Stanchi' : 'Giocatori Riposati',
     commands: { set: jest.fn().mockResolvedValue(undefined) }
+  }));
+  client.guilds = {
+    fetch: jest.fn(async (guildId) => guilds.find((guild) => guild.id === guildId))
   };
-  client.guilds = { fetch: jest.fn().mockResolvedValue(guild) };
   client.destroy = jest.fn();
   client.login = jest.fn(async () => {
     queueMicrotask(() => client.emit(Events.ClientReady, client));
     return config.token;
   });
-  return { client, guild };
+  return { client, guilds };
 }
 
 describe('GSbot runtime', () => {
@@ -34,8 +39,8 @@ describe('GSbot runtime', () => {
     client.destroy();
   });
 
-  test('registers the guild-scoped commands', async () => {
-    const { client, guild } = fakeDiscord();
+  test('registers the guild-scoped commands in every configured guild', async () => {
+    const { client, guilds } = fakeDiscord();
     const runtime = createGsbotRuntime({
       config,
       client,
@@ -44,10 +49,12 @@ describe('GSbot runtime', () => {
 
     await runtime.start();
 
-    expect(client.guilds.fetch).toHaveBeenCalledWith(config.guildId);
-    expect(guild.commands.set).toHaveBeenCalledWith(
-      commandPayload([testCommand, birthdayCommand, tagCommand])
-    );
+    expect(client.guilds.fetch.mock.calls.map(([guildId]) => guildId)).toEqual(config.guildIds);
+    for (const guild of guilds) {
+      expect(guild.commands.set).toHaveBeenCalledWith(
+        commandPayload([testCommand, birthdayCommand, tagCommand])
+      );
+    }
     expect(commandPayload([testCommand])).toEqual([
       expect.objectContaining({
         name: 'test',
@@ -56,14 +63,14 @@ describe('GSbot runtime', () => {
     ]);
   });
 
-  test('answers /test ephemerally and closes the client during shutdown', async () => {
+  test('accepts configured guild interactions and ignores unconfigured guilds', async () => {
     const { client } = fakeDiscord();
     const log = { info: jest.fn(), error: jest.fn() };
     const runtime = createGsbotRuntime({ config, client, log });
     await runtime.start();
     const interaction = {
       commandName: 'test',
-      guildId: config.guildId,
+      guildId: config.guildIds[1],
       user: { id: '987654321098765432' },
       isChatInputCommand: () => true,
       reply: jest.fn().mockResolvedValue(undefined)
@@ -77,13 +84,21 @@ describe('GSbot runtime', () => {
       flags: MessageFlags.Ephemeral
     });
     expect(log.info).toHaveBeenCalledWith(expect.stringContaining('GSbot interaction complete'));
+    const ignoredInteraction = {
+      ...interaction,
+      guildId: '323456789012345678',
+      reply: jest.fn().mockResolvedValue(undefined)
+    };
+    client.emit(Events.InteractionCreate, ignoredInteraction);
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(ignoredInteraction.reply).not.toHaveBeenCalled();
     await runtime.stop();
     expect(client.destroy).toHaveBeenCalledTimes(1);
   });
 
   test('destroys the client when command registration fails', async () => {
-    const { client, guild } = fakeDiscord();
-    guild.commands.set.mockRejectedValue(new Error('Discord unavailable'));
+    const { client, guilds } = fakeDiscord();
+    guilds[1].commands.set.mockRejectedValue(new Error('Discord unavailable'));
     const runtime = createGsbotRuntime({
       config,
       client,

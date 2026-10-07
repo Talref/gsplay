@@ -6,22 +6,37 @@ function required(environment, name) {
   return value;
 }
 
+function configuredGuildIds(environment) {
+  const configured = environment.GSBOT_GUILD_IDS?.trim();
+  const legacy = environment.GSBOT_GUILD_ID?.trim();
+  const source = configured || legacy;
+  const name = configured ? 'GSBOT_GUILD_IDS' : 'GSBOT_GUILD_ID';
+  if (!source || source.startsWith('replace-with-'))
+    throw new Error('GSBOT_GUILD_IDS or GSBOT_GUILD_ID is required');
+  const guildIds = source.split(',').map((guildId) => guildId.trim());
+  if (guildIds.some((guildId) => !DISCORD_SNOWFLAKE.test(guildId))) {
+    throw new Error(
+      configured
+        ? `${name} must contain only Discord server IDs separated by commas`
+        : `${name} must be a Discord server ID`
+    );
+  }
+  return [...new Set(guildIds)];
+}
+
 function loadGsbotEnvironment(environment = process.env) {
   const token = required(environment, 'GSBOT_TOKEN');
-  const guildId = required(environment, 'GSBOT_GUILD_ID');
-  if (!DISCORD_SNOWFLAKE.test(guildId)) {
-    throw new Error('GSBOT_GUILD_ID must be a Discord server ID');
-  }
+  const guildIds = configuredGuildIds(environment);
   const mongoUri = environment.MONGO_URI || 'mongodb://127.0.0.1:27017/gsplay';
   if (!/^mongodb(\+srv)?:\/\//.test(mongoUri))
     throw new Error('MONGO_URI must be a MongoDB connection URI');
-  return Object.freeze({ token, guildId, mongoUri });
+  return Object.freeze({ token, guildIds: Object.freeze(guildIds), mongoUri });
 }
 
 function gsbotDeploymentMode(environment = process.env) {
   const token = environment.GSBOT_TOKEN?.trim();
-  const guildId = environment.GSBOT_GUILD_ID?.trim();
-  if (!token && !guildId) return 'disabled';
+  const guildIds = environment.GSBOT_GUILD_IDS?.trim() || environment.GSBOT_GUILD_ID?.trim();
+  if (!token && !guildIds) return 'disabled';
   loadGsbotEnvironment(environment);
   return 'enabled';
 }

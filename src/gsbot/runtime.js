@@ -24,6 +24,7 @@ function createGsbotRuntime({
   log = console
 }) {
   const commandByName = new Map(commands.map((command) => [command.data.name, command]));
+  const configuredGuildIds = new Set(config.guildIds);
   let started = false;
   let stopped = false;
 
@@ -32,7 +33,7 @@ function createGsbotRuntime({
   });
 
   client.on(Events.InteractionCreate, async (interaction) => {
-    if (interaction.guildId !== config.guildId) return;
+    if (!configuredGuildIds.has(interaction.guildId)) return;
     const command = interaction.commandName
       ? commandByName.get(interaction.commandName)
       : commands.find((candidate) => candidate.handles?.(interaction));
@@ -67,12 +68,19 @@ function createGsbotRuntime({
     const ready = new Promise((resolve, reject) => {
       client.once(Events.ClientReady, async (readyClient) => {
         try {
-          const guild = await readyClient.guilds.fetch(config.guildId);
-          await guild.commands.set(commandPayload(commands));
+          const guilds = await Promise.all(
+            config.guildIds.map(async (guildId) => {
+              const guild = await readyClient.guilds.fetch(guildId);
+              await guild.commands.set(commandPayload(commands));
+              return guild;
+            })
+          );
           await onReady?.();
           started = true;
           delivery?.start();
-          log.info(`GSbot ready · guild=${guild.name} (${guild.id}) · commands=${commands.length}`);
+          log.info(
+            `GSbot ready · guilds=${guilds.map((guild) => `${guild.name} (${guild.id})`).join(', ')} · commands=${commands.length}`
+          );
           resolve();
         } catch (error) {
           reject(error);

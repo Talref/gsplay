@@ -66,4 +66,26 @@ describe('temporary tag cleanup', () => {
     await cleanup.cleanup(tag.id);
     expect(role.delete).toHaveBeenCalledTimes(1);
   });
+
+  test('does not clean a tag when the scheduled guild does not own it', async () => {
+    const tag = await TemporaryTag.create({
+      guildId: '123456789012345678',
+      discordRoleId: '223456789012345678',
+      name: 'Halloween',
+      normalizedName: 'halloween',
+      buttonLabel: '🎃 Partecipa',
+      createdBy: '323456789012345678'
+    });
+    const client = {
+      guilds: { fetch: jest.fn() },
+      channels: { fetch: jest.fn() }
+    };
+    const cleanup = createTemporaryTagCleanup({ client, log: { info: jest.fn() } });
+
+    expect(
+      await cleanup.cleanup(tag.id, { guildId: '423456789012345678' })
+    ).toBeNull();
+    expect(client.guilds.fetch).not.toHaveBeenCalled();
+    expect(await TemporaryTag.findById(tag.id)).toMatchObject({ status: 'active' });
+  });
 });

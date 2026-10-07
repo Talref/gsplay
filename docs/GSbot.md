@@ -6,25 +6,27 @@ remain in `src/core`; due-time processing remains in the worker.
 
 ## Configuration
 
-`GSBOT_TOKEN` and `GSBOT_GUILD_ID` are bootstrap values in the protected runtime environment.
+`GSBOT_TOKEN` and `GSBOT_GUILD_IDS` are bootstrap values in the protected runtime environment.
 Feature channel mappings live in MongoDB so adding bot functions does not create an expanding set of
-environment variables. The guild ID is not secret, but it is deployment-specific: production and
-future staging instances use different values. Missing or invalid configuration fails startup; there
-is no production fallback in source.
+environment variables. `GSBOT_GUILD_IDS` is a comma-separated allowlist and is not secret. One
+runtime registers commands and handles interactions and scheduled deliveries in every listed guild.
+`GSBOT_GUILD_ID` remains accepted as a single-guild migration fallback when the new setting is empty.
+Missing or invalid configuration fails startup; there is no production fallback in source.
 
 Configure the semantic `general` channel after the first deployment, and whenever that channel
 changes:
 
 ```bash
 sudo -u gsplay /usr/bin/node /srv/gsplay/scripts/configure-gsbot.js \
-  --guild-id "$GSBOT_GUILD_ID" \
+  --guild-id <Discord server ID> \
   --general-channel-id <Discord general channel ID>
 ```
 
-Run the command from an environment where `MONGO_URI` and `GSBOT_GUILD_ID` are available. The
-current `general` channel is public and receives birthday reminders. Birthday messages allow a
-mention of the birthday user only; role, `@everyone`, and additional user mentions are suppressed.
-GSbot needs View Channel and Send Messages permission there; it does not need Administrator.
+Run the command once for each configured guild from an environment where `MONGO_URI` is available.
+Each guild's `general` channel is public and receives its birthday reminders. Birthday messages
+allow a mention of the birthday user only; role, `@everyone`, and additional user mentions are
+suppressed. GSbot needs View Channel and Send Messages permission there; it does not need
+Administrator.
 
 ## Commands
 
@@ -63,6 +65,11 @@ GSbot does not maintain a separate operator-role mapping.
 
 Temporary roles have no permissions, are not hoisted, and are not mentionable. Expiration uses the
 persistent scheduled-job handoff and performs the same cleanup as manual deletion.
+
+All Discord-derived state, records, channel configuration, temporary tags and invites, and scheduled
+work are scoped by guild. Commands update only the guild where they run, and delivery workers claim
+work only for the configured guild allowlist. New GSbot features must preserve that isolation and
+must not assume there is only one guild.
 
 `/tag` requires Discord's Manage Server permission by default. Server managers can grant the
 intended staff roles or members access through **Server Settings → Integrations → GSbot → Command

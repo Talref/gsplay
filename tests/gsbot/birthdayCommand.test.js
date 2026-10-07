@@ -50,6 +50,12 @@ describe('/birthday', () => {
   test('sets the birthday channel for the interaction guild and confirms privately', async () => {
     const selectedChannel = { id: '34567890123456789' };
     const command = interaction('channelset');
+    const otherGuildId = '44567890123456789';
+    const otherChannelId = '54567890123456789';
+    await GsbotGuildConfig.create({
+      guildId: otherGuildId,
+      channels: { general: otherChannelId }
+    });
     command.options.getChannel = jest.fn().mockReturnValue(selectedChannel);
 
     await birthdayCommand.execute(command);
@@ -57,6 +63,9 @@ describe('/birthday', () => {
     expect(command.options.getChannel).toHaveBeenCalledWith('channel', true);
     expect(await GsbotGuildConfig.findOne({ guildId: command.guildId })).toMatchObject({
       channels: { general: selectedChannel.id }
+    });
+    expect(await GsbotGuildConfig.findOne({ guildId: otherGuildId })).toMatchObject({
+      channels: { general: otherChannelId }
     });
     expect(command.reply).toHaveBeenCalledWith({
       content: `Canale compleanni impostato: <#${selectedChannel.id}>.`,

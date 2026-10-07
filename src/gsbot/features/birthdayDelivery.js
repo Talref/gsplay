@@ -12,8 +12,8 @@ const {
   scheduleBirthday
 } = require('../../core/services/birthdayService');
 
-function createBirthdayDelivery({ client, guildId, log = console, pollMs = 1_000 }) {
-  if (!guildId) throw new Error('GSbot guild ID is required for birthday delivery');
+function createBirthdayDelivery({ client, guildIds, log = console, pollMs = 1_000 }) {
+  if (!guildIds?.length) throw new Error('GSbot guild IDs are required for birthday delivery');
   const deliveryId = `gsbot-${process.pid}-${crypto.randomUUID()}`;
   let timer;
   let running = false;
@@ -61,7 +61,7 @@ function createBirthdayDelivery({ client, guildId, log = console, pollMs = 1_000
       while (!stopping) {
         const job = await claimReadyScheduledJob(deliveryId, {
           types: [BIRTHDAY_JOB_TYPE],
-          guildId
+          guildIds
         });
         if (!job) return;
         try {

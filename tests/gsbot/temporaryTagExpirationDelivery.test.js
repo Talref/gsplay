@@ -47,11 +47,11 @@ describe('temporary tag expiration delivery', () => {
     const cleanup = { cleanup: jest.fn().mockResolvedValue({ status: 'deleted' }) };
     const delivery = createTemporaryTagExpirationDelivery({
       cleanup,
-      guildId,
+      guildIds: [guildId],
       log: { info: jest.fn(), error: jest.fn() }
     });
     await delivery.drain();
-    expect(cleanup.cleanup).toHaveBeenCalledWith(tag.id);
+    expect(cleanup.cleanup).toHaveBeenCalledWith(tag.id, { guildId });
     expect(await ScheduledJob.findOne()).toMatchObject({ status: 'completed', attempts: 1 });
   });
 
@@ -60,7 +60,7 @@ describe('temporary tag expiration delivery', () => {
     const cleanup = { cleanup: jest.fn().mockRejectedValue(new Error('Discord unavailable')) };
     const delivery = createTemporaryTagExpirationDelivery({
       cleanup,
-      guildId,
+      guildIds: [guildId],
       log: { info: jest.fn(), error: jest.fn() }
     });
     await delivery.drain();
@@ -71,30 +71,41 @@ describe('temporary tag expiration delivery', () => {
     });
   });
 
-  test('claims expiration work only for the configured guild', async () => {
-    const otherGuildId = '423456789012345678';
-    const otherTag = await readyExpiration({
-      targetGuildId: otherGuildId,
+  test('claims expiration work for configured guilds and leaves unconfigured work untouched', async () => {
+    const secondGuildId = '423456789012345678';
+    const unconfiguredGuildId = '623456789012345678';
+    const secondTag = await readyExpiration({
+      targetGuildId: secondGuildId,
       discordRoleId: '523456789012345678',
       name: 'Altro server'
+    });
+    const unconfiguredTag = await readyExpiration({
+      targetGuildId: unconfiguredGuildId,
+      discordRoleId: '723456789012345678',
+      name: 'Server escluso'
     });
     const tag = await readyExpiration();
     const cleanup = { cleanup: jest.fn().mockResolvedValue({ status: 'deleted' }) };
     const delivery = createTemporaryTagExpirationDelivery({
       cleanup,
-      guildId,
+      guildIds: [guildId, secondGuildId],
       log: { info: jest.fn(), error: jest.fn() }
     });
 
     await delivery.drain();
 
-    expect(cleanup.cleanup).toHaveBeenCalledTimes(1);
-    expect(cleanup.cleanup).toHaveBeenCalledWith(tag.id);
+    expect(cleanup.cleanup).toHaveBeenCalledTimes(2);
+    expect(cleanup.cleanup).toHaveBeenCalledWith(tag.id, { guildId });
+    expect(cleanup.cleanup).toHaveBeenCalledWith(secondTag.id, { guildId: secondGuildId });
     expect(await ScheduledJob.findOne({ 'payload.tagId': tag.id })).toMatchObject({
       status: 'completed',
       attempts: 1
     });
-    expect(await ScheduledJob.findOne({ 'payload.tagId': otherTag.id })).toMatchObject({
+    expect(await ScheduledJob.findOne({ 'payload.tagId': secondTag.id })).toMatchObject({
+      status: 'completed',
+      attempts: 1
+    });
+    expect(await ScheduledJob.findOne({ 'payload.tagId': unconfiguredTag.id })).toMatchObject({
       status: 'ready',
       attempts: 0
     });

@@ -27,12 +27,14 @@ Tests mirror ownership in `tests/api/`, `tests/core/`, `tests/worker/`, and `tes
 
 GSbot's command and feature-channel reference is maintained in [GSbot](GSbot.md). Discord feature
 channel IDs are semantic MongoDB configuration rather than environment variables; credentials and
-the bootstrap guild ID remain in the protected environment.
+the bootstrap guild allowlist remain in the protected environment.
 
-Each GSbot runtime serves exactly one guild selected by `GSBOT_GUILD_ID`. Discord interactions,
-persisted feature records, scheduled work, and future guild-specific state must always be scoped to
-that guild and must never cross guild boundaries. Prefer IDs supplied by Discord and persisted guild
-configuration over server-specific IDs embedded in source.
+One GSbot runtime may serve multiple explicitly configured guilds selected by `GSBOT_GUILD_IDS`.
+Discord interactions, persisted records, configuration, and scheduled work must always remain
+guild-scoped and must never cross guild boundaries. Unconfigured guilds are ignored without changing
+their state. Future GSbot features must not assume a single guild or share guild-specific state
+between guilds. Prefer IDs supplied by Discord and persisted guild configuration over server-specific
+IDs embedded in source.
 
 ## Monorepo intent
 
