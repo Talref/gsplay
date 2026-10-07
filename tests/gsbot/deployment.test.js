@@ -25,6 +25,7 @@ describe('GSbot deployment wiring', () => {
     expect(deploy).toContain('[[ -f "$GSBOT_READY_FILE" ]]');
     expect(deploy).toContain('systemctl enable "$GSBOT_SERVICE"');
     expect(deploy).toContain('systemctl disable --now "$GSBOT_SERVICE"');
+    expect(deploy).toContain('for attempt in {1..60}; do');
     expect(deploy.indexOf('gsbot_is_ready')).toBeLessThan(
       deploy.indexOf('GSPlay deployed successfully')
     );
