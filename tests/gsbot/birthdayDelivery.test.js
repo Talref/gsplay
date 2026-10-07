@@ -37,7 +37,7 @@ describe('GSbot birthday delivery', () => {
     };
     const delivery = createBirthdayDelivery({
       client,
-      guildId,
+      guildIds: [guildId],
       log: { info: jest.fn(), error: jest.fn() }
     });
 
@@ -59,27 +59,40 @@ describe('GSbot birthday delivery', () => {
     expect(await ScheduledJob.countDocuments({ status: 'scheduled' })).toBe(1);
   });
 
-  test('claims birthday work only for the configured guild', async () => {
+  test('claims birthday work for configured guilds and leaves unconfigured work untouched', async () => {
     const guildId = '123456789012345678';
-    const otherGuildId = '223456789012345678';
+    const secondGuildId = '223456789012345678';
+    const unconfiguredGuildId = '323456789012345678';
     const discordUserId = '323456789012345678';
     const otherDiscordUserId = '423456789012345678';
+    const unconfiguredDiscordUserId = '523456789012345678';
     const channelId = '523456789012345678';
+    const secondChannelId = '623456789012345678';
     await Promise.all([
       Birthday.create({ guildId, discordUserId, day: 4, month: 7 }),
       Birthday.create({
-        guildId: otherGuildId,
+        guildId: secondGuildId,
         discordUserId: otherDiscordUserId,
         day: 5,
         month: 8
       }),
-      GsbotGuildConfig.create({ guildId, channels: { general: channelId } })
+      Birthday.create({
+        guildId: unconfiguredGuildId,
+        discordUserId: unconfiguredDiscordUserId,
+        day: 6,
+        month: 9
+      }),
+      GsbotGuildConfig.create({ guildId, channels: { general: channelId } }),
+      GsbotGuildConfig.create({
+        guildId: secondGuildId,
+        channels: { general: secondChannelId }
+      })
     ]);
     await enqueueScheduledJob({
       type: 'birthday_reminder',
-      payload: { guildId: otherGuildId, discordUserId: otherDiscordUserId, occurrenceYear: 2026 },
+      payload: { guildId: secondGuildId, discordUserId: otherDiscordUserId, occurrenceYear: 2026 },
       runAt: new Date(0),
-      dedupeKey: `birthday:${otherGuildId}:${otherDiscordUserId}:2026`
+      dedupeKey: `birthday:${secondGuildId}:${otherDiscordUserId}:2026`
     });
     await enqueueScheduledJob({
       type: 'birthday_reminder',
@@ -87,7 +100,17 @@ describe('GSbot birthday delivery', () => {
       runAt: new Date(0),
       dedupeKey: `birthday:${guildId}:${discordUserId}:2026`
     });
-    for (let index = 0; index < 2; index += 1) {
+    await enqueueScheduledJob({
+      type: 'birthday_reminder',
+      payload: {
+        guildId: unconfiguredGuildId,
+        discordUserId: unconfiguredDiscordUserId,
+        occurrenceYear: 2026
+      },
+      runAt: new Date(0),
+      dedupeKey: `birthday:${unconfiguredGuildId}:${unconfiguredDiscordUserId}:2026`
+    });
+    for (let index = 0; index < 3; index += 1) {
       const preparing = await claimDueScheduledJob('worker-a');
       await markScheduledJobReady(preparing);
     }
@@ -99,14 +122,19 @@ describe('GSbot birthday delivery', () => {
     };
     const delivery = createBirthdayDelivery({
       client,
-      guildId,
+      guildIds: [guildId, secondGuildId],
       log: { info: jest.fn(), error: jest.fn() }
     });
 
     await delivery.drain();
 
-    expect(send).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0][0].content).toContain(`<@${discordUserId}>`);
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls.map(([message]) => message.content)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining(`<@${discordUserId}>`),
+        expect.stringContaining(`<@${otherDiscordUserId}>`)
+      ])
+    );
     expect(
       await ScheduledJob.findOne({
         type: 'birthday_reminder',
@@ -117,7 +145,14 @@ describe('GSbot birthday delivery', () => {
     expect(
       await ScheduledJob.findOne({
         type: 'birthday_reminder',
-        'payload.guildId': otherGuildId
+        'payload.guildId': secondGuildId,
+        status: 'completed'
+      })
+    ).not.toBeNull();
+    expect(
+      await ScheduledJob.findOne({
+        type: 'birthday_reminder',
+        'payload.guildId': unconfiguredGuildId
       })
     ).toMatchObject({ status: 'ready', attempts: 0 });
   });

@@ -45,11 +45,9 @@ function createTemporaryTagCleanup({ client, log = console }) {
     }
   }
 
-  async function cleanup(tagOrId, { deletedBy = null } = {}) {
-    const tag =
-      typeof tagOrId === 'string'
-        ? await TemporaryTag.findById(tagOrId)
-        : await TemporaryTag.findById(tagOrId._id);
+  async function cleanup(tagOrId, { deletedBy = null, guildId = null } = {}) {
+    const tagId = typeof tagOrId === 'string' ? tagOrId : tagOrId._id;
+    const tag = await TemporaryTag.findOne({ _id: tagId, ...(guildId ? { guildId } : {}) });
     if (!tag || tag.status === 'deleted') return tag;
     if (tag.status === 'active') {
       const claimed = await beginTemporaryTagDeletion(tag.id);
