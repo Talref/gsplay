@@ -93,7 +93,7 @@ gsbot_is_ready() {
     || { systemctl is-active --quiet "$GSBOT_SERVICE" && [[ -f "$GSBOT_READY_FILE" ]]; }
 }
 
-for attempt in {1..20}; do
+for attempt in {1..60}; do
   if curl --fail --silent --max-time 2 http://127.0.0.1:3000/health/live >/dev/null \
     && curl --fail --silent --max-time 2 http://127.0.0.1:3000/health/ready >/dev/null \
     && systemctl is-active --quiet "$API_SERVICE" \
