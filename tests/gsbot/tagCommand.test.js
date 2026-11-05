@@ -88,10 +88,12 @@ describe('/tag', () => {
       expect.objectContaining({ data: expect.anything() })
     );
 
+    const expirationYear = new Date().getUTCFullYear() + 1;
+    const expiresAt = new Date(`${expirationYear}-11-01T11:00:00.000Z`);
     const fields = {
       name: 'Halloween',
       button_label: '🎃 Partecipa a Halloween',
-      expires_at: '01/11/2026 12:00'
+      expires_at: `01/11/${expirationYear} 12:00`
     };
     const modal = interaction({
       fields: { getTextInputValue: (name) => fields[name] }
@@ -116,9 +118,37 @@ describe('/tag', () => {
     expect(await TemporaryTag.findOne({ guildId })).toMatchObject({
       name: 'Halloween',
       buttonLabel: '🎃 Partecipa a Halloween',
-      status: 'active'
+      status: 'active',
+      expiresAt
     });
-    expect(await ScheduledJob.countDocuments({ type: 'temporary_tag_expiration' })).toBe(1);
+    expect(modal._role.delete).not.toHaveBeenCalled();
+    expect(await ScheduledJob.findOne({ type: 'temporary_tag_expiration' })).toMatchObject({
+      runAt: expiresAt,
+      status: 'scheduled'
+    });
+  });
+
+  test('rejects a past expiration and rolls back the created Discord role', async () => {
+    const fields = {
+      name: 'Expired tag',
+      button_label: 'Join',
+      expires_at: '01/01/2000 12:00'
+    };
+    const modal = interaction({
+      customId: 'tag:create',
+      fields: { getTextInputValue: (name) => fields[name] },
+      isModalSubmit: () => true,
+      isButton: () => false
+    });
+
+    await tagCommand.handleInteraction(modal, {});
+
+    expect(modal.editReply).toHaveBeenCalledWith({
+      content: 'La scadenza deve essere nel futuro.'
+    });
+    expect(modal._role.delete).toHaveBeenCalledWith('Rollback creazione tag GSbot non riuscita');
+    expect(await TemporaryTag.countDocuments({ guildId })).toBe(0);
+    expect(await ScheduledJob.countDocuments({ type: 'temporary_tag_expiration' })).toBe(0);
   });
 
   test('publishes and tracks multiple invites for a managed tag', async () => {
