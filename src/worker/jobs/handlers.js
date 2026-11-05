@@ -1,6 +1,10 @@
 const User = require('../../core/models/User');
 const { createSteamClient, SteamProviderError } = require('../../core/providers/steamClient');
-const { createIgdbClient, IgdbProviderError } = require('../../core/providers/igdbClient');
+const {
+  createIgdbClient,
+  IgdbProviderError,
+  isDesktopGame
+} = require('../../core/providers/igdbClient');
 const { reconcileProviderLibrary } = require('../../core/services/libraryReconciliation');
 const CanonicalGame = require('../../core/models/CanonicalGame');
 const { ensureMetadataJob } = require('../../core/jobs/jobService');
@@ -163,6 +167,44 @@ function createJobHandlers(config, { steamClient, igdbClient, igdbGate, log = co
         };
       }
       try {
+        if (
+          lookup.outcome === 'matched' &&
+          canonical.origin === 'provider_discovery' &&
+          !isDesktopGame(lookup.match)
+        ) {
+          const platforms = lookup.match.platforms || [];
+          const platformSummary = platforms.length ? platforms.join(', ') : 'no platforms';
+          canonical.metadata = {
+            ...canonical.metadata.toObject(),
+            status: 'failed',
+            attempts: canonical.metadata.attempts + 1,
+            lastSyncAt: new Date(),
+            lastError: `IGDB match has no supported desktop platform (${platformSummary})`,
+            nextRetryAt: undefined
+          };
+          canonical.metadataCandidates = [
+            {
+              igdbId: lookup.match.igdbId,
+              title: lookup.match.canonicalTitle,
+              artwork: lookup.match.artwork,
+              releaseDate: lookup.match.releaseDate,
+              platforms,
+              companies: lookup.match.companies,
+              igdbUrl: lookup.match.igdbUrl
+            }
+          ];
+          await canonical.save();
+          return {
+            title: canonical.canonicalTitle,
+            outcome: 'unsupported_platform',
+            diagnostics: [
+              {
+                code: 'igdb_unsupported_platform',
+                message: `IGDB match has no supported desktop platform (${platformSummary})`
+              }
+            ]
+          };
+        }
         if (lookup.outcome !== 'matched') {
           canonical.metadata = {
             ...canonical.metadata.toObject(),

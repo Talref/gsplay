@@ -87,6 +87,7 @@ describe('worker provider handlers', () => {
           canonicalTitle: 'Aqua Quest',
           normalizedTitle: 'aquaquest',
           genres: ['Adventure'],
+          platforms: ['PC (Microsoft Windows)'],
           videos: ['dQw4w9WgXcQ'],
           metadata: 'ignored'
         })
@@ -123,6 +124,7 @@ describe('worker provider handlers', () => {
       igdbId: 44,
       canonicalTitle: 'Aqua Quest',
       normalizedTitle: 'aquaquest',
+      platforms: ['PC (Microsoft Windows)'],
       videos: ['dQw4w9WgXcQ']
     });
     const handlers = createJobHandlers(
@@ -134,6 +136,114 @@ describe('worker provider handlers', () => {
     expect(await CanonicalGame.findById(game._id).lean()).toMatchObject({
       videos: ['dQw4w9WgXcQ'],
       metadata: { status: 'complete', attempts: 2 }
+    });
+  });
+
+  test('rejects a non-desktop stable IGDB identity without changing metadata or ownership', async () => {
+    const user = await User.create({
+      usernameNormalized: 'unsupported-platform-owner',
+      usernameDisplay: 'Unsupported Platform Owner',
+      passwordHash: await User.hashPassword('correct-horse-battery-staple')
+    });
+    const game = await CanonicalGame.create({
+      canonicalTitle: 'We Were Here Together',
+      normalizedTitle: 'wewereheretogether',
+      igdbId: 44,
+      summary: 'The correct PC game',
+      platforms: ['PC (Microsoft Windows)'],
+      metadata: { status: 'complete', attempts: 1 }
+    });
+    const item = await LibraryItem.create({
+      userId: user._id,
+      provider: 'steam',
+      providerGameId: '865360',
+      providerTitle: 'We Were Here Together',
+      normalizedTitle: 'wewereheretogether',
+      canonicalGameId: game._id,
+      matchStatus: 'auto_matched',
+      source: 'api'
+    });
+    await enqueueJob({
+      provider: 'igdb',
+      kind: 'metadata_enrichment',
+      payload: { canonicalGameId: game._id.toString() },
+      idempotencyKey: 'igdb-unsupported-refresh'
+    });
+    const job = await claimNextJob('worker');
+    const handlers = createJobHandlers(config, {
+      igdbClient: {
+        getGameById: jest.fn().mockResolvedValue({
+          igdbId: 44,
+          canonicalTitle: 'Unrelated Switch Game',
+          normalizedTitle: 'unrelatedswitchgame',
+          summary: 'Wrong metadata',
+          platforms: ['Nintendo Switch']
+        })
+      }
+    });
+
+    await expect(handlers.metadata_enrichment(job)).resolves.toMatchObject({
+      outcome: 'unsupported_platform',
+      diagnostics: [{ code: 'igdb_unsupported_platform' }]
+    });
+    expect(await CanonicalGame.findById(game._id).lean()).toMatchObject({
+      canonicalTitle: 'We Were Here Together',
+      igdbId: 44,
+      summary: 'The correct PC game',
+      platforms: ['PC (Microsoft Windows)'],
+      metadata: {
+        status: 'failed',
+        attempts: 2,
+        lastError: expect.stringContaining('Nintendo Switch')
+      },
+      metadataCandidates: [
+        {
+          igdbId: 44,
+          title: 'Unrelated Switch Game',
+          platforms: ['Nintendo Switch']
+        }
+      ]
+    });
+    expect(await LibraryItem.findById(item._id).lean()).toMatchObject({
+      userId: user._id,
+      provider: 'steam',
+      providerGameId: '865360',
+      canonicalGameId: game._id,
+      removedAt: null
+    });
+  });
+
+  test('allows a manual catalogue record to refresh non-desktop IGDB metadata', async () => {
+    const game = await CanonicalGame.create({
+      canonicalTitle: 'Manual Console Game',
+      normalizedTitle: 'manualconsolegame',
+      origin: 'manual_catalogue',
+      storeAvailability: 'independent',
+      igdbId: 55,
+      metadata: { status: 'complete' }
+    });
+    await enqueueJob({
+      provider: 'igdb',
+      kind: 'metadata_enrichment',
+      payload: { canonicalGameId: game._id.toString() },
+      idempotencyKey: 'igdb-manual-console-refresh'
+    });
+    const job = await claimNextJob('worker');
+    const handlers = createJobHandlers(config, {
+      igdbClient: {
+        getGameById: jest.fn().mockResolvedValue({
+          igdbId: 55,
+          canonicalTitle: 'Manual Console Game',
+          normalizedTitle: 'manualconsolegame',
+          platforms: ['Nintendo Switch']
+        })
+      }
+    });
+
+    await expect(handlers.metadata_enrichment(job)).resolves.toMatchObject({ outcome: 'matched' });
+    expect(await CanonicalGame.findById(game._id).lean()).toMatchObject({
+      platforms: ['Nintendo Switch'],
+      metadata: { status: 'complete', attempts: 1 }
     });
   });
 

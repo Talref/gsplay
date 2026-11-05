@@ -5,7 +5,7 @@ const {
 } = require('../../src/core/providers/igdbClient');
 
 describe('IGDB client', () => {
-  test('escapes title input, caches OAuth, and only accepts one exact normalized result', async () => {
+  test('escapes title input, caches OAuth, and accepts one desktop exact result', async () => {
     const http = {
       post: jest
         .fn()
@@ -16,6 +16,7 @@ describe('IGDB client', () => {
               id: 9,
               name: 'Aqua "Quest"',
               genres: [{ name: 'Adventure' }],
+              platforms: [{ name: 'PC (Microsoft Windows)' }],
               cover: { image_id: 'cover' }
             }
           ]
@@ -113,6 +114,28 @@ describe('IGDB client', () => {
         canonicalTitle: 'Carcassonne',
         platforms: ['PC (Microsoft Windows)', 'Nintendo Switch']
       }
+    });
+  });
+
+  test('leaves a sole non-desktop exact match unresolved', async () => {
+    const http = {
+      post: jest
+        .fn()
+        .mockResolvedValueOnce({ data: { access_token: 'token', expires_in: 3600 } })
+        .mockResolvedValueOnce({
+          data: [
+            {
+              id: 91,
+              name: 'We Were Here Together',
+              platforms: [{ name: 'Nintendo Switch' }]
+            }
+          ]
+        })
+    };
+    const client = createIgdbClient({ clientId: 'client', clientSecret: 'secret', http });
+    await expect(client.searchTitle('We Were Here Together')).resolves.toMatchObject({
+      outcome: 'ambiguous',
+      candidates: [{ igdbId: 91, platforms: ['Nintendo Switch'] }]
     });
   });
 

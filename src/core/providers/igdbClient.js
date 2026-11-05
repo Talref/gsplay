@@ -89,7 +89,7 @@ function candidateOf(game) {
 }
 
 function isDesktopGame(game) {
-  return game.platforms.some((platform) =>
+  return (game.platforms || []).some((platform) =>
     ['PC (Microsoft Windows)', 'Linux', 'Mac'].includes(platform)
   );
 }
@@ -157,12 +157,6 @@ function createIgdbClient({ clientId, clientSecret, http = axios.create({ timeou
         );
         const candidates = primary.length ? primary : alternatives;
         const desktop = candidates.filter(isDesktopGame);
-        if (candidates.length === 1)
-          return {
-            outcome: 'matched',
-            match: candidates[0],
-            candidates: candidates.map(candidateOf)
-          };
         if (desktop.length === 1)
           return { outcome: 'matched', match: desktop[0], candidates: candidates.map(candidateOf) };
         return {
@@ -217,4 +211,10 @@ function createIgdbClient({ clientId, clientSecret, http = axios.create({ timeou
   };
 }
 
-module.exports = { createIgdbClient, escapeApicalypse, escapeIgdbSlug, IgdbProviderError };
+module.exports = {
+  createIgdbClient,
+  escapeApicalypse,
+  escapeIgdbSlug,
+  IgdbProviderError,
+  isDesktopGame
+};
