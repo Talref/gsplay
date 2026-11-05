@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer'
 import { expect, test } from '@playwright/test'
 
 async function expectNoHorizontalOverflow(page) {
@@ -31,6 +32,57 @@ test('a member can sign up, reach the library, and log out', async ({ page }, te
   await expectNoHorizontalOverflow(page)
   await page.getByRole('button', { name: 'Esci' }).click()
   await expect(page.getByRole('button', { name: 'Esci' })).not.toBeVisible()
+})
+
+test('Heroic import sends only a file and shows actionable validation errors', async ({
+  page
+}, testInfo) => {
+  const username = `heroic-${testInfo.project.name}-${Date.now()}`
+  await page.goto('/signup')
+  await page.getByLabel('Nome utente').fill(username)
+  await page.getByLabel('Password').fill('correct-horse-battery-staple')
+  await page.getByRole('button', { name: 'Crea account' }).click()
+  await expect(page.getByRole('button', { name: 'Esci' })).toBeVisible()
+  await page.goto('/library')
+  await expect(page.getByLabel('Piattaforma', { exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Istruzioni importazione' }).click()
+  await expect(page.getByText(/GSPlay riconosce da solo GOG, Epic e Amazon Games/)).toBeVisible()
+  await page.keyboard.press('Escape')
+
+  await page.evaluate(() => {
+    const send = XMLHttpRequest.prototype.send
+    XMLHttpRequest.prototype.send = function (body) {
+      if (body instanceof FormData) window.heroicUploadFields = Array.from(body.keys())
+      return send.call(this, body)
+    }
+  })
+
+  const upload = page.getByLabel('File libreria Heroic')
+  await upload.setInputFiles({
+    name: 'legendary_library.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from('{"library":[{"app_name":"heroic-42","title":"Heroic Quest"}]}')
+  })
+  const accepted = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/v2/me/imports') && response.request().method() === 'POST'
+  )
+  await page.getByRole('button', { name: 'Manda in coda' }).click()
+  expect(await page.evaluate(() => window.heroicUploadFields)).toEqual(['file'])
+  const response = await accepted
+  expect(response.status()).toBe(202)
+  expect((await response.json()).job.provider).toBe('epic')
+  await expect(page.getByText('Coda fatta: 1 giochi ar macero.')).toBeVisible()
+
+  await upload.setInputFiles({
+    name: 'gog_library.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from('{"library":[{"app_name":"42","title":"Wrong envelope"}]}')
+  })
+  await page.getByRole('button', { name: 'Manda in coda' }).click()
+  await expect(page.getByText(/Aò, controlla er file: GOG JSON must use/)).toBeVisible()
+  await expectNoHorizontalOverflow(page)
+  await page.screenshot({ path: testInfo.outputPath('heroic-import.png'), fullPage: true })
 })
 
 test('Retroclub keeps achievement spoilers inside its horizontal badge strip', async ({

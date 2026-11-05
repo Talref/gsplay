@@ -3,7 +3,7 @@ const { enqueueJob } = require('../../../core/jobs/jobService');
 const { requireAuth } = require('../../http/auth');
 const { AppError } = require('../../http/errors');
 const { exactKeys, object, string } = require('../../http/validate');
-const { parseLibraryUpload } = require('../../services/libraryUploadParser');
+const { resolveLibraryUpload } = require('../../services/libraryUploadParser');
 
 function registerImportRoutes(router, config, receiveUpload) {
   router.put('/me/providers/steam', requireAuth(config), async (req, res, next) => {
@@ -30,10 +30,15 @@ function registerImportRoutes(router, config, receiveUpload) {
   router.post('/me/imports', requireAuth(config), receiveUpload, async (req, res, next) => {
     try {
       exactKeys(req.body, ['provider']);
-      const provider = string(req.body.provider, 'provider', { max: 16 }).toLowerCase();
-      if (!['gog', 'epic', 'amazon'].includes(provider))
-        throw new AppError(400, 'invalid_request', 'provider must be gog, epic, or amazon');
-      const games = parseLibraryUpload(req.file.buffer, req.file.mimetype, provider);
+      const { provider, games } = resolveLibraryUpload({
+        buffer: req.file.buffer,
+        mimeType: req.file.mimetype,
+        filename: req.file.originalname,
+        provider:
+          req.body.provider === undefined
+            ? undefined
+            : string(req.body.provider, 'provider', { max: 16 }).toLowerCase()
+      });
       const job = await enqueueJob({
         userId: req.user._id,
         provider,
@@ -41,9 +46,9 @@ function registerImportRoutes(router, config, receiveUpload) {
         payload: { games },
         idempotencyKey: `upload:${req.user._id}:${provider}:${Date.now()}`
       });
-      res
-        .status(202)
-        .json({ job: { id: job._id.toString(), status: job.status, gameCount: games.length } });
+      res.status(202).json({
+        job: { id: job._id.toString(), status: job.status, provider, gameCount: games.length }
+      });
     } catch (error) {
       next(error);
     }

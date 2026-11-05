@@ -15,7 +15,6 @@ export default function Library() {
   const [libraryError, setLibraryError] = useState('')
   const [steamId, setSteamId] = useState('')
   const [editingSteam, setEditingSteam] = useState(false)
-  const [provider, setProvider] = useState('gog')
   const [file, setFile] = useState(null)
   const [message, setMessage] = useState('')
   const [jobId, setJobId] = useState(null)
@@ -75,8 +74,12 @@ export default function Library() {
         setSteamId('')
         setEditingSteam(false)
       }
-    } catch {
-      setMessage('Aò, qualcosa s’è incartato. Riprova tra poco.')
+    } catch (error) {
+      setMessage(
+        error.code === 'invalid_import_file'
+          ? `Aò, controlla er file: ${error.message}`
+          : 'Aò, qualcosa s’è incartato. Riprova tra poco.'
+      )
     }
   }
   const jobNotice = job && (
@@ -128,14 +131,12 @@ export default function Library() {
         onSteamIdChange={setSteamId}
         editingSteam={editingSteam}
         onEditSteam={() => setEditingSteam(true)}
-        provider={provider}
-        onProviderChange={setProvider}
         file={file}
         onFileChange={setFile}
         onShowHelp={setHelp}
         onLinkSteam={() => run(() => libraryApi.linkSteam(steamId))}
         onSyncSteam={() => run(libraryApi.syncSteam)}
-        onUpload={() => run(() => libraryApi.upload(provider, file))}
+        onUpload={() => run(() => libraryApi.upload(file))}
       />
       {page.total > 0 && (
         <Typography color="text.secondary">{page.total} giochi. Roba seria, insomma.</Typography>

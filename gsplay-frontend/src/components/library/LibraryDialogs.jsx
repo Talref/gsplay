@@ -41,9 +41,8 @@ function ImportHelp() {
           file in un altra posizione pingatemi sul server - @eradan)
         </li>
         <li>
-          Carica i file rilevanti che finiscono in &quot;library&quot; cliccando su &quot;Importa
-          GOG/Epic&quot; (gog_library.json per GOG, legendary_library.json per Epic e
-          nile_library.json per Amazon Games)
+          Premi &quot;Scegli il file Heroic&quot; e carica gog_library.json, legendary_library.json
+          o nile_library.json. GSPlay riconosce da solo GOG, Epic e Amazon Games, daje.
         </li>
       </ol>
       <Typography>
