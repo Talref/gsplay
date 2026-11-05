@@ -186,6 +186,52 @@ describe('authoritative library APIs', () => {
     expect(response.body.users[0]).not.toHaveProperty('role');
   });
 
+  test.each([
+    ['gog_library.json', 'gog', 'games'],
+    ['legendary_library.json', 'epic', 'library'],
+    ['nile_library.json', 'amazon', 'library']
+  ])('queues %s with its detected provider', async (filename, provider, key) => {
+    await createMember('Heroic User');
+    const agent = await authenticate('Heroic User');
+    const response = await agent
+      .post('/api/v2/me/imports')
+      .attach(
+        'file',
+        Buffer.from(JSON.stringify({ [key]: [{ app_name: '42', title: 'Quest' }] })),
+        {
+          filename,
+          contentType: 'application/json'
+        }
+      )
+      .expect(202);
+    expect(response.body.job).toMatchObject({ provider, gameCount: 1 });
+    const job = await claimNextJob('worker');
+    expect(job).toMatchObject({
+      provider,
+      kind: 'upload',
+      payload: { games: [{ providerGameId: '42', providerTitle: 'Quest' }] }
+    });
+    await expect(createJobHandlers({ providers: {} }).upload(job)).resolves.toMatchObject({
+      counts: { created: 1 }
+    });
+  });
+
+  test('rejects unsupported and mismatched Heroic files without queueing jobs', async () => {
+    await createMember('Bad Heroic User');
+    const agent = await authenticate('Bad Heroic User');
+    for (const filename of ['unknown.json', 'gog_library.json']) {
+      const response = await agent
+        .post('/api/v2/me/imports')
+        .attach('file', Buffer.from('{"library":[{"app_name":"42","title":"Quest"}]}'), {
+          filename,
+          contentType: 'application/json'
+        })
+        .expect(400);
+      expect(response.body.error.code).toBe('invalid_import_file');
+    }
+    expect(await claimNextJob('worker')).toBeNull();
+  });
+
   test('validates a bounded CSV import and processes it as an upload job', async () => {
     await createMember('Import User');
     const agent = await authenticate('Import User');

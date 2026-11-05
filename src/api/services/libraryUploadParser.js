@@ -62,14 +62,18 @@ function validateGames(games) {
 }
 
 function legacyProviderGames(parsed, provider) {
-  const records = provider === 'gog' ? parsed.games : parsed.library;
+  const records = provider === 'gog' ? parsed?.games : parsed?.library;
   if (!Array.isArray(records)) {
     const expected = provider === 'gog' ? '{ "games": [...] }' : '{ "library": [...] }';
-    invalidFile(`${provider.toUpperCase()} JSON must use ${expected} or the neutral games format`);
+    invalidFile(
+      `${provider.toUpperCase()} JSON must use ${expected} with app_name and title fields`
+    );
   }
   return records.map((game) => ({
     providerGameId:
-      game?.app_name === undefined || game?.app_name === null ? '' : String(game.app_name),
+      typeof game?.app_name === 'string' || Number.isFinite(game?.app_name)
+        ? String(game.app_name)
+        : '',
     providerTitle: game?.title
   }));
 }
@@ -88,7 +92,7 @@ function isNeutralGameArray(games) {
   );
 }
 
-function parseLibraryUpload(buffer, mimeType, provider) {
+function uploadContent(buffer) {
   if (!Buffer.isBuffer(buffer) || !buffer.length) invalidFile('Upload file must not be empty');
   if (buffer.includes(0)) invalidFile('Upload file contains binary data');
   let text;
@@ -99,15 +103,23 @@ function parseLibraryUpload(buffer, mimeType, provider) {
   }
   const content = text.trim();
   if (!content) invalidFile('Upload file must not be blank');
+  return content;
+}
+
+function parseJson(content) {
+  try {
+    return JSON.parse(content);
+  } catch {
+    invalidFile('Upload JSON is malformed');
+  }
+}
+
+function parseLibraryUpload(buffer, mimeType, provider) {
+  const content = uploadContent(buffer);
   if (mimeType === 'application/json' || mimeType === 'text/json') {
-    let parsed;
-    try {
-      parsed = JSON.parse(content);
-    } catch {
-      invalidFile('Upload JSON is malformed');
-    }
+    const parsed = parseJson(content);
     if (Array.isArray(parsed)) return validateGames(parsed);
-    if (isNeutralGameArray(parsed.games)) return validateGames(parsed.games);
+    if (isNeutralGameArray(parsed?.games)) return validateGames(parsed.games);
     if (['gog', 'epic', 'amazon'].includes(provider))
       return validateGames(legacyProviderGames(parsed, provider));
     invalidFile('JSON must be a game array or an object with a games array');
@@ -128,4 +140,38 @@ function parseLibraryUpload(buffer, mimeType, provider) {
   );
 }
 
-module.exports = { parseLibraryUpload };
+const HEROIC_PROVIDERS = {
+  'gog_library.json': 'gog',
+  'legendary_library.json': 'epic',
+  'nile_library.json': 'amazon'
+};
+
+function resolveLibraryUpload({ buffer, mimeType, filename, provider }) {
+  const basename = String(filename || '')
+    .replace(/\\/g, '/')
+    .split('/')
+    .pop()
+    .toLowerCase();
+  const detected = Object.hasOwn(HEROIC_PROVIDERS, basename) ? HEROIC_PROVIDERS[basename] : null;
+  if (provider !== undefined && !['gog', 'epic', 'amazon'].includes(provider))
+    invalidFile('provider must be gog, epic, or amazon');
+  if (detected) {
+    if (provider !== undefined && provider !== detected)
+      invalidFile(
+        `Filename identifies ${detected.toUpperCase()} but provider is ${provider.toUpperCase()}`
+      );
+    const parsed = parseJson(uploadContent(buffer));
+    return { provider: detected, games: validateGames(legacyProviderGames(parsed, detected)) };
+  }
+  if (!provider) {
+    // Decode and parse before reporting detection errors so malformed uploads stay actionable.
+    const content = uploadContent(buffer);
+    if (mimeType === 'application/json' || mimeType === 'text/json') parseJson(content);
+    invalidFile(
+      'Unsupported Heroic filename: use gog_library.json, legendary_library.json, or nile_library.json. Provider cannot be determined from this file.'
+    );
+  }
+  return { provider, games: parseLibraryUpload(buffer, mimeType, provider) };
+}
+
+module.exports = { parseLibraryUpload, resolveLibraryUpload };

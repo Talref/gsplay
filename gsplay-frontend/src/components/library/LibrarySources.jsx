@@ -5,15 +5,11 @@ import {
   CardContent,
   Grid,
   IconButton,
-  MenuItem,
   Stack,
   TextField,
   Tooltip,
   Typography
 } from '@mui/material'
-import ProviderIcons from '../ProviderIcons'
-
-const importProviders = ['gog', 'epic', 'amazon']
 
 export default function LibrarySources({
   user,
@@ -21,8 +17,6 @@ export default function LibrarySources({
   onSteamIdChange,
   editingSteam,
   onEditSteam,
-  provider,
-  onProviderChange,
   file,
   onFileChange,
   onShowHelp,
@@ -93,26 +87,13 @@ export default function LibrarySources({
               </Tooltip>
             </Stack>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mt: 2 }}>
-              <TextField
-                select
-                label="Piattaforma"
-                value={provider}
-                onChange={(event) => onProviderChange(event.target.value)}
-              >
-                {importProviders.map((value) => (
-                  <MenuItem key={value} value={value}>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <ProviderIcons providers={[value]} /> <span>{value.toUpperCase()}</span>
-                    </Stack>
-                  </MenuItem>
-                ))}
-              </TextField>
               <Button component="label" variant="outlined" sx={{ minWidth: 180 }}>
-                {file?.name || 'Scegli CSV / JSON'}
+                {file?.name || 'Scegli il file Heroic'}
                 <input
                   hidden
                   type="file"
-                  accept=".csv,.json,text/csv,application/json"
+                  aria-label="File libreria Heroic"
+                  accept=".json,application/json"
                   onChange={(event) => onFileChange(event.target.files?.[0] || null)}
                 />
               </Button>

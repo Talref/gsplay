@@ -53,9 +53,8 @@ export const libraryApi = {
   linkSteam: (steamId) => request('put', '/me/providers/steam', { steamId }),
   syncSteam: () => request('post', '/me/providers/steam/sync', {}),
   job: (jobId) => request('get', `/me/imports/${jobId}`),
-  upload: (provider, file) => {
+  upload: (file) => {
     const data = new FormData()
-    data.append('provider', provider)
     data.append('file', file)
     return request('post', '/me/imports', data)
   }
