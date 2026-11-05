@@ -52,6 +52,15 @@ const ownershipByGame = async (userId, gameIds) => {
     })
   );
 };
+const ownerCountsByGame = async (gameIds) => {
+  if (!gameIds.length) return new Map();
+  const rows = await LibraryItem.aggregate([
+    { $match: { canonicalGameId: { $in: gameIds }, removedAt: null } },
+    { $group: { _id: { gameId: '$canonicalGameId', userId: '$userId' } } },
+    { $group: { _id: '$_id.gameId', ownerCount: { $sum: 1 } } }
+  ]);
+  return new Map(rows.map((row) => [row._id.toString(), row.ownerCount]));
+};
 const queryValues = (value) =>
   (Array.isArray(value) ? value : value === undefined ? [] : [value])
     .map((item) => String(item).trim())
@@ -76,6 +85,7 @@ module.exports = {
   escapeRegex,
   gameDto,
   igdbSlugFromUrl,
+  ownerCountsByGame,
   ownershipByGame,
   pageOf,
   queryValues,

@@ -17,7 +17,7 @@ const {
   assertStringList,
   resolveIgdbMetadata
 } = require('./adminGameMetadata');
-const { escapeRegex, gameDto, igdbSlugFromUrl, pageOf } = require('./common');
+const { escapeRegex, gameDto, igdbSlugFromUrl, ownerCountsByGame, pageOf } = require('./common');
 
 function registerAdminGameRoutes(router, config, igdb) {
   router.get('/admin/games', requireAuth(config), requireRole('admin'), async (req, res, next) => {
@@ -36,10 +36,18 @@ function registerAdminGameRoutes(router, config, igdb) {
         CanonicalGame.find(filter)
           .sort({ canonicalTitle: 1 })
           .skip((page - 1) * pageSize)
-          .limit(pageSize),
+          .limit(pageSize)
+          .lean(),
         CanonicalGame.countDocuments(filter)
       ]);
-      res.json({ games: games.map(gameDto), page: { number: page, size: pageSize, total } });
+      const ownerCounts = await ownerCountsByGame(games.map((game) => game._id));
+      res.json({
+        games: games.map((game) => ({
+          ...gameDto(game),
+          ownerCount: ownerCounts.get(game._id.toString()) || 0
+        })),
+        page: { number: page, size: pageSize, total }
+      });
     } catch (error) {
       next(error);
     }

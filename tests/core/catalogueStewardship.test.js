@@ -54,6 +54,72 @@ describe('catalogue stewardship', () => {
     expect(await LibraryItem.countDocuments()).toBe(0);
   });
 
+  test('returns distinct active owner counts in the admin catalogue', async () => {
+    const { agent, admin } = await login();
+    const secondOwner = await User.create({
+      usernameNormalized: 'second-owner',
+      usernameDisplay: 'Second Owner',
+      passwordHash: await User.hashPassword(password)
+    });
+    const removedOwner = await User.create({
+      usernameNormalized: 'removed-owner',
+      usernameDisplay: 'Removed Owner',
+      passwordHash: await User.hashPassword(password)
+    });
+    const game = await CanonicalGame.create({
+      canonicalTitle: 'Counted Game',
+      normalizedTitle: 'countedgame'
+    });
+    await LibraryItem.create([
+      {
+        userId: admin._id,
+        provider: 'steam',
+        providerGameId: 'counted-steam',
+        providerTitle: 'Counted Game',
+        normalizedTitle: 'countedgame',
+        canonicalGameId: game._id,
+        matchStatus: 'auto_matched',
+        source: 'api'
+      },
+      {
+        userId: admin._id,
+        provider: 'gog',
+        providerGameId: 'counted-gog',
+        providerTitle: 'Counted Game',
+        normalizedTitle: 'countedgame',
+        canonicalGameId: game._id,
+        matchStatus: 'auto_matched',
+        source: 'upload'
+      },
+      {
+        userId: secondOwner._id,
+        provider: 'epic',
+        providerGameId: 'counted-epic',
+        providerTitle: 'Counted Game',
+        normalizedTitle: 'countedgame',
+        canonicalGameId: game._id,
+        matchStatus: 'auto_matched',
+        source: 'upload'
+      },
+      {
+        userId: removedOwner._id,
+        provider: 'amazon',
+        providerGameId: 'counted-amazon',
+        providerTitle: 'Counted Game',
+        normalizedTitle: 'countedgame',
+        canonicalGameId: game._id,
+        matchStatus: 'auto_matched',
+        source: 'upload',
+        removedAt: new Date()
+      }
+    ]);
+
+    const response = await agent.get('/api/v2/admin/games?q=Counted').expect(200);
+    expect(response.body.games).toEqual([
+      expect.objectContaining({ id: game._id.toString(), ownerCount: 2 })
+    ]);
+  });
+
   test('imports a complete independent catalogue entry from a strict IGDB URL without duplicates', async () => {
     const { agent } = await login();
     igdbClient.getGameBySlug = jest.fn().mockResolvedValue({
@@ -62,7 +128,7 @@ describe('catalogue stewardship', () => {
       normalizedTitle: 'vintage story',
       summary: 'A sandbox game',
       genres: ['Simulator'],
-      platforms: ['PC'],
+      platforms: ['Nintendo Switch'],
       igdbUrl: 'https://www.igdb.com/games/vintage-story'
     });
     const created = await agent
@@ -75,6 +141,7 @@ describe('catalogue stewardship', () => {
         title: 'Vintage Story',
         igdbId: 77,
         summary: 'A sandbox game',
+        platforms: ['Nintendo Switch'],
         metadataStatus: 'complete'
       }
     });
