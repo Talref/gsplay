@@ -44,16 +44,34 @@ Administrator.
   the invoking user's birthday when `user` is omitted. It does not calculate or display age.
 - `/birthday test` — privately renders a randomized birthday message through the same renderer used
   for delivery. It does not consume, create, or reschedule a reminder.
-- `/birthday channelset channel:<Discord channel>` — privately updates the destination for future
-  birthday reminders in the current server.
 
 February 29 birthdays run on February 28 in non-leap years. Real reminders are persistent and are
 delivered to the configured `general` channel after worker processing, including after runtime
 downtime.
 
-`/birthday` requires Discord's Manage Server permission by default. Server managers can adjust
-access through **Server Settings → Integrations → GSbot → Command Permissions → `/birthday`**;
-GSbot does not maintain a separate operator-role mapping.
+`/birthday` is available to ordinary members by default. All four subcommands reply privately.
+
+### Administration
+
+- `/gsbot birthday-channel channel:<Discord channel>` — privately updates `channels.general`, the
+  destination for future birthday reminders, for the invoking server only. The required channel
+  must be a guild text or announcement channel. It replaces `/birthday channelset`.
+
+`/gsbot` requires Discord's Manage Server permission by default. Server managers can authorize
+specific staff roles or members through **Server Settings → Integrations → GSbot → Command
+Permissions → `/gsbot`**, including staff without Manage Server. GSbot relies on Discord's command
+permissions and does not add a separate in-handler permission check or staff-role mapping.
+
+After deployment, review **Server Settings → Integrations → GSbot → Command Permissions** in every
+configured server. Existing customized command permissions may need adjustment; registering the
+updated commands does not guarantee that Discord resets those overrides. Ensure `/birthday` is
+available to members and `/gsbot` is limited to the intended staff. In a test guild, verify all four
+birthday subcommands as an ordinary member, then verify channel configuration as authorized staff
+(including a role without Manage Server) and its restriction for other members before granting
+member access in production. `/tag` permissions are unchanged.
+
+This change requires no database migration or environment-variable changes. Existing birthdays,
+reminder scheduling, delivery, and message formatting are unchanged.
 
 ### Temporary tags
 

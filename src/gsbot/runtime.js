@@ -1,9 +1,10 @@
 const { Client, Events, GatewayIntentBits, MessageFlags } = require('discord.js');
 const testCommand = require('./commands/testCommand');
 const birthdayCommand = require('./commands/birthdayCommand');
+const gsbotAdminCommand = require('./commands/gsbotAdminCommand');
 const tagCommand = require('./commands/tagCommand');
 
-const DEFAULT_COMMANDS = [testCommand, birthdayCommand, tagCommand];
+const DEFAULT_COMMANDS = [testCommand, birthdayCommand, gsbotAdminCommand, tagCommand];
 
 function createGsbotClient() {
   return new Client({ intents: [GatewayIntentBits.Guilds] });

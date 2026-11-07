@@ -96,7 +96,16 @@ sudo -u gsplay bash -c 'set -a; source /etc/gsplay/v2.env; set +a; \
 
 See [GSbot](GSbot.md) for the internal command reference. Re-run this command if the semantic
 `general` channel changes; no service restart is required. Ensure GSbot's role can view and send in
-that channel.
+that channel. Staff can also run `/gsbot birthday-channel channel:<Discord channel>` in the target
+server to update this mapping privately without a restart.
+
+After deploying the birthday command split, review **Server Settings → Integrations → GSbot →
+Command Permissions** in every configured server. `/birthday` now defaults to member access;
+`/gsbot` defaults to Manage Server, and Discord Integrations can grant it to specific staff roles or
+members without that permission. `/birthday channelset` is removed. Existing customized permissions
+may need adjustment: command registration does not guarantee that overrides are reset. Verify
+member and staff access in a test guild as described in [GSbot](GSbot.md) before granting member
+access in production. No database migration or environment-variable change is required.
 
 One GSbot runtime serves the complete guild allowlist. Interactions, Discord-derived state,
 persisted records, channel configuration, temporary tags and invites, and scheduled deliveries remain
