@@ -82,6 +82,14 @@ Discord mentions are not returned.
 
 ## Games API
 
+For an open Casual Friday event, authenticated members set their attendance with
+`PUT /api/v2/casual-friday/events/:id/rsvp` (`rsvp`: `yes`, `maybe`, or `no`). Only a `yes` or
+`maybe` response for that event permits `PUT /api/v2/casual-friday/events/:id/votes`
+(`rotationGameIds`: up to five unique locked candidates). Missing or `no` RSVPs return
+`409 rsvp_required` when voting. Changing attendance to `no` clears that member's votes;
+switching back does not restore them. Existing votes without a participating RSVP are excluded
+from member selections and management totals. This requires no schema migration or new settings.
+
 Authenticated members can propose a catalogue game for Casual Friday with
 `POST /api/v2/casual-friday/proposals/:gameId` and read their current proposal state with the
 matching `GET` endpoint. Repeated proposals add unique member interest rather than duplicate

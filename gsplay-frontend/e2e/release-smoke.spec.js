@@ -854,7 +854,7 @@ test('Casual Friday member page shows the running lineup and its inactive placeh
 
 test('Casual Friday members can RSVP and select at most five locked candidates', async ({
   page
-}) => {
+}, testInfo) => {
   await page.goto('/login')
   await page.getByLabel('Nome utente').fill('E2E Admin')
   await page.getByLabel('Password').fill('correct-horse-battery-staple')
@@ -884,7 +884,11 @@ test('Casual Friday members can RSVP and select at most five locked candidates',
   await page.route('**/api/v2/casual-friday/events/**', async (route) => {
     const body = route.request().postDataJSON()
     if (route.request().url().endsWith('/rsvp'))
-      event.response = { ...event.response, rsvp: body.rsvp }
+      event.response = {
+        ...event.response,
+        rsvp: body.rsvp,
+        voteRotationGameIds: body.rsvp === 'no' ? [] : event.response.voteRotationGameIds
+      }
     if (route.request().url().endsWith('/votes'))
       event.response = { ...event.response, voteRotationGameIds: body.rotationGameIds }
     await route.fulfill({ json: { event: { ...event, response: { ...event.response } } } })
@@ -893,7 +897,14 @@ test('Casual Friday members can RSVP and select at most five locked candidates',
     route.fulfill({ json: { event, playlist: null } })
   )
   await page.goto('/casual-friday')
+  const firstCandidate = page.getByRole('button', { name: /Candidato 1/ })
+  await expect(firstCandidate).toBeDisabled()
+  await expect(page.getByText(/Pe’ votà, scegli/)).toBeVisible()
+  if (testInfo.project.name === '1280x900')
+    await page.screenshot({ path: '../docs/screenshots/casual-friday-vote-eligibility.png' })
   await page.getByRole('button', { name: 'Ce sto', exact: true }).click()
+  await expect(firstCandidate).toBeEnabled()
+  await expect(page.getByText(/Pe’ votà, scegli/)).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Ce sto', exact: true })).toHaveAttribute(
     'class',
     /MuiButton-contained/
@@ -903,5 +914,13 @@ test('Casual Friday members can RSVP and select at most five locked candidates',
   await expect(page.getByText('5/5 scelti')).toBeVisible()
   await page.getByText('Candidato 6', { exact: true }).click()
   await expect(page.getByText(/Massimo 5 giochi/)).toBeVisible()
+  await page.getByRole('button', { name: 'Nun ce sto', exact: true }).click()
+  await expect(page.getByText('0/5 scelti')).toBeVisible()
+  await expect(firstCandidate).toBeDisabled()
+  await expect(page.getByText(/i tuoi voti se cancellano/)).toBeVisible()
+  await page.getByRole('button', { name: 'Forse, se me gira', exact: true }).click()
+  await expect(firstCandidate).toBeEnabled()
+  await firstCandidate.click()
+  await expect(page.getByText('1/5 scelti')).toBeVisible()
   await expectNoHorizontalOverflow(page)
 })
