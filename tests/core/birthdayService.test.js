@@ -27,8 +27,8 @@ describe('birthday service', () => {
   test('can select the last achievement and wish without altering the greeting', () => {
     const message = renderBirthdayMessage('123', { random: () => 0.999999 });
     expect(message).toBe(
-      '# 🎂 BUON COMPLEANNO!\\nOggi <@123> ha livellato in RL!\\n\\n' +
-        '**Achievement unlocked:** *Achievement ottenuto per puro talento (fonte: il party)* 🏆\\n\\n' +
+      '# 🎂 BUON COMPLEANNO!\nOggi <@123> ha livellato in RL!\n\n' +
+        '**Achievement unlocked:** *Achievement ottenuto per puro talento (fonte: il party)* 🏆\n\n' +
         'Che questo nuovo livello sia rotto quanto basta da essere divertente. 🎉'
     );
   });
