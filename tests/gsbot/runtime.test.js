@@ -2,6 +2,7 @@ const { EventEmitter } = require('node:events');
 const { Events, MessageFlags } = require('discord.js');
 const testCommand = require('../../src/gsbot/commands/testCommand');
 const birthdayCommand = require('../../src/gsbot/commands/birthdayCommand');
+const gsbotAdminCommand = require('../../src/gsbot/commands/gsbotAdminCommand');
 const tagCommand = require('../../src/gsbot/commands/tagCommand');
 const {
   commandPayload,
@@ -52,7 +53,7 @@ describe('GSbot runtime', () => {
     expect(client.guilds.fetch.mock.calls.map(([guildId]) => guildId)).toEqual(config.guildIds);
     for (const guild of guilds) {
       expect(guild.commands.set).toHaveBeenCalledWith(
-        commandPayload([testCommand, birthdayCommand, tagCommand])
+        commandPayload([testCommand, birthdayCommand, gsbotAdminCommand, tagCommand])
       );
     }
     expect(commandPayload([testCommand])).toEqual([
