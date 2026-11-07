@@ -1,0 +1,37 @@
+name: Weekly dependency security audit
+
+on:
+  schedule:
+    # Monday 08:17 Europe/Rome (offset avoids GitHub's busy top-of-hour window).
+    - cron: '17 8 * * 1'
+      timezone: Europe/Rome
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Audit ${{ matrix.component }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: backend
+            directory: .
+          - component: frontend
+            directory: gsplay-frontend
+    defaults:
+      run:
+        working-directory: ${{ matrix.directory }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - name: Audit production dependencies (high and critical)
+        run: npm audit --omit=dev --audit-level=high --package-lock-only
