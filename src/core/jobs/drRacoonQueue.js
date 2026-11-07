@@ -38,6 +38,7 @@ function createDrRacoonQueue({ limit = 20, guildIds, now = () => new Date() }) {
         channelId: source.channelId,
         authorId: source.authorId,
         scope: source.scope,
+        leaseToken: randomUUID(),
         parentRequestId: source.parentRequestId,
         status: 'admitting',
         runAfter: now(),
@@ -112,8 +113,7 @@ function createDrRacoonQueue({ limit = 20, guildIds, now = () => new Date() }) {
       guildId,
       channelId,
       scope,
-      responseIds: messageId,
-      status: 'completed'
+      responseIds: messageId
     });
   }
   async function history(job, maxTurns = 20) {
@@ -137,7 +137,42 @@ function createDrRacoonQueue({ limit = 20, guildIds, now = () => new Date() }) {
     }
     return turns;
   }
-  return { admit, activate, claim, update, renew, finish, retry, parentForMessage, history };
+  async function assertOwner(job) {
+    const found = await Request.exists({
+      _id: job._id,
+      leaseToken: job.leaseToken,
+      status: { $in: ['admitting', 'running'] },
+      leaseExpiresAt: { $gt: now() }
+    });
+    if (!found) throw new Error('lease_lost');
+  }
+  const defer = (job) =>
+    Request.findOneAndUpdate(
+      owned(job),
+      {
+        $set: {
+          status: 'queued',
+          leaseToken: null,
+          leaseExpiresAt: null,
+          runAfter: new Date(now().getTime() + 1000)
+        },
+        $inc: { attempts: -1 }
+      },
+      { new: true }
+    );
+  return {
+    admit,
+    activate,
+    claim,
+    update,
+    renew,
+    finish,
+    retry,
+    defer,
+    assertOwner,
+    parentForMessage,
+    history
+  };
 }
 
 module.exports = { createDrRacoonQueue };

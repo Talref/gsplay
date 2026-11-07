@@ -112,6 +112,7 @@ function createInference({ config, registry = createToolRegistry(), fetchImpl = 
     history = [],
     context = {},
     signal,
+    authorize = async () => {},
     onText = async () => {},
     onTurn = async () => {}
   }) {
@@ -138,6 +139,8 @@ function createInference({ config, registry = createToolRegistry(), fetchImpl = 
         controller.signal.throwIfAborted();
         if (cost(messages) + cost(tools) + remaining + 512 > config.contextSize)
           throw new Error('context_limit');
+        await authorize();
+        if (remaining <= 0) throw new Error('output_limit');
         const response = await fetchImpl(`${config.baseUrl}/chat/completions`, {
           method: 'POST',
           signal: controller.signal,
@@ -153,6 +156,9 @@ function createInference({ config, registry = createToolRegistry(), fetchImpl = 
             stream: config.stream,
             ...(tools.length ? { tools, tool_choice: 'auto' } : {})
           })
+        }).catch(() => {
+          controller.signal.throwIfAborted();
+          throw new Error('provider_unavailable');
         });
         if (!response.ok) {
           await response.body?.cancel();
@@ -200,6 +206,7 @@ function createInference({ config, registry = createToolRegistry(), fetchImpl = 
         await onTurn([...segments], false);
         messages.push({ role: 'assistant', content: content || null, tool_calls: calls });
         for (const call of calls) {
+          await authorize();
           controller.signal.throwIfAborted();
           messages.push({
             role: 'tool',

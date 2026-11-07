@@ -55,6 +55,7 @@ function createMessages({
       const recent = await channel.messages.fetch({ after: job._id, limit: 100 });
       const matches = [...recent.values()].filter(
         (message) =>
+          !job.responseIds.includes(message.id) &&
           message.author.id === botId &&
           (String(message.nonce) === intent.nonce ||
             (message.reference?.messageId === job._id &&
