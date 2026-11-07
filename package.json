@@ -8,7 +8,7 @@
     "format:check": "prettier --check .",
     "lint": "npm run lint:backend && npm --prefix gsplay-frontend run lint",
     "lint:backend": "eslint src scripts tests && node scripts/check-architecture.js",
-    "test": "echo '⚠️  SAFETY CHECK: Tests use an isolated MongoMemoryServer.' && jest --runInBand tests",
+    "test": "echo '\u26a0\ufe0f  SAFETY CHECK: Tests use an isolated MongoMemoryServer.' && jest --runInBand tests",
     "test:watch": "jest --watch tests",
     "test:coverage": "jest --coverage --runInBand tests",
     "start": "node src/api/server.js",
@@ -22,7 +22,8 @@
     "gsbot:configure": "node scripts/configure-gsbot.js",
     "gsbot:reset-guild": "node scripts/reset-gsbot-guild.js",
     "bootstrap": "node scripts/bootstrap-schema.js",
-    "docs": "jsdoc -c jsdoc.conf.json"
+    "docs": "jsdoc -c jsdoc.conf.json",
+    "drracoon:prompt": "node scripts/drracoon-prompt.js"
   },
   "keywords": [],
   "author": "",
