@@ -56,6 +56,7 @@ function loadDrracoonEnvironment(env = process.env) {
     baseUrl: baseUrl.href.replace(/\/$/, ''),
     model: env.DRRACOON_LLM_MODEL?.trim() || 'gsbot-gemma',
     apiKey: env.DRRACOON_LLM_API_KEY?.trim() || null,
+    tokenParameter: env.DRRACOON_LLM_TOKEN_PARAMETER || 'max_tokens',
     contextSize: integer(env, 'DRRACOON_CONTEXT_SIZE', 32768, 1024, 2000000),
     maxOutputTokens: integer(env, 'DRRACOON_MAX_OUTPUT_TOKENS', 1024, 1, 131072),
     requestTimeoutMs: integer(env, 'DRRACOON_REQUEST_TIMEOUT_MS', 120000, 100, 1800000),
@@ -69,6 +70,9 @@ function loadDrracoonEnvironment(env = process.env) {
   }
   if (config.maxOutputTokens + 512 >= config.contextSize) {
     throw new Error('DRRACOON_CONTEXT_SIZE must reserve space beyond output tokens');
+  }
+  if (!['max_tokens', 'max_completion_tokens'].includes(config.tokenParameter)) {
+    throw new Error('DRRACOON_LLM_TOKEN_PARAMETER must be max_tokens or max_completion_tokens');
   }
   return Object.freeze(config);
 }
