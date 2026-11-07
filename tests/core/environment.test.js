@@ -70,13 +70,13 @@ describe('environment configuration', () => {
       loadEnvironment({
         ...valid,
         DB_BACKUP_ENABLED: 'true',
-        DB_BACKUP_DIR: '/media/backups/gsplay/db',
+        DB_BACKUP_DIR: '/media/backup/gsplay/db',
         DB_BACKUP_HOUR: '2',
         DB_BACKUP_RETENTION_DAYS: '14'
       }).dbBackup
     ).toEqual({
       enabled: true,
-      directory: '/media/backups/gsplay/db',
+      directory: '/media/backup/gsplay/db',
       hour: 2,
       retentionDays: 14
     });

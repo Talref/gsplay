@@ -32,7 +32,7 @@ AUTH_RATE_LIMIT_WINDOW_MS=900000
 AUTH_RATE_LIMIT_MAX=20
 ENABLE_WORKER=true
 DB_BACKUP_ENABLED=true
-DB_BACKUP_DIR=/media/backups/gsplay/db
+DB_BACKUP_DIR=/media/backup/gsplay/db
 DB_BACKUP_HOUR=4
 DB_BACKUP_RETENTION_DAYS=30
 GUIDE_UPLOAD_DIR=/var/lib/gsplay/guide
@@ -203,11 +203,11 @@ MongoDB Database Tools so `mongodump` is available to the `gsplay` service, veri
 mounted, and prepare the configured directory:
 
 ```bash
-sudo mkdir -p /media/backups/gsplay/db
-sudo chown gsplay:gsplay /media/backups/gsplay/db
-sudo chmod 750 /media/backups/gsplay/db
-sudo -u gsplay test -r /media/backups/gsplay/db
-sudo -u gsplay test -w /media/backups/gsplay/db
+sudo mkdir -p /media/backup/gsplay/db
+sudo chown gsplay:gsplay /media/backup/gsplay/db
+sudo chmod 750 /media/backup/gsplay/db
+sudo -u gsplay test -r /media/backup/gsplay/db
+sudo -u gsplay test -w /media/backup/gsplay/db
 ```
 
 Parent directories must also grant the `gsplay` user traversal permission. If that needs an ACL on
@@ -215,7 +215,7 @@ the host, configure it there rather than in the application or deploy script. Th
 unit allows the standard backup directory through its filesystem sandbox. A custom
 `DB_BACKUP_DIR` also requires a matching `ReadWritePaths` systemd override.
 
-Set `DB_BACKUP_ENABLED=true`, `DB_BACKUP_DIR=/media/backups/gsplay/db`, the desired local
+Set `DB_BACKUP_ENABLED=true`, `DB_BACKUP_DIR=/media/backup/gsplay/db`, the desired local
 `DB_BACKUP_HOUR`, and `DB_BACKUP_RETENTION_DAYS` in `/etc/gsplay/v2.env`. Scheduling follows
 Europe/Rome time. A missing directory, unavailable mount, missing `mongodump`, or failed dump is
 logged without stopping the worker. Retention runs only after a new archive succeeds.

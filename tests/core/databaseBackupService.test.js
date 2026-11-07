@@ -6,7 +6,7 @@ const {
   runScheduledDatabaseBackup
 } = require('../../src/core/services/databaseBackupService');
 
-const directory = '/media/backups/gsplay/db';
+const directory = '/media/backup/gsplay/db';
 const now = new Date('2026-09-17T03:00:00.000Z');
 const backupConfig = { enabled: true, directory, hour: 4, retentionDays: 30 };
 
