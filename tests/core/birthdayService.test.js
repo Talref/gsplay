@@ -18,7 +18,7 @@ describe('birthday service', () => {
     expect(BIRTHDAY_ACHIEVEMENTS).toHaveLength(50);
     expect(BIRTHDAY_WISHES).toHaveLength(50);
     expect(renderBirthdayMessage('123', { random: () => 0 })).toBe(
-      '🎂 **LEVEL UP!**\nOggi <@123> ha livellato in RL!\n\n' +
+      '# 🎂 BUON COMPLEANNO!\nOggi <@123> ha livellato in RL!\n\n' +
         '**Achievement unlocked:** *Sopravvissuto un altro anno* 🏆\n\n' +
         'Che il loot sia generoso e i bug pochi. 🎉'
     );
