@@ -23,7 +23,9 @@
     "gsbot:reset-guild": "node scripts/reset-gsbot-guild.js",
     "bootstrap": "node scripts/bootstrap-schema.js",
     "docs": "jsdoc -c jsdoc.conf.json",
-    "drracoon:prompt": "node scripts/drracoon-prompt.js"
+    "drracoon:prompt": "node scripts/drracoon-prompt.js",
+    "drracoon": "node src/drracoon/drracoon.js",
+    "dev:drracoon": "nodemon --watch src/drracoon --watch src/core --ext js,md src/drracoon/drracoon.js"
   },
   "keywords": [],
   "author": "",
