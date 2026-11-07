@@ -55,7 +55,7 @@ const BIRTHDAY_ACHIEVEMENTS = Object.freeze([
   'Missione secondaria completata: radunare il party',
   'Loot celebrativo: drop garantito',
   'Rank IRL aumentato',
-  'Achievement ottenuto per puro talento (fonte: il party)',
+  'Achievement ottenuto per puro talento (fonte: il party)'
 ]);
 
 const BIRTHDAY_WISHES = Object.freeze([
@@ -108,7 +108,7 @@ const BIRTHDAY_WISHES = Object.freeze([
   'Che ogni party abbia almeno un healer competente.',
   'Che la realtà ti regali più modalità cooperativa che Soulslike.',
   'Che tu possa continuare a livellare senza leggere il manuale.',
-  'Che questo nuovo livello sia rotto quanto basta da essere divertente.',
+  'Che questo nuovo livello sia rotto quanto basta da essere divertente.'
 ]);
 
 function isLeapYear(year) {
