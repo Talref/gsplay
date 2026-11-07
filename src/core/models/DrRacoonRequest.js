@@ -13,7 +13,7 @@ const schema = new mongoose.Schema(
       required: true
     },
     responseIds: { type: [String], default: [] },
-    deliveryIntent: { index: Number, nonce: String, at: Date },
+    deliveryIntent: { index: Number, nonce: String, hash: String, at: Date },
     attempts: { type: Number, default: 0 },
     runAfter: { type: Date, default: Date.now },
     leaseToken: String,
