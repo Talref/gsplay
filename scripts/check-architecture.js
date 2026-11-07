@@ -8,7 +8,8 @@ const coreRoot = path.join(root, 'src/core');
 const forbiddenRoots = [
   path.join(root, 'src/api'),
   path.join(root, 'src/worker'),
-  path.join(root, 'src/gsbot')
+  path.join(root, 'src/gsbot'),
+  path.join(root, 'src/drracoon')
 ];
 const violations = [];
 
@@ -36,7 +37,7 @@ for (const file of javascriptFiles(coreRoot)) {
 }
 
 if (violations.length) {
-  console.error('Core must not import runtime-specific API, worker, or GSbot modules:');
+  console.error('Core must not import runtime-specific API, worker, GSbot, or Dr. Racoon modules:');
   for (const violation of violations) console.error(`- ${violation}`);
   process.exitCode = 1;
 } else {
