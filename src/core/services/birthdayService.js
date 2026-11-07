@@ -204,7 +204,7 @@ function randomEntry(entries, random) {
 function renderBirthdayMessage(discordUserId, { random = Math.random } = {}) {
   const achievement = randomEntry(BIRTHDAY_ACHIEVEMENTS, random);
   const wish = randomEntry(BIRTHDAY_WISHES, random);
-  return `🎂 **LEVEL UP!**\nOggi <@${discordUserId}> ha livellato in RL!\n\n**Achievement unlocked:** *${achievement}* 🏆\n\n${wish} 🎉`;
+  return `# 🎂 BUON COMPLEANNO!\nOggi <@${discordUserId}> ha livellato in RL!\n\n**Achievement unlocked:** *${achievement}* 🏆\n\n${wish} 🎉`;
 }
 
 async function ensureBirthdaySchedules(now = new Date()) {
