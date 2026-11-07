@@ -46,3 +46,12 @@ Technical components directly supporting the community belong here by default so
 ## Compatibility names
 
 The former implementation-wide `src/v2` and `tests/v2` namespaces were removed because no active v1 source tree remains. Existing `v2` names at external and operational boundaries remain deliberately unchanged: public `/api/v2` routes, `_v2` MongoDB collections, Mongoose model/ref names such as `UserV2`, `/etc/gsplay/v2.env`, and `gsplay-v2-*.service` systemd units. Changing those names would require client, data, or host migrations without improving the internal architecture.
+
+## Dr. Racoon
+
+Dr. Racoon is a separate Discord application, token and systemd runtime. Its in-process consumer
+uses dedicated `drracoon_requests`/`drracoon_content` models and queue operations in core; it does
+not extend SyncJob/ScheduledJob or run in the existing worker. Shared reply history remains
+guild/channel/scope-bound even when another member continues the chain. Operator includes at
+`/etc/gsplay/prompts` survive release synchronization; inference remains independently operated.
+See [Dr. Racoon](DrRacoon.md) for implemented behavior and operator acceptance.

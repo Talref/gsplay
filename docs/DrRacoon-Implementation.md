@@ -14,6 +14,16 @@ Issue: https://github.com/Talref/gsplay/issues/68
 Each slice is a separate PR. Merge after backend tests, backend/frontend lint and frontend build.
 Keep deployment enablement until the final slice. No changes to existing worker job contracts.
 
+Implementation and automated acceptance are complete. The first five slices were merged as
+[configuration/prompts #69](https://github.com/Talref/gsplay/pull/69),
+[queue/history #70](https://github.com/Talref/gsplay/pull/70),
+[inference/tools #71](https://github.com/Talref/gsplay/pull/71),
+[message lifecycle #72](https://github.com/Talref/gsplay/pull/72), and
+[runtime integration #73](https://github.com/Talref/gsplay/pull/73).
+The final slice supplies deployment, operator documentation and deployment simulations.
+Verification: 53 backend suites / 327 tests, backend/frontend lint, frontend production build,
+both production dependency audits and systemd unit verification. Live acceptance remains pending.
+
 ## Agreed decisions
 
 - Other members may continue a reply chain. History remains guild/channel/scope-bound; author

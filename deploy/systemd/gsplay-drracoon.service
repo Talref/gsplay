@@ -1,0 +1,28 @@
+[Unit]
+Description=Giocatori Stanchi Dr. Racoon conversational Discord runtime
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gsplay
+Group=gsplay
+WorkingDirectory=/srv/gsplay
+EnvironmentFile=/etc/gsplay/v2.env
+Environment=DRRACOON_READY_FILE=/run/gsplay-drracoon/ready
+RuntimeDirectory=gsplay-drracoon
+ExecStart=/usr/bin/node /srv/gsplay/src/drracoon/drracoon.js
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=45
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+# Knowledge symlinks may target operator-maintained home directories, subject to Unix permissions.
+# Make them read-only rather than inaccessible. No filesystem/shell tools are registered.
+ProtectHome=read-only
+RestrictSUIDSGID=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

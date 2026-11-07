@@ -46,6 +46,17 @@ SERVER_STATUS_STALE_AFTER_MS=180000
 
 Provider credentials are optional and must remain only in this protected file.
 
+### Dr. Racoon Discord setup
+
+Dr. Racoon uses a separate application/token and one independent `gsplay-drracoon.service`.
+Follow [Dr. Racoon](DrRacoon.md) for staging-guild setup, Message Content Intent, permissions,
+comma-separated staff channel/role allowlists, external knowledge copies/symlinks and provider settings.
+Both `DRRACOON_TOKEN` and `DRRACOON_GUILD_IDS` absent means disabled. Partial/invalid settings
+fail deployment before publication; enabled deployment also compiles prompts as `gsplay` and waits
+for actual Discord readiness. LLM downtime does not block Gateway readiness. No inference service
+is started or restarted by deployment. The new `drracoon_requests` and `drracoon_content` collections
+are created/indexed by the existing bootstrap; no existing data is migrated.
+
 ### GSbot Discord setup
 
 GSbot uses a normal Discord Application/Bot user and guild-scoped slash commands. It needs only
@@ -241,7 +252,7 @@ git pull --ff-only origin master
 
 Tests, lint, and dependency audits are completed before merging; deployment does not repeat them or install backend development dependencies.
 
-`deploy.sh` refuses dirty or out-of-sync source, installs frontend build dependencies and builds the production bundle, prepares backend production dependencies and database indexes before publication, installs current systemd unit definitions, publishes to `/srv/gsplay`, restarts API and worker plus configured GSbot, and waits for runtime checks. It also verifies that the installed bcrypt native module loads before publication.
+`deploy.sh` refuses dirty or out-of-sync source, installs frontend build dependencies and builds the production bundle, prepares backend production dependencies and database indexes before publication, installs current systemd unit definitions, publishes to `/srv/gsplay`, restarts API and worker plus configured GSbot and Dr. Racoon, and waits for runtime checks. It also verifies that the installed bcrypt native module loads before publication.
 
 Successful steps print a concise summary; a failed step prints its captured command output automatically. Use `DEPLOY_VERBOSE=true ./scripts/deploy.sh` to print command output after every preparation step.
 
@@ -249,7 +260,7 @@ Check the running release and services:
 
 ```bash
 cat /srv/gsplay/REVISION
-sudo systemctl --no-pager --full status gsplay-v2-api.service gsplay-v2-worker.service gsplay-gsbot.service
+sudo systemctl --no-pager --full status gsplay-v2-api.service gsplay-v2-worker.service gsplay-gsbot.service gsplay-drracoon.service
 curl --fail http://127.0.0.1:3000/health/live
 curl --fail http://127.0.0.1:3000/health/ready
 ```

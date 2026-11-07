@@ -10,6 +10,8 @@ API_SERVICE="${API_SERVICE:-gsplay-v2-api.service}"
 WORKER_SERVICE="${WORKER_SERVICE:-gsplay-v2-worker.service}"
 GSBOT_SERVICE="${GSBOT_SERVICE:-gsplay-gsbot.service}"
 GSBOT_READY_FILE=/run/gsplay-gsbot/ready
+DRRACOON_SERVICE="${DRRACOON_SERVICE:-gsplay-drracoon.service}"
+DRRACOON_READY_FILE=/run/gsplay-drracoon/ready
 STAGE="$(mktemp -d "${TMPDIR:-/tmp}/gsplay-release.XXXXXX")"
 LOG_DIR="$(mktemp -d "${TMPDIR:-/tmp}/gsplay-deploy-logs.XXXXXX")"
 DEPLOY_VERBOSE="${DEPLOY_VERBOSE:-false}"
@@ -45,6 +47,9 @@ npm_flags=(--no-audit --fund=false --loglevel=error)
 if ! gsbot_configuration="$(sudo bash -c 'set -a; source "$1"; set +a; exec node "$2/scripts/check-gsbot-config.js"' bash "$ENV_FILE" "$SOURCE_ROOT")"; then
   fail "GSbot configuration/startup check failed; fix the reported setting in $ENV_FILE"
 fi
+if ! drracoon_configuration="$(sudo bash -c 'set -a; source "$1"; set +a; exec node "$2/scripts/check-drracoon-config.js"' bash "$ENV_FILE" "$SOURCE_ROOT")"; then
+  fail "Dr. Racoon configuration check failed; fix the reported setting in $ENV_FILE"
+fi
 
 echo '▶ Building frontend'
 run_quiet 'Frontend dependency installation' "$LOG_DIR/frontend-install.log" npm --prefix "$SOURCE_ROOT/gsplay-frontend" ci --include=dev "${npm_flags[@]}"
@@ -64,6 +69,13 @@ run_quiet 'Runtime dependency installation' "$LOG_DIR/runtime-install.log" npm -
 echo '✓ Production dependencies installed'
 run_quiet 'bcrypt runtime verification' "$LOG_DIR/bcrypt.log" node -e "require('$STAGE/node_modules/bcrypt')"
 echo '✓ bcrypt native module verified'
+if [[ "$drracoon_configuration" == 'enabled' ]]; then
+  # mktemp creates a private directory; the staged code contains no environment secrets.
+  chmod 0755 "$STAGE"
+  run_quiet 'Dr. Racoon prompt readability/context check as gsplay' "$LOG_DIR/drracoon-prompts.log" \
+    sudo -u gsplay bash -c 'set -a; source "$1"; set +a; exec node "$2/scripts/check-drracoon-config.js" --prompts' bash "$ENV_FILE" "$STAGE"
+  echo '✓ Dr. Racoon prompts verified as service user'
+fi
 printf '%s\n' "$revision" > "$STAGE/REVISION"
 
 echo
@@ -77,6 +89,7 @@ echo '▶ Publishing release'
 sudo install -m 0644 "$SOURCE_ROOT/deploy/systemd/gsplay-v2-api.service" "/etc/systemd/system/$API_SERVICE"
 sudo install -m 0644 "$SOURCE_ROOT/deploy/systemd/gsplay-v2-worker.service" "/etc/systemd/system/$WORKER_SERVICE"
 sudo install -m 0644 "$SOURCE_ROOT/deploy/systemd/gsplay-gsbot.service" "/etc/systemd/system/$GSBOT_SERVICE"
+sudo install -m 0644 "$SOURCE_ROOT/deploy/systemd/gsplay-drracoon.service" "/etc/systemd/system/$DRRACOON_SERVICE"
 sudo systemctl daemon-reload
 sudo install -d -m 0755 "$DESTINATION"
 sudo rsync -a --delete --exclude '.env' "$STAGE/" "$DESTINATION/"
@@ -87,10 +100,21 @@ if [[ "$gsbot_configuration" == 'enabled' ]]; then
 else
   sudo systemctl disable --now "$GSBOT_SERVICE"
 fi
+if [[ "$drracoon_configuration" == 'enabled' ]]; then
+  sudo systemctl enable "$DRRACOON_SERVICE"
+  sudo systemctl restart "$DRRACOON_SERVICE"
+else
+  sudo systemctl disable --now "$DRRACOON_SERVICE"
+fi
 
 gsbot_is_ready() {
   [[ "$gsbot_configuration" == 'disabled' ]] \
     || { systemctl is-active --quiet "$GSBOT_SERVICE" && [[ -f "$GSBOT_READY_FILE" ]]; }
+}
+
+drracoon_is_ready() {
+  [[ "$drracoon_configuration" == 'disabled' ]] \
+    || { systemctl is-active --quiet "$DRRACOON_SERVICE" && [[ -f "$DRRACOON_READY_FILE" ]]; }
 }
 
 for attempt in {1..60}; do
@@ -98,13 +122,19 @@ for attempt in {1..60}; do
     && curl --fail --silent --max-time 2 http://127.0.0.1:3000/health/ready >/dev/null \
     && systemctl is-active --quiet "$API_SERVICE" \
     && systemctl is-active --quiet "$WORKER_SERVICE" \
-    && gsbot_is_ready; then
+    && gsbot_is_ready \
+    && drracoon_is_ready; then
     echo '✓ API ready'
     echo '✓ Worker active'
     if [[ "$gsbot_configuration" == 'enabled' ]]; then
       echo '✓ GSbot active'
     else
       echo '• GSbot disabled (configuration absent)'
+    fi
+    if [[ "$drracoon_configuration" == 'enabled' ]]; then
+      echo '✓ Dr. Racoon Discord ready'
+    else
+      echo '• Dr. Racoon disabled (configuration absent)'
     fi
     elapsed=$((SECONDS - started_at))
     echo
@@ -115,5 +145,5 @@ for attempt in {1..60}; do
   fi
   sleep 1
 done
-sudo systemctl --no-pager --full status "$API_SERVICE" "$WORKER_SERVICE" "$GSBOT_SERVICE" || true
+sudo systemctl --no-pager --full status "$API_SERVICE" "$WORKER_SERVICE" "$GSBOT_SERVICE" "$DRRACOON_SERVICE" || true
 fail 'Readiness did not recover; inspect journalctl before deploying another revision'
