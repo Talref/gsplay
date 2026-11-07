@@ -10,6 +10,7 @@ const { audit } = require('./common');
 const { nextFridayWindow } = require('./scheduling');
 
 const MAX_VOTES = 5;
+const VOTING_RSVPS = ['yes', 'maybe'];
 
 function eventIsOpen(event, now = new Date()) {
   return event?.status === 'open' && event.votingClosesAt > now;
@@ -43,7 +44,9 @@ async function memberEventDto(event, userId, now = new Date()) {
     candidates: event.candidates.map(candidateDto),
     response: {
       rsvp: response?.rsvp || null,
-      voteRotationGameIds: (response?.voteRotationGameIds || []).map(String)
+      voteRotationGameIds: VOTING_RSVPS.includes(response?.rsvp)
+        ? response.voteRotationGameIds.map(String)
+        : []
     },
     cancellationReason: event.status === 'cancelled' ? event.cancellationReason : null
   };
@@ -67,6 +70,7 @@ async function manageEventDto(event, now = new Date()) {
         username: names.get(String(response.userId)) || 'Deleted user'
       });
     }
+    if (!VOTING_RSVPS.includes(response.rsvp)) return;
     response.voteRotationGameIds.forEach((rotationId) => {
       const key = String(rotationId);
       if (voteCounts.has(key)) voteCounts.set(key, voteCounts.get(key) + 1);
@@ -174,7 +178,9 @@ async function setRsvp(actor, eventId, rsvp, now = new Date()) {
   const event = await requireOpenEvent(eventId, now);
   await Response.findOneAndUpdate(
     { eventId: event._id, userId: actor._id },
-    { $set: { rsvp }, $setOnInsert: { voteRotationGameIds: [] } },
+    rsvp === 'no'
+      ? { $set: { rsvp, voteRotationGameIds: [] } }
+      : { $set: { rsvp }, $setOnInsert: { voteRotationGameIds: [] } },
     { upsert: true, runValidators: true }
   );
   return memberEventDto(event, actor._id, now);
@@ -198,11 +204,13 @@ async function setVotes(actor, eventId, rotationGameIds, now = new Date()) {
       'invalid_votes',
       'Votes must belong to the locked candidate list'
     );
-  await Response.findOneAndUpdate(
-    { eventId: event._id, userId: actor._id },
+  const response = await Response.findOneAndUpdate(
+    { eventId: event._id, userId: actor._id, rsvp: { $in: VOTING_RSVPS } },
     { $set: { voteRotationGameIds: rotationGameIds } },
-    { upsert: true, runValidators: true }
+    { runValidators: true }
   );
+  if (!response)
+    throw new ApplicationError('conflict', 'rsvp_required', 'RSVP yes or maybe before voting');
   return memberEventDto(event, actor._id, now);
 }
 

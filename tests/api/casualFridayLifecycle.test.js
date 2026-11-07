@@ -118,12 +118,12 @@ describe('Casual Friday RSVP and voting lifecycle', () => {
 
     const selected = rotations.slice(0, 5).map((rotation) => String(rotation._id));
     await memberAgent
-      .put(`/api/v2/casual-friday/events/${event.id}/votes`)
-      .send({ rotationGameIds: selected })
-      .expect(200);
-    await memberAgent
       .put(`/api/v2/casual-friday/events/${event.id}/rsvp`)
       .send({ rsvp: 'maybe' })
+      .expect(200);
+    await memberAgent
+      .put(`/api/v2/casual-friday/events/${event.id}/votes`)
+      .send({ rotationGameIds: selected })
       .expect(200);
     await memberAgent
       .put(`/api/v2/casual-friday/events/${event.id}/rsvp`)
@@ -146,6 +146,86 @@ describe('Casual Friday RSVP and voting lifecycle', () => {
     expect(manageView.body.event.rsvps.totals).toEqual({ yes: 1, maybe: 0, no: 0 });
     expect(manageView.body.event.rsvps.names.yes[0].username).toBe('RomanMember');
     expect(manageView.body.event.votingResults.filter((item) => item.votes === 1)).toHaveLength(5);
+  });
+
+  test('requires a participating RSVP and clears votes when a member declines', async () => {
+    const helper = await createUser('RsvpHelper', 'helper');
+    const member = await createUser('RsvpMember');
+    const rotation = await createRotation(helper, 1);
+    const helperAgent = await agentFor(helper);
+    const memberAgent = await agentFor(member);
+    const event = (
+      await helperAgent.post('/api/v2/casual-friday/tools/event/start').send({}).expect(201)
+    ).body.event;
+    const votesPath = `/api/v2/casual-friday/events/${event.id}/votes`;
+    const rsvpPath = `/api/v2/casual-friday/events/${event.id}/rsvp`;
+    const selected = [String(rotation._id)];
+
+    for (const rotationGameIds of [selected, []]) {
+      await memberAgent
+        .put(votesPath)
+        .send({ rotationGameIds })
+        .expect(409)
+        .expect(({ body }) => expect(body.error.code).toBe('rsvp_required'));
+    }
+    expect(await Response.countDocuments({ eventId: event.id })).toBe(0);
+
+    for (const rsvp of ['yes', 'maybe']) {
+      await memberAgent.put(rsvpPath).send({ rsvp }).expect(200);
+      await memberAgent.put(votesPath).send({ rotationGameIds: selected }).expect(200);
+      await helperAgent
+        .get('/api/v2/casual-friday/tools/event')
+        .expect(200)
+        .expect(({ body }) => expect(body.event.votingResults[0].votes).toBe(1));
+      await memberAgent
+        .put(rsvpPath)
+        .send({ rsvp: 'no' })
+        .expect(200)
+        .expect(({ body }) =>
+          expect(body.event.response).toEqual({
+            rsvp: 'no',
+            voteRotationGameIds: []
+          })
+        );
+      expect(await Response.findOne({ eventId: event.id, userId: member._id })).toMatchObject({
+        rsvp: 'no',
+        voteRotationGameIds: []
+      });
+      await memberAgent.put(votesPath).send({ rotationGameIds: selected }).expect(409);
+      await helperAgent
+        .get('/api/v2/casual-friday/tools/event')
+        .expect(200)
+        .expect(({ body }) => expect(body.event.votingResults[0].votes).toBe(0));
+    }
+    await memberAgent
+      .put(rsvpPath)
+      .send({ rsvp: 'yes' })
+      .expect(200)
+      .expect(({ body }) => expect(body.event.response.voteRotationGameIds).toEqual([]));
+    await memberAgent.put(votesPath).send({ rotationGameIds: selected }).expect(200);
+    await memberAgent.put(votesPath).send({ rotationGameIds: [] }).expect(200);
+  });
+
+  test('ignores legacy votes without a yes or maybe RSVP in member views and totals', async () => {
+    const helper = await createUser('LegacyRsvpHelper', 'helper');
+    const member = await createUser('LegacyRsvpMember');
+    const rotation = await createRotation(helper, 1);
+    const now = new Date('2026-08-12T10:00:00Z');
+    const event = await service.startEvent(helper, now);
+    const storedEvent = await Event.findById(event.id);
+    for (const rsvp of [undefined, 'no']) {
+      await Response.deleteMany({ eventId: event.id });
+      await Response.create({
+        eventId: event.id,
+        userId: member._id,
+        rsvp,
+        voteRotationGameIds: [rotation._id]
+      });
+      expect(
+        (await service.memberEventDto(storedEvent, member._id, now)).response.voteRotationGameIds
+      ).toEqual([]);
+      expect((await service.manageEventDto(storedEvent, now)).votingResults[0].votes).toBe(0);
+    }
   });
 
   test('closes responses at Friday 15:00 and transitions through draft, publication, and completion', async () => {

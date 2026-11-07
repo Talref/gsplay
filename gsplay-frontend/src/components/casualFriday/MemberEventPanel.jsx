@@ -25,6 +25,8 @@ export default function MemberEventPanel({ initialEvent }) {
   useEffect(() => setEvent(initialEvent), [initialEvent])
   if (!event || !['open', 'draft'].includes(event.status)) return null
 
+  const canVote = ['yes', 'maybe'].includes(event.response.rsvp)
+
   const saveRsvp = async (rsvp) => {
     setSaving(true)
     setError('')
@@ -37,6 +39,7 @@ export default function MemberEventPanel({ initialEvent }) {
     }
   }
   const toggleVote = async (rotationGameId) => {
+    if (!canVote) return
     const selected = event.response.voteRotationGameIds
     const next = selected.includes(rotationGameId)
       ? selected.filter((id) => id !== rotationGameId)
@@ -84,6 +87,11 @@ export default function MemberEventPanel({ initialEvent }) {
             ))}
           </Stack>
           <Stack spacing={1}>
+            {event.open && !canVote && (
+              <Alert severity="info">
+                Pe’ votà, scegli “Ce sto” o “Forse, se me gira”. Se scegli “Nun ce sto”, i tuoi voti se cancellano.
+              </Alert>
+            )}
             <Stack direction="row" justifyContent="space-between" alignItems="center">
               <Typography variant="h6">Li giochi candidati</Typography>
               <Chip
@@ -107,7 +115,7 @@ export default function MemberEventPanel({ initialEvent }) {
                     sx={{ borderColor: selected ? 'primary.main' : 'divider' }}
                   >
                     <CardActionArea
-                      disabled={saving || !event.open}
+                      disabled={saving || !event.open || !canVote}
                       onClick={() => toggleVote(candidate.rotationGameId)}
                       sx={{ p: 1.25, display: 'flex', justifyContent: 'flex-start', gap: 1.5 }}
                     >
