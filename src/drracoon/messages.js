@@ -1,5 +1,5 @@
 const { createHash } = require('node:crypto');
-const PLACEHOLDER = '_Dr. Racoon sta arrivando, un attimo di attesa...';
+const PLACEHOLDER = '_Dr. Racoon sta rovistando nelle immondizie, un attimo di attesa..._';
 const FAILURE = '_Sembra che Dr Racoon si sia perso tra i cassonetti. Riprova più tardi._';
 const ALLOWED_MENTIONS = { parse: [], repliedUser: false };
 const hash = (text) => createHash('sha256').update(text).digest('hex');
