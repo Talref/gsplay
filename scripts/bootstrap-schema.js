@@ -2,6 +2,7 @@ require('dotenv').config();
 const { loadEnvironment } = require('../src/core/config/environment');
 const { connectDatabase, disconnectDatabase } = require('../src/core/database');
 const models = [
+  require('../src/core/models/ModerationEvent'),
   require('../src/core/models/DrRacoonRequest'),
   require('../src/core/models/DrRacoonContent'),
   require('../src/core/models/User'),

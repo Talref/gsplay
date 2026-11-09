@@ -1,8 +1,9 @@
 const { EventEmitter } = require('node:events');
-const { Events, MessageFlags } = require('discord.js');
+const { Events, GatewayIntentBits, MessageFlags } = require('discord.js');
 const testCommand = require('../../src/gsbot/commands/testCommand');
 const birthdayCommand = require('../../src/gsbot/commands/birthdayCommand');
 const gsbotAdminCommand = require('../../src/gsbot/commands/gsbotAdminCommand');
+const modCommand = require('../../src/gsbot/commands/modCommand');
 const tagCommand = require('../../src/gsbot/commands/tagCommand');
 const {
   commandPayload,
@@ -34,9 +35,11 @@ function fakeDiscord() {
 }
 
 describe('GSbot runtime', () => {
-  test('requests only the Guilds Gateway intent', () => {
+  test('requests Guilds and GuildModeration Gateway intents', () => {
     const client = createGsbotClient();
-    expect(client.options.intents.toArray()).toEqual(['Guilds']);
+    expect(client.options.intents.bitfield).toBe(
+      GatewayIntentBits.Guilds | GatewayIntentBits.GuildModeration
+    );
     client.destroy();
   });
 
@@ -53,7 +56,7 @@ describe('GSbot runtime', () => {
     expect(client.guilds.fetch.mock.calls.map(([guildId]) => guildId)).toEqual(config.guildIds);
     for (const guild of guilds) {
       expect(guild.commands.set).toHaveBeenCalledWith(
-        commandPayload([testCommand, birthdayCommand, gsbotAdminCommand, tagCommand])
+        commandPayload([testCommand, birthdayCommand, gsbotAdminCommand, tagCommand, modCommand])
       );
     }
     expect(commandPayload([testCommand])).toEqual([
@@ -126,4 +129,19 @@ describe('GSbot runtime', () => {
     expect(onReady).toHaveBeenCalledTimes(1);
     expect(client.destroy).toHaveBeenCalledTimes(1);
   });
+});
+
+test('moderation listener isolates guilds and handles ingestion failures', async () => {
+  const { client } = fakeDiscord();
+  const ingestModeration = jest.fn().mockRejectedValue(new Error('Database unavailable'));
+  const log = { info: jest.fn(), error: jest.fn() };
+  const runtime = createGsbotRuntime({ config, client, ingestModeration, log });
+  await runtime.start();
+  client.emit(Events.GuildAuditLogEntryCreate, { id: 'entry' }, { id: 'unconfigured' });
+  client.emit(Events.GuildAuditLogEntryCreate, { id: 'entry' }, { id: config.guildIds[1] });
+  await new Promise((resolve) => setImmediate(resolve));
+  expect(ingestModeration).toHaveBeenCalledTimes(1);
+  expect(ingestModeration).toHaveBeenCalledWith({ id: 'entry' }, config.guildIds[1]);
+  expect(log.error).toHaveBeenCalledWith(expect.stringContaining('moderation ingestion failed'));
+  await runtime.stop();
 });

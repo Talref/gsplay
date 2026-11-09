@@ -3,11 +3,13 @@ const testCommand = require('./commands/testCommand');
 const birthdayCommand = require('./commands/birthdayCommand');
 const gsbotAdminCommand = require('./commands/gsbotAdminCommand');
 const tagCommand = require('./commands/tagCommand');
+const modCommand = require('./commands/modCommand');
+const { ingestAuditEntry } = require('./features/moderationAudit');
 
-const DEFAULT_COMMANDS = [testCommand, birthdayCommand, gsbotAdminCommand, tagCommand];
+const DEFAULT_COMMANDS = [testCommand, birthdayCommand, gsbotAdminCommand, tagCommand, modCommand];
 
 function createGsbotClient() {
-  return new Client({ intents: [GatewayIntentBits.Guilds] });
+  return new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildModeration] });
 }
 
 function commandPayload(commands) {
@@ -20,6 +22,7 @@ function createGsbotRuntime({
   commands = DEFAULT_COMMANDS,
   delivery = null,
   interactionContext = {},
+  ingestModeration = ingestAuditEntry,
   onReady = null,
   onStop = null,
   log = console
@@ -31,6 +34,17 @@ function createGsbotRuntime({
 
   client.on(Events.Error, (error) => {
     log.error(`GSbot Discord client error: ${error.message}`);
+  });
+
+  client.on(Events.GuildAuditLogEntryCreate, async (entry, guild) => {
+    if (!configuredGuildIds.has(guild.id)) return;
+    try {
+      await ingestModeration(entry, guild.id);
+    } catch (error) {
+      log.error(
+        `GSbot moderation ingestion failed · guild=${guild.id} · audit=${entry.id}: ${error.message}`
+      );
+    }
   });
 
   client.on(Events.InteractionCreate, async (interaction) => {

@@ -94,3 +94,60 @@ intended staff roles or members access through **Server Settings → Integration
 Permissions → `/tag`**. This is Discord operational configuration; GSbot does not maintain a
 separate staff-role mapping. GSbot itself still needs Manage Roles, and its highest role must remain
 above the temporary roles it creates.
+
+### Moderation
+
+All `/mod` responses are ephemeral and all records are scoped to the originating guild:
+
+- `/mod strike user:<user> reason:<text>` — records a manual disciplinary intervention; it does
+  not kick, ban, mute, or timeout the member.
+- `/mod note user:<user> message:<text>` — appends a general note, preserving the original text.
+- `/mod view user:<user>` — shows lifetime counts by action, strikes, notes, the three latest note
+  texts with their authors, and three recent events.
+- `/mod audit user:<user>` — shows the eight latest events, newest first, including moderators,
+  original reasons/messages, timeout expiry where applicable, and Discord audit entry IDs.
+- `/mod sync` — retrieves the previous 30 days of Discord audit entries for this guild. Reports
+  scanned, inserted, skipped (unsupported entries or duplicates), and failed counts. API fetch
+  failures explicitly mark the result incomplete; write failures are counted and processing
+  continues. Repeat the command to recover failed or missed entries. Only one sync runs per guild.
+
+`/mod` defaults to Manage Server, matching the existing staff commands. Configure **Server Settings →
+Integrations → GSbot → Command Permissions → `/mod`** to grant access to the moderator team and
+restrict it for other members. Discord enforces the command permissions; GSbot deliberately has no
+additional staff-role mapping, handler permission gate, or administrator-only sync restriction.
+After registration, verify all five subcommands as an authorized moderator without Manage Server,
+then verify that an ordinary member cannot invoke them. Existing integration overrides may need
+adjustment. These are private operational tools; no moderation messages are posted publicly.
+
+GSbot needs **View Audit Log** in every configured guild for both live ingestion and sync.
+The runtime requests the non-privileged **GuildModeration** Gateway intent alongside Guilds;
+no privileged intent or Administrator permission is needed. Granting moderation-action permissions
+such as Ban Members is unnecessary because these commands only record and read history.
+See Discord's [audit log reference](https://docs.discord.com/developers/resources/audit-log) and
+[Gateway event reference](https://docs.discord.com/developers/events/gateway-events#guild-audit-log-entry-create).
+
+Live ingestion and sync share the same classifier for kicks, bans, unbans, timeout application or
+extension, early timeout removal, and voice server mute/unmute. Natural timeout expiry is not
+recorded as an early removal. One Discord audit entry can include both timeout and mute changes:
+it is stored once with both actions, counted separately in the summary and displayed together in
+the history. The original reason, moderator ID (nullable), target ID, timestamp, timeout change data,
+and audit ID are retained without requiring the user to remain in the guild. Missing metadata is
+shown explicitly. IDs remain authoritative; names are only display labels.
+
+History and note previews are bounded to fit Discord embed limits, with totals and explicit
+abbreviation notices. Stored text is never truncated; displayed reasons/messages are abbreviated
+and escaped, mentions are suppressed, and times use Europe/Rome. There is no older-history browser
+or annotation command in this release.
+
+The standard bootstrap creates `moderation_events` with a partial unique `(guildId, discordAuditId)`
+index for Discord records and a guild/target/date history index. No existing records are migrated
+and no new environment variables are needed. Every record starts with `annotations: []`; each future
+annotation supports its own ID, author, message, and creation time. Original events and manual notes
+are append-only through the model; only annotation appends are accepted as model updates. The
+existing guild reset script retains moderation history.
+
+Before production use, grant View Audit Log, configure `/mod` access, restart GSbot to register
+commands/intents, and run the normal bootstrap. In a test guild, record a strike and a note, verify
+the note text in `/mod view`, perform native moderation actions, inspect `/mod audit`, and repeat
+`/mod sync` to verify that the second run inserts no duplicates. No credentials or live Discord
+access are required by the automated tests.

@@ -71,7 +71,7 @@ Create and invite it with the minimum MVP access:
 
 1. Open the [Discord Developer Portal](https://discord.com/developers/applications), select **New Application**, and name it `GSbot`.
 2. Open **Bot**. Use **Reset Token** if necessary, copy the bot token, and store it as `GSBOT_TOKEN`. The token is shown only when created or reset; do not use the application ID, public key, or client secret in its place.
-3. Leave privileged Gateway intents disabled. GSbot requests only the non-privileged Guilds intent.
+3. Leave privileged Gateway intents disabled. GSbot requests the non-privileged Guilds and GuildModeration intents.
 4. In the Discord desktop/web client, enable **User Settings → Advanced → Developer Mode**. Right-click each target server, choose **Copy Server ID**, and store the numeric values as a comma-separated `GSBOT_GUILD_IDS` allowlist.
 5. In the Developer Portal, open **OAuth2 → URL Generator**. Select the `bot` and
    `applications.commands` scopes. Grant only **View Channels** and **Send Messages**, open the
@@ -123,6 +123,12 @@ persisted records, channel configuration, temporary tags and invites, and schedu
 scoped to their guild. Jobs for guilds outside the allowlist are not claimed or modified by GSbot.
 Future GSbot features must preserve this isolation and must not assume a single guild.
 
+Moderation logging also requires **View Audit Log** on the bot role in every configured guild.
+Configure `/mod` access for the moderator team through Discord Integrations; `/mod sync` uses the
+same command permissions. See [GSbot](GSbot.md#moderation) for setup and verification. The standard
+bootstrap creates the new `moderation_events` collection and indexes; no environment change or
+existing-data migration is required.
+
 To remove all birthday, temporary-tag, GSbot configuration, and related scheduled-job records for a
 single guild, stop the GSbot and worker runtimes and run:
 
@@ -135,7 +141,7 @@ npm run gsbot:reset-guild -- \
 The confirmation must exactly match the target guild ID. The command reports deletion counts and
 does not remove unrelated application records or records belonging to another guild. Restart the
 runtimes after reviewing the result. Discord roles and messages are not modified by this database
-reset.
+reset. Moderation history is retained by this operational reset.
 
 `TMDB_READ_ACCESS_TOKEN` enables movie search and insertion in Casual Friday Tools. Existing
 playlists, game management, and stored movie snapshots continue to work if TMDB is unavailable.
