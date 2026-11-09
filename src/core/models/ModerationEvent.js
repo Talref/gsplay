@@ -83,6 +83,7 @@ moderationEventSchema.index(
   }
 );
 moderationEventSchema.index({ guildId: 1, targetId: 1, occurredAt: -1, _id: -1 });
+moderationEventSchema.index({ guildId: 1, occurredAt: -1, _id: -1 });
 
 module.exports =
   mongoose.models.ModerationEvent || mongoose.model('ModerationEvent', moderationEventSchema);

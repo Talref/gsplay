@@ -49,4 +49,13 @@ async function moderationHistory(guildId, targetId) {
   };
 }
 
-module.exports = { recordDiscordEvent, recordManualEvent, moderationHistory };
+function latestModerationEvents(guildId) {
+  return ModerationEvent.find({ guildId }).sort({ occurredAt: -1, _id: -1 }).limit(10).lean();
+}
+
+module.exports = {
+  recordDiscordEvent,
+  recordManualEvent,
+  moderationHistory,
+  latestModerationEvents
+};

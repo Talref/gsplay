@@ -106,6 +106,10 @@ All `/mod` responses are ephemeral and all records are scoped to the originating
   texts with their authors, and three recent events.
 - `/mod audit user:<user>` — shows the eight latest events, newest first, including moderators,
   original reasons/messages, timeout expiry where applicable, and Discord audit entry IDs.
+- `/mod last` — shows the ten latest records across all users in this guild, including synced
+  Discord events, strikes, and notes. Includes targets and moderators with explicit Discord IDs,
+  original reasons/messages (abbreviated), and audit IDs where available. Results use up to two
+  embeds in one private response; timestamps use Europe/Rome.
 - `/mod sync` — retrieves the previous 30 days of Discord audit entries for this guild. Reports
   scanned, inserted, skipped (unsupported entries or duplicates), and failed counts. API fetch
   failures explicitly mark the result incomplete; write failures are counted and processing
@@ -115,7 +119,7 @@ All `/mod` responses are ephemeral and all records are scoped to the originating
 Integrations → GSbot → Command Permissions → `/mod`** to grant access to the moderator team and
 restrict it for other members. Discord enforces the command permissions; GSbot deliberately has no
 additional staff-role mapping, handler permission gate, or administrator-only sync restriction.
-After registration, verify all five subcommands as an authorized moderator without Manage Server,
+After registration, verify all six subcommands as an authorized moderator without Manage Server,
 then verify that an ordinary member cannot invoke them. Existing integration overrides may need
 adjustment. These are private operational tools; no moderation messages are posted publicly.
 
@@ -140,8 +144,9 @@ and escaped, mentions are suppressed, and times use Europe/Rome. There is no old
 or annotation command in this release.
 
 The standard bootstrap creates `moderation_events` with a partial unique `(guildId, discordAuditId)`
-index for Discord records and a guild/target/date history index. No existing records are migrated
-and no new environment variables are needed. Every record starts with `annotations: []`; each future
+index for Discord records and guild/target/date and guild/date history indexes. Run the normal
+bootstrap to create the guild/date index when upgrading for `/mod last`. No existing records are
+migrated and no new environment variables are needed. Every record starts with `annotations: []`; each future
 annotation supports its own ID, author, message, and creation time. Original events and manual notes
 are append-only through the model; only annotation appends are accepted as model updates. The
 existing guild reset script retains moderation history.
