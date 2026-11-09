@@ -4,7 +4,11 @@ const {
   PermissionFlagsBits,
   SlashCommandBuilder
 } = require('discord.js');
-const { moderationHistory, recordManualEvent } = require('../../core/services/moderationService');
+const {
+  moderationHistory,
+  recordManualEvent,
+  latestModerationEvents
+} = require('../../core/services/moderationService');
 const { syncModerationAudit } = require('../features/moderationAudit');
 const { ephemeral } = require('../interactions');
 
@@ -39,6 +43,10 @@ data.addSubcommand((command) =>
   command.setName('sync').setDescription('Recupera gli eventi Discord degli ultimi 30 giorni')
 );
 
+data.addSubcommand((command) =>
+  command.setName('last').setDescription('Mostra gli ultimi 10 eventi di moderazione del server')
+);
+
 const labels = {
   strike: 'Strike',
   note: 'Nota',
@@ -64,29 +72,51 @@ function text(value, max = 240) {
 function eventLabel(event) {
   return event.actions.map((action) => labels[action.type]).join(' + ');
 }
-function header(event) {
-  return `**${dateFormat.format(event.occurredAt)} — ${eventLabel(event)}**\nModeratore: ${event.moderatorId ? `<@${event.moderatorId}>` : 'non disponibile'}`;
+function header(event, includeIds = false) {
+  const moderator = event.moderatorId
+    ? `<@${event.moderatorId}>${includeIds ? ` (ID: ${event.moderatorId})` : ''}`
+    : 'non disponibile';
+  return `**${dateFormat.format(event.occurredAt)} — ${eventLabel(event)}**\nModeratore: ${moderator}`;
+}
+function auditEvent(event, { includeTarget = false } = {}) {
+  const details = event.actions
+    .filter((action) => action.until)
+    .map((action) => `Timeout fino al: ${dateFormat.format(action.until)}`);
+  return [
+    header(event, includeTarget),
+    ...(includeTarget ? [`Utente: <@${event.targetId}> (ID: ${event.targetId})`] : []),
+    ...details,
+    `${event.type === 'note' ? 'Messaggio' : 'Motivo'}: ${event.reason ? text(event.reason) : 'non disponibile'}`,
+    event.discordAuditId ? `Fonte: Discord · Audit ID: ${event.discordAuditId}` : 'Fonte: manuale'
+  ].join('\n');
 }
 function auditDescription({ recent, total }) {
   if (!total) return 'Nessun evento di moderazione registrato.';
   return (
     `Ultimi ${recent.length} eventi su ${total}, dal più recente. Orari Europe/Rome. I testi lunghi sono abbreviati.\n\n` +
-    recent
-      .map((event) => {
-        const details = event.actions
-          .filter((action) => action.until)
-          .map((action) => `Timeout fino al: ${dateFormat.format(action.until)}`);
-        return [
-          header(event),
-          ...details,
-          `${event.type === 'note' ? 'Messaggio' : 'Motivo'}: ${event.reason ? text(event.reason) : 'non disponibile'}`,
-          event.discordAuditId
-            ? `Fonte: Discord · Audit ID: ${event.discordAuditId}`
-            : 'Fonte: manuale'
-        ].join('\n');
-      })
-      .join('\n\n')
+    recent.map((event) => auditEvent(event)).join('\n\n')
   );
+}
+function lastEmbeds(recent) {
+  if (!recent.length) {
+    return [
+      {
+        title: 'Ultimi eventi di moderazione',
+        description: 'Nessun evento di moderazione registrato.'
+      }
+    ];
+  }
+  // Five records per embed keep all ten records readable within Discord's per-embed limit.
+  const embeds = [];
+  for (let offset = 0; offset < recent.length; offset += 5) {
+    const batch = recent.slice(offset, offset + 5);
+    embeds.push({
+      title: `Ultimi eventi di moderazione — ${offset + 1}–${offset + batch.length} di ${recent.length}`,
+      description: batch.map((event) => auditEvent(event, { includeTarget: true })).join('\n\n'),
+      footer: { text: 'Dal più recente · Orari Europe/Rome · I testi lunghi sono abbreviati.' }
+    });
+  }
+  return embeds;
 }
 function viewDescription({ counts, recent, notes, total }) {
   if (!total) return 'Nessun evento di moderazione registrato.';
@@ -129,6 +159,12 @@ async function execute(interaction) {
     } finally {
       syncingGuilds.delete(interaction.guildId);
     }
+    return;
+  }
+  if (subcommand === 'last') {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    const recent = await latestModerationEvents(interaction.guildId);
+    await interaction.editReply({ ...privateContent(undefined), embeds: lastEmbeds(recent) });
     return;
   }
   const user = interaction.options.getUser('user', true);

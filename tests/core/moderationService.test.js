@@ -2,7 +2,8 @@ const ModerationEvent = require('../../src/core/models/ModerationEvent');
 const {
   recordManualEvent,
   recordDiscordEvent,
-  moderationHistory
+  moderationHistory,
+  latestModerationEvents
 } = require('../../src/core/services/moderationService');
 
 afterEach(() => ModerationEvent.deleteMany({}));
@@ -83,4 +84,53 @@ test('bounds history and notes while keeping full counts', async () => {
   expect(history.recent).toHaveLength(8);
   expect(history.notes).toHaveLength(3);
   expect(history.notes[0].reason).toBe('Note 11');
+});
+
+test('latest guild events include all targets and sources, ordered by event time and limited to ten', async () => {
+  const order = [6, 1, 10, 0, 8, 2, 11, 3, 9, 4, 7, 5];
+  for (const i of order) {
+    const type = i % 3 === 0 ? 'discord' : i % 3 === 1 ? 'strike' : 'note';
+    await ModerationEvent.create({
+      guildId: 'guild',
+      targetId: `target-${i}`,
+      moderatorId: 'staff',
+      type,
+      source: type === 'discord' ? 'discord' : 'manual',
+      reason: `Event ${i}`,
+      occurredAt: new Date(Date.UTC(2026, 10, 9, 12, i)),
+      actions: [{ type: type === 'discord' ? 'ban' : type }],
+      ...(type === 'discord' ? { discordAuditId: `audit-${i}` } : {})
+    });
+  }
+  await recordManualEvent({ ...manual, guildId: 'other', reason: 'Excluded guild' });
+  const events = await latestModerationEvents('guild');
+  expect(events.map((event) => event.reason)).toEqual(
+    Array.from({ length: 10 }, (_, index) => `Event ${11 - index}`)
+  );
+  expect(new Set(events.map((event) => event.targetId)).size).toBe(10);
+  expect(new Set(events.map((event) => event.type))).toEqual(
+    new Set(['discord', 'strike', 'note'])
+  );
+  expect(events.every((event) => event.guildId === 'guild')).toBe(true);
+  expect(await latestModerationEvents('empty')).toEqual([]);
+});
+
+test('latest events with equal timestamps use descending event IDs as a stable tiebreaker', async () => {
+  const occurredAt = new Date('2026-11-09T12:00:00Z');
+  const first = await ModerationEvent.create({
+    ...manual,
+    source: 'manual',
+    occurredAt,
+    actions: [{ type: 'strike' }]
+  });
+  const second = await ModerationEvent.create({
+    ...manual,
+    source: 'manual',
+    occurredAt,
+    actions: [{ type: 'strike' }]
+  });
+  expect((await latestModerationEvents('guild')).map((event) => String(event._id))).toEqual([
+    second.id,
+    first.id
+  ]);
 });
