@@ -46,6 +46,18 @@ Authorization: Bearer <your-jwt-token>
 }
 ```
 
+## V2 Game Awards API
+
+Authenticated members use `GET /api/v2/awards`, nomination-only IGDB search at
+`GET /api/v2/awards/games?q=...`, and final submissions at `POST /api/v2/awards/nominations`
+or `POST /api/v2/awards/ballots`. Each submission contains `editionId` and
+`selections: [{ categoryId, igdbIds }]`; the server supplies account identity.
+
+The `/api/v2/admin/awards` endpoints require the admin role. They manage current-year setup,
+manual review, phase launches with Europe/Rome closing dates, private winner confirmation and
+explicit publication. Member responses never contain raw submissions, vote totals or unpublished
+winners. See [Game Awards](Game-Awards.md) for the full endpoint and workflow reference.
+
 ## V2 Guide API
 
 The guide API uses the `/api/v2` base path and cookie or bearer-token authentication.

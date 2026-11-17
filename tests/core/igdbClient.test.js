@@ -5,6 +5,62 @@ const {
 } = require('../../src/core/providers/igdbClient');
 
 describe('IGDB client', () => {
+  test('resolves a nomination form in one IGDB request and rejects unsafe IDs', async () => {
+    const http = {
+      post: jest
+        .fn()
+        .mockResolvedValueOnce({ data: { access_token: 'token' } })
+        .mockResolvedValueOnce({
+          data: [
+            { id: 1, name: 'First' },
+            { id: 2, name: 'Second' }
+          ]
+        })
+    };
+    const client = createIgdbClient({ clientId: 'client', clientSecret: 'secret', http });
+    expect((await client.getGamesByIds([1, 2])).map((game) => game.igdbId)).toEqual([1, 2]);
+    expect(http.post).toHaveBeenCalledTimes(2);
+    expect(http.post.mock.calls[1][1]).toContain('where id = (1,2)');
+    await expect(client.getGamesByIds(['1); drop'])).rejects.toThrow('positive integers');
+    expect(await client.getGamesByIds([])).toEqual([]);
+    expect(http.post).toHaveBeenCalledTimes(2);
+  });
+  test('resolves canonical shortlist slugs together and maps them without choosing finalists', async () => {
+    const http = {
+      post: jest
+        .fn()
+        .mockResolvedValueOnce({ data: { access_token: 'token' } })
+        .mockResolvedValueOnce({
+          data: [
+            { id: 1, name: 'First', slug: 'first' },
+            { id: 2, name: 'Second', slug: 'second' }
+          ]
+        })
+    };
+    const client = createIgdbClient({ clientId: 'client', clientSecret: 'secret', http });
+    const games = await client.getGamesBySlugs(['first', 'second']);
+    expect(games.get('second').igdbId).toBe(2);
+    expect(http.post).toHaveBeenCalledTimes(2);
+    expect(http.post.mock.calls[1][1]).toContain('where slug = ("first","second")');
+    await expect(client.getGamesBySlugs(['../bad'])).rejects.toThrow('slug is invalid');
+  });
+  test('Awards search preserves all platforms and partial title matches', async () => {
+    const http = {
+      post: jest
+        .fn()
+        .mockResolvedValueOnce({ data: { access_token: 'token', expires_in: 3600 } })
+        .mockResolvedValueOnce({
+          data: [
+            { id: 1, name: 'Quest', platforms: [{ name: 'PC (Microsoft Windows)' }] },
+            { id: 2, name: 'Quest for Glory', platforms: [{ name: 'Nintendo Switch' }] },
+            { id: 3, name: 'Another Quest', platforms: [{ name: 'iOS' }] }
+          ]
+        })
+    };
+    const client = createIgdbClient({ clientId: 'client', clientSecret: 'secret', http });
+    expect((await client.searchGames('Quest')).map((game) => game.igdbId)).toEqual([1, 2, 3]);
+    expect(http.post.mock.calls[1][1]).not.toContain('where');
+  });
   test('escapes title input, caches OAuth, and accepts one desktop exact result', async () => {
     const http = {
       post: jest

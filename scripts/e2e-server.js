@@ -22,7 +22,8 @@ async function start() {
     CORS_ORIGINS: 'http://127.0.0.1:5174',
     JWT_ACCESS_SECRET: 'e'.repeat(32),
     JWT_REFRESH_SECRET: 'r'.repeat(32),
-    COOKIE_SECURE: 'false'
+    COOKIE_SECURE: 'false',
+    SERVER_STATUS_STALE_AFTER_MS: '3600000'
   });
   await connectDatabase(config);
   const [admin, friend] = await Promise.all([
@@ -240,7 +241,32 @@ async function start() {
     bestOffers: async (ids) =>
       new Map(ids.map((id) => [id, id === 'budget-brawlers-itad' ? budgetOffer : aquaOffer]))
   };
-  const server = createApp(config, { itadClient }).listen(config.port, config.host);
+  const awardsGames = [
+    {
+      igdbId: 901,
+      canonicalTitle: 'Aqua Quest',
+      igdbUrl: 'https://www.igdb.com/games/aqua-quest',
+      platforms: ['Nintendo Switch']
+    },
+    {
+      igdbId: 902,
+      canonicalTitle: 'Budget Brawlers',
+      igdbUrl: 'https://www.igdb.com/games/budget-brawlers',
+      platforms: ['PC']
+    }
+  ];
+  const igdbClient = {
+    getGamesByIds: async (ids) => awardsGames.filter((game) => ids.includes(game.igdbId)),
+    getGamesBySlugs: async (slugs) =>
+      new Map(
+        slugs.map((slug) => [slug, awardsGames.find((game) => game.igdbUrl.endsWith(`/${slug}`))])
+      ),
+    searchGames: async () => awardsGames.map((game) => ({ ...game, title: game.canonicalTitle })),
+    getGameById: async (id) => awardsGames.find((game) => game.igdbId === id) || null,
+    getGameBySlug: async (slug) =>
+      awardsGames.find((game) => game.igdbUrl.endsWith(`/${slug}`)) || null
+  };
+  const server = createApp(config, { itadClient, igdbClient }).listen(config.port, config.host);
   const stop = async () => {
     await new Promise((resolve) => server.close(resolve));
     await disconnectDatabase();

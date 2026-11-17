@@ -241,3 +241,17 @@ export const adminApi = {
   cancelRetroChallenge: (id, version, reason) =>
     request('post', `/admin/retroachievements/challenges/${id}/cancel`, { version, reason })
 }
+
+export const awardsApi = {
+  current: () => request('get', '/awards'),
+  search: (query) => request('get', `/awards/games?q=${encodeURIComponent(query)}`),
+  submit: (phase, editionId, selections) =>
+    request('post', `/awards/${phase}`, { editionId, selections }),
+  admin: () => request('get', '/admin/awards'),
+  create: () => request('post', '/admin/awards', {}),
+  categories: (version, categories) =>
+    request('put', '/admin/awards/categories', { version, categories }),
+  transition: (action, version, closesAt) =>
+    request('post', `/admin/awards/${action}`, { version, ...(closesAt ? { closesAt } : {}) }),
+  winners: (version, winners) => request('put', '/admin/awards/winners', { version, winners })
+}

@@ -139,6 +139,69 @@ function createIgdbClient({ clientId, clientSecret, http = axios.create({ timeou
     return tokenRequest;
   }
   return {
+    async getGamesByIds(ids) {
+      if (
+        !Array.isArray(ids) ||
+        ids.length > 120 ||
+        ids.some((id) => !Number.isSafeInteger(id) || id < 1)
+      )
+        throw new IgdbProviderError('IGDB IDs must be positive integers (at most 120)');
+      if (!ids.length) return [];
+      const query = `where id = (${ids.join(',')}); fields id,name,platforms.name,cover.image_id,first_release_date,url; limit 120;`;
+      try {
+        const response = await http.post('https://api.igdb.com/v4/games', query, {
+          headers: {
+            'Client-ID': clientId,
+            Authorization: `Bearer ${await accessToken()}`,
+            'Content-Type': 'text/plain'
+          }
+        });
+        return (response.data || []).map(mapGame);
+      } catch (error) {
+        if (error instanceof IgdbProviderError) throw error;
+        throw providerError(error, { operation: 'get_games_by_ids' });
+      }
+    },
+    async getGamesBySlugs(slugs) {
+      const games = new Map();
+      // Resolve a complete admin shortlist in bounded batches rather than one
+      // provider request per finalist. Slugs are still chosen manually.
+      for (let start = 0; start < slugs.length; start += 200) {
+        if (start) await wait(500);
+        const batch = slugs.slice(start, start + 200).map(escapeIgdbSlug);
+        const query = `where slug = (${batch.map((slug) => `"${slug}"`).join(',')}); fields id,name,slug,platforms.name,cover.image_id,first_release_date,url; limit 200;`;
+        try {
+          const response = await http.post('https://api.igdb.com/v4/games', query, {
+            headers: {
+              'Client-ID': clientId,
+              Authorization: `Bearer ${await accessToken()}`,
+              'Content-Type': 'text/plain'
+            }
+          });
+          for (const game of response.data || []) games.set(game.slug, mapGame(game));
+        } catch (error) {
+          if (error instanceof IgdbProviderError) throw error;
+          throw providerError(error, { operation: 'get_games_by_slugs' });
+        }
+      }
+      return games;
+    },
+    async searchGames(title) {
+      const query = `search "${escapeApicalypse(title)}"; fields id,name,platforms.name,cover.image_id,first_release_date,involved_companies.company.name,url; limit 20;`;
+      try {
+        const response = await http.post('https://api.igdb.com/v4/games', query, {
+          headers: {
+            'Client-ID': clientId,
+            Authorization: `Bearer ${await accessToken()}`,
+            'Content-Type': 'text/plain'
+          }
+        });
+        return (response.data || []).map(mapGame).map(candidateOf);
+      } catch (error) {
+        if (error instanceof IgdbProviderError) throw error;
+        throw providerError(error, { operation: 'search_games' });
+      }
+    },
     async searchTitle(title) {
       const normalized = normalizeTitle(title);
       const query = `search "${escapeApicalypse(normalized)}"; fields id,name,alternative_names.name,summary,genres.name,platforms.name,game_modes.name,rating,cover.image_id,first_release_date,videos.video_id,involved_companies.company.name,url; limit 10;`;

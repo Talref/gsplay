@@ -326,3 +326,12 @@ The public Caddy boundary proxies `/api/v2/*` and immutable `/uploads/guide/*` c
 - Branch hotfixes from the deployed release tag when `master` contains unreleased work.
 - Tag every successful production release (`v2.0.1`, `v2.1.0`, and so on).
 - Do not retain a permanent staging branch unless it has its own regularly used environment and database.
+
+### GS Game Awards
+
+Awards uses the new `awards_editions_v2` collection; the normal deployment bootstrap creates its
+unique year index. No existing data migration or new environment variable is required. Existing
+IGDB credentials must be configured for nomination search and canonical finalist lookup. Manage the
+current edition at `/admin/awards`; member participation and published winners are at `/awards`.
+Deadlines are chosen in Europe/Rome when each phase launches and cannot be extended afterward.
+See [Game Awards](Game-Awards.md) for workflow, privacy rules, persistence and verification details.
