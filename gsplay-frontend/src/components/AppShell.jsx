@@ -12,6 +12,7 @@ import {
   ListItemButton,
   ListItemText,
   Stack,
+  SvgIcon,
   Toolbar,
   Typography
 } from '@mui/material'
@@ -37,6 +38,13 @@ const memberLinks = [
     'Casual Friday',
     '/casual-friday',
     <CelebrationOutlinedIcon key="casual-friday" color="primary" />
+  ],
+  [
+    'Game Awards',
+    '/awards',
+    <SvgIcon key="awards" color="primary">
+      <path d="m2 6 5 4 5-7 5 7 5-4-3 13H5L2 6zm4 11h12l1.2-6-2.7 2.2L12 7l-4.5 6.2L4.8 11 6 17z" />
+    </SvgIcon>
   ],
   ['Retroclub', '/retro', <SportsEsportsOutlinedIcon key="retro" color="primary" />],
   ['Server', '/servers', <DnsOutlinedIcon key="servers" color="primary" />],
@@ -66,6 +74,14 @@ function Navigation({ user, pathname, closeDrawer }) {
         <>
           <ListItemButton component={Link} to="/admin" selected={pathname === '/admin'}>
             <ListItemText primary="Amministrazione" />
+          </ListItemButton>
+          <ListItemButton
+            component={Link}
+            to="/admin/awards"
+            selected={pathname === '/admin/awards'}
+            onClick={closeDrawer}
+          >
+            <ListItemText primary="Game Awards admin" />
           </ListItemButton>
           <ListItemButton
             component={Link}
@@ -187,6 +203,7 @@ export default function AppShell({ children }) {
           component="aside"
           sx={{
             width: 220,
+            flexShrink: 0,
             borderRight: 1,
             borderColor: 'divider',
             display: { xs: 'none', md: 'block' },
@@ -195,7 +212,11 @@ export default function AppShell({ children }) {
         >
           {navigation}
         </Box>
-        <Container component="main" maxWidth="xl" sx={{ flexGrow: 1, py: { xs: 3, md: 5 } }}>
+        <Container
+          component="main"
+          maxWidth="xl"
+          sx={{ flexGrow: 1, minWidth: 0, py: { xs: 3, md: 5 } }}
+        >
           {children}
         </Container>
       </Box>

@@ -21,6 +21,8 @@ const AdminRetroclub = lazy(() => import('./pages/AdminRetroclub'))
 const Servers = lazy(() => import('./pages/Servers'))
 const MostWanted = lazy(() => import('./pages/MostWanted'))
 const Retro = lazy(() => import('./pages/Retro'))
+const Awards = lazy(() => import('./pages/Awards'))
+const AdminAwards = lazy(() => import('./pages/AdminAwards'))
 
 function protectedPage(page) {
   return <ProtectedRoute>{page}</ProtectedRoute>
@@ -47,6 +49,8 @@ export default function App() {
             <Route path="/catalogue/:gameId" element={protectedPage(<GameDetail />)} />
             <Route path="/most-wanted" element={protectedPage(<MostWanted />)} />
             <Route path="/retro" element={protectedPage(<Retro />)} />
+            <Route path="/awards" element={protectedPage(<Awards />)} />
+            <Route path="/admin/awards" element={protectedPage(<AdminAwards />)} />
             <Route path="/casual-friday" element={protectedPage(<CasualFriday />)} />
             <Route path="/casual-friday/tools" element={protectedPage(<CasualFridayManage />)} />
             <Route path="/guide" element={protectedPage(<Guide />)} />
